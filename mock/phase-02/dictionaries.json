@@ -1,0 +1,21 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "dictCode": "ALL",
+    "dictName": "全部核心字典",
+    "items": [
+      {"value":"roleCode","label":"角色枚举","sort":1,"enabled":true,"remark":"角色和权限使用"},
+      {"value":"orderStatus","label":"订单状态","sort":2,"enabled":true,"remark":"预约与护理履约使用"},
+      {"value":"auditStatus","label":"审核状态","sort":3,"enabled":true,"remark":"文件、资料和资质审核使用"},
+      {"value":"bindingStatus","label":"绑定状态","sort":4,"enabled":true,"remark":"长辈家属绑定使用"},
+      {"value":"reminderStatus","label":"提醒状态","sort":5,"enabled":true,"remark":"提醒中心使用"},
+      {"value":"metricStatus","label":"指标状态","sort":6,"enabled":true,"remark":"护理指标校验使用"},
+      {"value":"ticketStatus","label":"工单状态","sort":7,"enabled":true,"remark":"人工协助和客服使用"},
+      {"value":"complaintStatus","label":"投诉状态","sort":8,"enabled":true,"remark":"投诉处理使用"},
+      {"value":"appealStatus","label":"申诉状态","sort":9,"enabled":true,"remark":"护理申诉使用"},
+      {"value":"articleStatus","label":"文章状态","sort":10,"enabled":true,"remark":"培训文章上下架使用"}
+    ]
+  },
+  "traceId": "mock-phase-02-dictionaries"
+}

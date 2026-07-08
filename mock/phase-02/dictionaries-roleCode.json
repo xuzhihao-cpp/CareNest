@@ -1,0 +1,16 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "dictCode": "roleCode",
+    "dictName": "角色枚举",
+    "items": [
+      {"value":"ELDER","label":"长辈","sort":1,"enabled":true,"remark":"长辈端用户"},
+      {"value":"FAMILY","label":"家属","sort":2,"enabled":true,"remark":"家属端用户"},
+      {"value":"NURSE","label":"护理人员","sort":3,"enabled":true,"remark":"护理端用户"},
+      {"value":"ADMIN","label":"管理员","sort":4,"enabled":true,"remark":"管理端管理员"},
+      {"value":"CUSTOMER_SERVICE","label":"客服","sort":5,"enabled":true,"remark":"客服与工单处理"}
+    ]
+  },
+  "traceId": "mock-phase-02-role-code"
+}
