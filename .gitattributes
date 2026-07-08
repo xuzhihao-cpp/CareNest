@@ -1,0 +1,16 @@
+* text=auto
+
+*.java text eol=crlf
+*.xml text eol=crlf
+*.yml text eol=crlf
+*.yaml text eol=crlf
+*.json text eol=crlf
+*.md text eol=crlf
+*.sql text eol=crlf
+*.ps1 text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.docx binary
