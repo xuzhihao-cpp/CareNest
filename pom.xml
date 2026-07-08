@@ -14,7 +14,6 @@
 <description>互联网智慧护理平台父工程</description>
 
     <modules>
-        <module>backend-common</module>
         <module>backend-user</module>
         <module>backend-care-admin</module>
     </modules>
