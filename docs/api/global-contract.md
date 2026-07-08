@@ -12,7 +12,7 @@
 | 文件上传 | `multipart/form-data` |
 | 上传返回 | `{fileId,url,type,auditStatus}` |
 | ID 命名 | `elderId`、`familyId`、`nurseId`、`orderId`、`serviceId` |
-| 状态来源 | 状态值统一维护在 `docs/data-dictionary.md` |
+| 状态来源 | 状态值统一维护在 `docs/dictionary/data-dictionary.md` |
 
 ## 统一响应结构
 
@@ -65,7 +65,7 @@
 
 任何接口路径、请求字段、响应字段、状态枚举的变更，必须同步更新：
 
-- `docs/data-dictionary.md`
+- `docs/dictionary/data-dictionary.md`
 - `docs/api/`
 - `mock/`
 - 对应 `docs/stage-check/phase-XX.md`

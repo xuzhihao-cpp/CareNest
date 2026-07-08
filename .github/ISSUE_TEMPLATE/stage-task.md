@@ -40,8 +40,8 @@ List fixed API paths, methods, request fields, and response fields.
 ## Data Dictionary Impact
 
 - [ ] No new shared fields.
-- [ ] New shared fields have been added to `docs/data-dictionary.md`.
-- [ ] New status values have been added to `docs/data-dictionary.md`.
+- [ ] New shared fields have been added to `docs/dictionary/data-dictionary.md`.
+- [ ] New status values have been added to `docs/dictionary/data-dictionary.md`.
 
 ## Acceptance Evidence
 

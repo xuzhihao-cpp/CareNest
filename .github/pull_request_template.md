@@ -9,7 +9,7 @@
 - [ ] No API path changed.
 - [ ] No request/response field changed.
 - [ ] No status enum changed.
-- [ ] If any field/status/API changed, `docs/data-dictionary.md` and `docs/api/` were updated.
+- [ ] If any field/status/API changed, `docs/dictionary/data-dictionary.md` and `docs/api/` were updated.
 - [ ] Mock JSON was updated when frontend or API shape changed.
 
 ## Stage Evidence

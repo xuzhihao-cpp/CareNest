@@ -6,7 +6,7 @@
 /.github/ @xuzhihao-cpp
 
 # Data and database
-/docs/data-dictionary.md @xuzhihao-cpp
+/docs/dictionary/data-dictionary.md @xuzhihao-cpp
 /db/ @xuzhihao-cpp
 
 # API and backend
