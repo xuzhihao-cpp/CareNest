@@ -91,7 +91,7 @@
 
 ## 字段锁定
 
-阶段 1-2 中出现的字段必须已记录在 `docs/data-dictionary.md`：
+阶段 1-2 中出现的字段必须已记录在 `docs/dictionary/data-dictionary.md`：
 
 - `code`
 - `message`
