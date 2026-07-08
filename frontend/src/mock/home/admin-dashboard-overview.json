@@ -1,0 +1,19 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "cards": [
+      {"key": "orderTotal", "label": "订单总数", "value": "1248", "unit": "单", "trend": "较昨日 +12.5%"},
+      {"key": "serviceCompletion", "label": "完成率", "value": "95.6", "unit": "%", "trend": "较昨日 +2.1%"},
+      {"key": "pendingAudit", "label": "待审核", "value": "28", "unit": "项", "trend": "3 项需优先处理"}
+    ],
+    "quickActions": [
+      {"key": "processQueue", "label": "处理队列", "path": "/pages/admin/index?view=process-queue", "permissionCode": "admin:queue:process"},
+      {"key": "dispatchOrder", "label": "订单派单", "path": "/pages/admin/index?view=dispatch-order", "permissionCode": "order:dispatch"},
+      {"key": "healthReview", "label": "健康审核", "path": "/pages/admin/index?view=health-review", "permissionCode": "health:review"}
+    ],
+    "todoCount": 28
+  },
+  "traceId": "mock-4"
+}
+

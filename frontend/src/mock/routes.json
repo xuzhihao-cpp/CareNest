@@ -1,0 +1,36 @@
+{
+  "records": [
+    {
+      "roleCode": "ELDER",
+      "routePath": "/elder",
+      "appTitle": "长辈端",
+      "entryLabel": "长辈端入口",
+      "emptyStateTitle": "长辈端业务模块待接入",
+      "emptyStateDescription": "阶段1仅建立路由、布局和空状态，后续阶段再接入健康档案、提醒和报告确认。"
+    },
+    {
+      "roleCode": "FAMILY",
+      "routePath": "/family",
+      "appTitle": "家属端",
+      "entryLabel": "家属端入口",
+      "emptyStateTitle": "家属端业务模块待接入",
+      "emptyStateDescription": "阶段1仅建立路由、布局和空状态，后续阶段再接入绑定、预约下单和服务确认。"
+    },
+    {
+      "roleCode": "NURSE",
+      "routePath": "/nurse",
+      "appTitle": "护理端",
+      "entryLabel": "护理端入口",
+      "emptyStateTitle": "护理端业务模块待接入",
+      "emptyStateDescription": "阶段1仅建立路由、布局和空状态，后续阶段再接入任务工作台、服务记录和留档。"
+    },
+    {
+      "roleCode": "ADMIN",
+      "routePath": "/admin",
+      "appTitle": "管理端",
+      "entryLabel": "管理端入口",
+      "emptyStateTitle": "管理端业务模块待接入",
+      "emptyStateDescription": "阶段1仅建立路由、布局和空状态，后续阶段再接入订单管理、派单和看板。"
+    }
+  ]
+}

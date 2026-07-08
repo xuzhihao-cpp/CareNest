@@ -6,21 +6,22 @@
 
 ## 验收清单
 
-- [ ] `docs/dictionary/data-dictionary.md` 包含字段字典表。
-- [ ] `docs/dictionary/data-dictionary.md` 包含状态和枚举字典表。
-- [ ] 核心字典包含 `roleCode`、`orderStatus`、`auditStatus`、`bindingStatus`、`reminderStatus`、`metricStatus`、`ticketStatus`、`complaintStatus`、`appealStatus`、`articleStatus`。
-- [ ] `roleCode` 包含 `ELDER`、`FAMILY`、`NURSE`、`ADMIN`、`CUSTOMER_SERVICE`。
-- [ ] `docs/api/global-contract.md` 冻结统一响应、分页、认证、时间和上传规则。
-- [ ] `docs/api/phase-01-02-api.md` 记录阶段 1-2 接口契约。
-- [ ] `mock/phase-01/` 和 `mock/phase-02/` 中的 JSON 字段与接口文档一致。
+- [x] `docs/dictionary/data-dictionary.md` 包含字段字典表。
+- [x] `docs/dictionary/data-dictionary.md` 包含状态和枚举字典表。
+- [x] 核心字典包含 `roleCode`、`orderStatus`、`auditStatus`、`bindingStatus`、`reminderStatus`、`metricStatus`、`ticketStatus`、`complaintStatus`、`appealStatus`、`articleStatus`。
+- [x] `roleCode` 包含 `ELDER`、`FAMILY`、`NURSE`、`ADMIN`、`CUSTOMER_SERVICE`。
+- [x] `docs/api/global-contract.md` 冻结统一响应、分页、认证、时间和上传规则。
+- [x] `docs/api/phase-01-02-api.md` 记录阶段 1-2 接口契约。
+- [x] `mock/phase-01/` 和 `mock/phase-02/` 中的 JSON 字段与接口文档一致。
 
 ## 证据记录
 
 | 证据类型 | 路径或说明 | 验收人 | 结果 |
 | --- | --- | --- | --- |
-| 数据字典 | `docs/dictionary/data-dictionary.md` |  |  |
-| 接口契约 | `docs/api/global-contract.md`, `docs/api/phase-01-02-api.md` |  |  |
-| Mock JSON | `mock/phase-01/`, `mock/phase-02/` |  |  |
+| 数据字典 | `docs/dictionary/data-dictionary.md` | Codex | 通过 |
+| 接口契约 | `docs/api/global-contract.md`, `docs/api/phase-01-02-api.md` | Codex | 通过 |
+| Mock JSON | `mock/phase-01/`, `mock/phase-02/` | Codex | 通过 |
+| 前端验收 | `docs/stage-check/stage-02-登录与角色菜单MVP-frontend.md` | Codex | 通过 |
 
 ## 备注
 

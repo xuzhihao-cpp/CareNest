@@ -1,0 +1,19 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "cards": [
+      {"key": "todayReminders", "label": "今日提醒", "value": "4", "unit": "项", "trend": "2 项待完成"},
+      {"key": "nextService", "label": "上门服务", "value": "09:45", "unit": "到达", "trend": "护理员已出发"},
+      {"key": "healthFeedback", "label": "健康反馈", "value": "稳定", "unit": "", "trend": "更新于 09:30"}
+    ],
+    "quickActions": [
+      {"key": "voiceAssistant", "label": "AI 语音", "path": "/pages/elder/index?view=voice-assistant", "permissionCode": "elder:home:view"},
+      {"key": "emergency", "label": "一键求助", "path": "/pages/elder/index?view=emergency", "permissionCode": "emergency:create"},
+      {"key": "todayReminders", "label": "提醒列表", "path": "/pages/elder/index?view=today-reminders", "permissionCode": "reminder:update"}
+    ],
+    "todoCount": 2
+  },
+  "traceId": "mock-4"
+}
+

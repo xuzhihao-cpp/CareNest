@@ -89,6 +89,106 @@
 }
 ```
 
+## POST /api/v1/auth/login
+
+用途：登录并返回 token、当前用户和角色菜单。阶段 2 使用固定演示账号。
+
+### Request
+
+```json
+{
+  "username": "elder_demo",
+  "password": "CareNest@2026"
+}
+```
+
+### Response
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "token": "mock-token-elder",
+    "userId": "user-elder-001",
+    "displayName": "张奶奶",
+    "roles": ["ELDER"],
+    "menus": [
+      {"name":"长辈首页","path":"/pages/elder/index","icon":"home"}
+    ]
+  },
+  "traceId": "mock-phase-02-login"
+}
+```
+
+### Error Example
+
+```json
+{
+  "code": 401,
+  "message": "用户名或密码错误",
+  "data": {},
+  "traceId": "mock-phase-02-login-failed"
+}
+```
+
+## POST /api/v1/auth/logout
+
+用途：退出登录，清理当前 token。
+
+### Response
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {},
+  "traceId": "mock-phase-02-logout"
+}
+```
+
+## GET /api/v1/auth/me
+
+用途：获取当前登录用户。
+
+### Response
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "userId": "user-elder-001",
+    "displayName": "张奶奶",
+    "roles": ["ELDER"],
+    "menus": [
+      {"name":"长辈首页","path":"/pages/elder/index","icon":"home"}
+    ]
+  },
+  "traceId": "mock-phase-02-me"
+}
+```
+
+## GET /api/v1/auth/menus
+
+用途：获取当前登录用户的角色菜单。
+
+### Response
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "menus": [
+      {"name":"长辈首页","path":"/pages/elder/index","icon":"home"},
+      {"name":"今日提醒","path":"/pages/elder/index","icon":"reminder"}
+    ]
+  },
+  "traceId": "mock-phase-02-menus"
+}
+```
+
 ## 字段锁定
 
 阶段 1-2 中出现的字段必须已记录在 `docs/dictionary/data-dictionary.md`：
@@ -113,3 +213,13 @@
 - `sort`
 - `enabled`
 - `remark`
+- `username`
+- `password`
+- `token`
+- `userId`
+- `displayName`
+- `roles`
+- `menus`
+- `name`
+- `path`
+- `icon`
