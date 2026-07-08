@@ -37,7 +37,7 @@ chore: update github templates
 
 ## 字段和状态变更规则
 
-以下改动必须同步更新 `docs/data-dictionary.md`：
+以下改动必须同步更新 `docs/dictionary/data-dictionary.md`：
 
 - 新增或修改 API 字段
 - 新增或修改数据库列
@@ -59,7 +59,7 @@ chore: update github templates
 
 | 路径 | 责任 |
 | --- | --- |
-| `docs/data-dictionary.md` | 数据负责人维护，所有成员引用。 |
+| `docs/dictionary/data-dictionary.md` | 数据负责人维护，所有成员引用。 |
 | `docs/api/` | 后端负责人维护，前端和 mock 必须遵守。 |
 | `db/` | 数据负责人维护，阶段 3 后写入 SQL 和 ER 图。 |
 | `frontend/` | 前端负责人维护。 |

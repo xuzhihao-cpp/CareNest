@@ -6,8 +6,8 @@
 
 ## 验收清单
 
-- [ ] `docs/data-dictionary.md` 包含字段字典表。
-- [ ] `docs/data-dictionary.md` 包含状态和枚举字典表。
+- [ ] `docs/dictionary/data-dictionary.md` 包含字段字典表。
+- [ ] `docs/dictionary/data-dictionary.md` 包含状态和枚举字典表。
 - [ ] 核心字典包含 `roleCode`、`orderStatus`、`auditStatus`、`bindingStatus`、`reminderStatus`、`metricStatus`、`ticketStatus`、`complaintStatus`、`appealStatus`、`articleStatus`。
 - [ ] `roleCode` 包含 `ELDER`、`FAMILY`、`NURSE`、`ADMIN`、`CUSTOMER_SERVICE`。
 - [ ] `docs/api/global-contract.md` 冻结统一响应、分页、认证、时间和上传规则。
@@ -18,7 +18,7 @@
 
 | 证据类型 | 路径或说明 | 验收人 | 结果 |
 | --- | --- | --- | --- |
-| 数据字典 | `docs/data-dictionary.md` |  |  |
+| 数据字典 | `docs/dictionary/data-dictionary.md` |  |  |
 | 接口契约 | `docs/api/global-contract.md`, `docs/api/phase-01-02-api.md` |  |  |
 | Mock JSON | `mock/phase-01/`, `mock/phase-02/` |  |  |
 
