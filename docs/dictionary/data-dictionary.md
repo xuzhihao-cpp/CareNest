@@ -83,32 +83,6 @@
 | common | OperationLog | bizId | biz_id | 业务 ID | string | no |  | 业务对象主键 |
 | common | OperationLog | beforeValue | before_value | 变更前数据 | object | no |  | JSON 保存 |
 | common | OperationLog | afterValue | after_value | 变更后数据 | object | no |  | JSON 保存 |
-| binding | AuthorizationScope | scopeCode | scope_code | 授权范围编码 | string | yes | bindingScope | 家属授权范围编码 |
-| binding | AuthorizationScope | scopeName | scope_name | 授权范围名称 | string | yes |  | 授权范围中文名称 |
-| elder | ElderProfile | elderName | elder_name | 长辈姓名 | string | yes |  | 长辈基础档案 |
-| elder | ElderProfile | gender | gender | 性别 | string | no | gender | 长辈基础档案 |
-| elder | ElderProfile | birthDate | birth_date | 出生日期 | date | no |  | 用于计算年龄 |
-| elder | ElderProfile | careLevel | care_level | 照护等级 | string | no | careLevel | 长辈基础档案 |
-| elder | ElderProfile | emergencyContactName | emergency_contact_name | 紧急联系人姓名 | string | no |  | 长辈基础档案 |
-| elder | ElderProfile | emergencyContactPhone | emergency_contact_phone | 紧急联系人电话 | string | no |  | 长辈基础档案 |
-| elder | ElderProfile | healthSummary | health_summary | 健康摘要 | string | no |  | 护理前摘要 |
-| elder | ElderContact | contactId | contact_id | 联系人 ID | string | yes |  | 联系人主键 |
-| elder | ElderContact | contactName | contact_name | 联系人姓名 | string | yes |  | 联系人信息 |
-| elder | ElderContact | contactPhone | contact_phone | 联系人电话 | string | yes |  | 联系人信息 |
-| elder | ElderContact | relationType | relation_type | 关系类型 | string | no | relationType | 与长辈关系 |
-| elder | HealthArchiveChangeLog | changeLogId | change_log_id | 健康档案变更日志 ID | string | yes |  | 档案变更留痕 |
-| elder | HealthArchiveChangeLog | changeType | change_type | 变更类型 | string | yes |  | 档案变更类型 |
-| service | ServiceItem | serviceName | service_name | 服务项目名称 | string | yes |  | 管理端维护 |
-| service | ServiceItem | serviceDesc | service_desc | 服务说明 | string | no |  | 家属端展示 |
-| service | ServiceItem | priceCent | price_cent | 价格分 | integer | yes |  | 金额统一用分 |
-| service | ServiceItem | durationMinutes | duration_minutes | 服务时长分钟 | integer | yes |  | 服务项目时长 |
-| service | ServiceItem | serviceStatus | service_status | 服务状态 | string | yes | serviceStatus | 上下架使用 |
-| address | ServiceAddress | addressId | address_id | 服务地址 ID | string | yes |  | 服务地址主键 |
-| address | ServiceAddress | provinceCode | province_code | 省份编码 | string | yes |  | 行政区划 |
-| address | ServiceAddress | cityCode | city_code | 城市编码 | string | yes |  | 行政区划 |
-| address | ServiceAddress | regionCode | region_code | 区县编码 | string | yes |  | 行政区划 |
-| address | ServiceAddress | detailAddress | detail_address | 详细地址 | string | yes |  | 上门服务地址 |
-| address | ServiceAddress | isDefault | is_default | 是否默认地址 | boolean | yes |  | 预约默认选择 |
 | common | BaseEntity | createdAt | created_at | 创建时间 | datetime | yes |  | 数据库通用审计字段 |
 | common | BaseEntity | updatedAt | updated_at | 更新时间 | datetime | yes |  | 数据库通用审计字段 |
 
@@ -136,10 +110,6 @@
 | dictionaryCode | 字典编码 | articleStatus | 文章状态 | 11 | true | 培训文章上下架使用 |
 | dictionaryCode | 字典编码 | accountStatus | 账号状态 | 12 | true | 登录账号启停使用 |
 | dictionaryCode | 字典编码 | bindingScope | 授权范围 | 13 | true | 长辈家属绑定授权范围 |
-| dictionaryCode | 字典编码 | gender | 性别 | 14 | true | 长辈基础档案 |
-| dictionaryCode | 字典编码 | careLevel | 照护等级 | 15 | true | 长辈基础档案 |
-| dictionaryCode | 字典编码 | relationType | 关系类型 | 16 | true | 长辈家属关系 |
-| dictionaryCode | 字典编码 | serviceStatus | 服务状态 | 17 | true | 服务项目上下架 |
 | accountStatus | 账号状态 | ENABLED | 启用 | 1 | true | 账号可登录 |
 | accountStatus | 账号状态 | DISABLED | 禁用 | 2 | true | 账号不可登录 |
 | accountStatus | 账号状态 | LOCKED | 锁定 | 3 | true | 安全策略锁定 |
@@ -149,18 +119,6 @@
 | bindingScope | 授权范围 | REPORT_VIEW | 查看服务报告 | 4 | true | 家属可查看报告 |
 | bindingScope | 授权范围 | REPORT_CONFIRM | 确认服务报告 | 5 | true | 家属可确认报告 |
 | bindingScope | 授权范围 | ARCHIVE_EDIT | 编辑归档信息 | 6 | true | 家属可维护归档信息 |
-| gender | 性别 | MALE | 男 | 1 | true | 长辈基础档案 |
-| gender | 性别 | FEMALE | 女 | 2 | true | 长辈基础档案 |
-| gender | 性别 | UNKNOWN | 未知 | 3 | true | 长辈基础档案 |
-| careLevel | 照护等级 | LEVEL_1 | 一级照护 | 1 | true | 轻度照护 |
-| careLevel | 照护等级 | LEVEL_2 | 二级照护 | 2 | true | 中度照护 |
-| careLevel | 照护等级 | LEVEL_3 | 三级照护 | 3 | true | 重度照护 |
-| relationType | 关系类型 | SON | 儿子 | 1 | true | 家属关系 |
-| relationType | 关系类型 | DAUGHTER | 女儿 | 2 | true | 家属关系 |
-| relationType | 关系类型 | SPOUSE | 配偶 | 3 | true | 家属关系 |
-| relationType | 关系类型 | OTHER | 其他 | 4 | true | 家属关系 |
-| serviceStatus | 服务状态 | ON_SHELF | 已上架 | 1 | true | 家属端可见 |
-| serviceStatus | 服务状态 | OFF_SHELF | 已下架 | 2 | true | 家属端不可见 |
 | orderStatus | 订单状态 | WAIT_DISPATCH | 待派单 | 1 | true | 订单已提交，等待派单 |
 | orderStatus | 订单状态 | DISPATCHED | 已派单 | 2 | true | 管理端已派给护理人员 |
 | orderStatus | 订单状态 | ACCEPTED | 已接单 | 3 | true | 护理人员已接单 |
