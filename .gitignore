@@ -44,6 +44,10 @@ Thumbs.db
 *.tar.gz
 *.rar
 
+# Local tool/runtime cache
+.tools/
+.m2/
+
 # Virtual machine crash logs
 hs_err_pid*
 replay_pid*

@@ -1,0 +1,9 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "roleCode": "FAMILY",
+    "permissions": ["FAMILY_ELDER_VIEW", "FAMILY_ORDER_CREATE"]
+  },
+  "traceId": "mock-3"
+}

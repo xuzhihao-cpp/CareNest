@@ -1,0 +1,9 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "roleCode": "NURSE",
+    "permissions": ["NURSE_ORDER_VIEW", "NURSE_REPORT_CREATE", "NURSE_APPEAL_CREATE"]
+  },
+  "traceId": "mock-3"
+}

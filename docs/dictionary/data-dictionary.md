@@ -1,6 +1,6 @@
 # CareNest 数据字典与状态字典
 
-本文件是阶段 2 的唯一人工维护数据字典源。前端 mock、后端 DTO、数据库字段和接口文档必须优先引用本文件。
+本文件是阶段 3 的唯一人工维护数据字典源。前端 mock、后端 DTO、数据库字段和接口文档必须优先引用本文件。
 
 ## 命名规则
 
@@ -120,6 +120,17 @@
 | roleCode | 角色枚举 | NURSE | 护理人员 | 3 | true | 护理端用户 |
 | roleCode | 角色枚举 | ADMIN | 管理员 | 4 | true | 管理端管理员 |
 | roleCode | 角色枚举 | CUSTOMER_SERVICE | 客服 | 5 | true | 客服与工单处理 |
+| permissionCode | 权限编码 | ELDER_REMINDER_VIEW | 查看提醒 | 1 | true | 长辈端按钮权限 |
+| permissionCode | 权限编码 | ELDER_AI_CHAT | AI 对话 | 2 | true | 长辈端按钮权限 |
+| permissionCode | 权限编码 | FAMILY_ELDER_VIEW | 查看长辈档案 | 3 | true | 家属端按钮权限 |
+| permissionCode | 权限编码 | FAMILY_ORDER_CREATE | 创建护理订单 | 4 | true | 家属端按钮权限 |
+| permissionCode | 权限编码 | NURSE_ORDER_VIEW | 查看护理订单 | 5 | true | 护理端按钮权限 |
+| permissionCode | 权限编码 | NURSE_REPORT_CREATE | 创建服务报告 | 6 | true | 护理端按钮权限 |
+| permissionCode | 权限编码 | NURSE_APPEAL_CREATE | 提交申诉 | 7 | true | 护理端按钮权限 |
+| permissionCode | 权限编码 | ADMIN_DASHBOARD_VIEW | 查看管理看板 | 8 | true | 管理端按钮权限 |
+| permissionCode | 权限编码 | ROLE_PERMISSION_MANAGE | 管理角色权限 | 9 | true | 管理端接口权限 |
+| permissionCode | 权限编码 | CUSTOMER_SERVICE_TICKET_HANDLE | 处理客服工单 | 10 | true | 客服端按钮权限 |
+| operationType | 操作类型 | UPDATE_ROLE_PERMISSIONS | 更新角色权限 | 1 | true | 阶段 3 管理端权限变更日志 |
 | healthStatus | 健康检查状态 | UP | 正常 | 1 | true | 服务可用 |
 | healthStatus | 健康检查状态 | DOWN | 异常 | 2 | true | 服务不可用 |
 | dictionaryCode | 字典编码 | ALL | 全部核心字典 | 1 | true | 字典目录接口使用 |
