@@ -1,0 +1,12 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "token": "mock-token-admin",
+    "userId": "admin-001",
+    "displayName": "管理员演示账号",
+    "roles": ["ADMIN"],
+    "menus": ["/admin/home", "/admin/users", "/admin/dashboard"]
+  },
+  "traceId": "mock-2"
+}

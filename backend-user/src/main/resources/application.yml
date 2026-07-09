@@ -1,0 +1,6 @@
+server:
+  port: ${BACKEND_USER_PORT:8081}
+
+spring:
+  application:
+    name: carenest-backend-user

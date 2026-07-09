@@ -1,0 +1,12 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "token": "mock-token-family",
+    "userId": "family-001",
+    "displayName": "家属演示账号",
+    "roles": ["FAMILY"],
+    "menus": ["/family/home", "/family/elders", "/family/orders"]
+  },
+  "traceId": "mock-2"
+}

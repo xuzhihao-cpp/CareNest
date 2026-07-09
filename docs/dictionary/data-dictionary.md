@@ -1,6 +1,6 @@
 # CareNest 数据字典与状态字典
 
-本文件是阶段 2 的唯一人工维护数据字典源。前端 mock、后端 DTO、数据库字段和接口文档必须优先引用本文件。
+本文件是阶段 3 的唯一人工维护数据字典源。前端 mock、后端 DTO、数据库字段和接口文档必须优先引用本文件。
 
 ## 命名规则
 
@@ -41,7 +41,19 @@
 | phase-02 | DictItem | enabled | enabled | 是否启用 | boolean | yes |  | false 表示暂不使用 |
 | phase-02 | DictItem | remark | remark | 备注 | string | no |  | 说明业务含义 |
 | identity | User | userId | user_id | 用户 ID | string | yes |  | 登录用户唯一 ID |
+| identity | LoginRequest | username | username | 登录账号 | string | yes |  | 固定演示账号用户名 |
+| identity | LoginRequest | password | password | 登录密码 | string | yes |  | 仅请求使用，不在响应中返回 |
+| identity | AuthResponse | token | token | 登录令牌 | string | yes |  | Authorization Bearer 使用 |
+| identity | AuthResponse | displayName | display_name | 展示名称 | string | yes |  | 当前用户展示名称 |
+| identity | AuthResponse | roles | roles | 角色列表 | array | yes | roleCode | 当前用户角色编码列表 |
+| identity | AuthResponse | menus | menus | 菜单路径列表 | array | yes |  | 第一个元素为角色首页路径 |
 | identity | User | roleCode | role_code | 角色编码 | string | yes | roleCode | 角色和菜单权限使用 |
+| identity | PermissionResponse | roleCode | role_code | 角色编码 | string | yes | roleCode | 当前用户主角色或被配置角色 |
+| identity | PermissionResponse | permissions | permissions | 权限编码列表 | array | yes | permissionCode | 前端按钮和接口权限判断使用 |
+| identity | PermissionRequest | permissionCodes | permission_codes | 权限编码列表 | array | yes | permissionCode | 管理端为角色重新分配权限 |
+| identity | SysPermission | permissionCode | permission_code | 权限编码 | string | yes | permissionCode | 阶段 3 权限点唯一编码 |
+| identity | RolePermission | roleId | role_id | 角色 ID | string | yes | roleCode | 阶段 3 MVP 路径参数使用 roleCode |
+| identity | OperationLog | operationType | operation_type | 操作类型 | string | yes | operationType | 管理端权限变更审计 |
 | elder | ElderProfile | elderId | elder_id | 长辈 ID | string | yes |  | 长辈业务主键 |
 | family | FamilyProfile | familyId | family_id | 家属 ID | string | yes |  | 家属业务主键 |
 | nurse | NurseProfile | nurseId | nurse_id | 护理人员 ID | string | yes |  | 护理人员业务主键 |
@@ -71,6 +83,17 @@
 | roleCode | 角色枚举 | NURSE | 护理人员 | 3 | true | 护理端用户 |
 | roleCode | 角色枚举 | ADMIN | 管理员 | 4 | true | 管理端管理员 |
 | roleCode | 角色枚举 | CUSTOMER_SERVICE | 客服 | 5 | true | 客服与工单处理 |
+| permissionCode | 权限编码 | ELDER_REMINDER_VIEW | 查看提醒 | 1 | true | 长辈端按钮权限 |
+| permissionCode | 权限编码 | ELDER_AI_CHAT | AI 对话 | 2 | true | 长辈端按钮权限 |
+| permissionCode | 权限编码 | FAMILY_ELDER_VIEW | 查看长辈档案 | 3 | true | 家属端按钮权限 |
+| permissionCode | 权限编码 | FAMILY_ORDER_CREATE | 创建护理订单 | 4 | true | 家属端按钮权限 |
+| permissionCode | 权限编码 | NURSE_ORDER_VIEW | 查看护理订单 | 5 | true | 护理端按钮权限 |
+| permissionCode | 权限编码 | NURSE_REPORT_CREATE | 创建服务报告 | 6 | true | 护理端按钮权限 |
+| permissionCode | 权限编码 | NURSE_APPEAL_CREATE | 提交申诉 | 7 | true | 护理端按钮权限 |
+| permissionCode | 权限编码 | ADMIN_DASHBOARD_VIEW | 查看管理看板 | 8 | true | 管理端按钮权限 |
+| permissionCode | 权限编码 | ROLE_PERMISSION_MANAGE | 管理角色权限 | 9 | true | 管理端接口权限 |
+| permissionCode | 权限编码 | CUSTOMER_SERVICE_TICKET_HANDLE | 处理客服工单 | 10 | true | 客服端按钮权限 |
+| operationType | 操作类型 | UPDATE_ROLE_PERMISSIONS | 更新角色权限 | 1 | true | 阶段 3 管理端权限变更日志 |
 | healthStatus | 健康检查状态 | UP | 正常 | 1 | true | 服务可用 |
 | healthStatus | 健康检查状态 | DOWN | 异常 | 2 | true | 服务不可用 |
 | dictionaryCode | 字典编码 | ALL | 全部核心字典 | 1 | true | 字典目录接口使用 |
@@ -84,6 +107,8 @@
 | dictionaryCode | 字典编码 | complaintStatus | 投诉状态 | 9 | true | 投诉处理使用 |
 | dictionaryCode | 字典编码 | appealStatus | 申诉状态 | 10 | true | 护理申诉使用 |
 | dictionaryCode | 字典编码 | articleStatus | 文章状态 | 11 | true | 培训文章上下架使用 |
+| dictionaryCode | 字典编码 | permissionCode | 权限编码 | 12 | true | 阶段 3 权限拦截使用 |
+| dictionaryCode | 字典编码 | operationType | 操作类型 | 13 | true | 阶段 3 操作日志使用 |
 | orderStatus | 订单状态 | WAIT_DISPATCH | 待派单 | 1 | true | 订单已提交，等待派单 |
 | orderStatus | 订单状态 | DISPATCHED | 已派单 | 2 | true | 管理端已派给护理人员 |
 | orderStatus | 订单状态 | ACCEPTED | 已接单 | 3 | true | 护理人员已接单 |
