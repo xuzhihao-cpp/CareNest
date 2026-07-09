@@ -1,0 +1,21 @@
+{
+  "rolePermissions": [
+    {
+      "roleCode": "ELDER",
+      "permissions": ["elder:home:view", "reminder:update", "emergency:create"]
+    },
+    {
+      "roleCode": "FAMILY",
+      "permissions": ["family:home:view", "health:view", "report:confirm", "order:create"]
+    },
+    {
+      "roleCode": "NURSE",
+      "permissions": ["nurse:workbench:view", "task:accept", "report:submit", "evidence:upload"]
+    },
+    {
+      "roleCode": "ADMIN",
+      "permissions": ["admin:dashboard:view", "admin:queue:process", "order:dispatch", "health:review", "role:permission:update"]
+    }
+  ]
+}
+

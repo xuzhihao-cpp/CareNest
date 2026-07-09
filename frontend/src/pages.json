@@ -1,0 +1,69 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/elder/index",
+      "style": {
+        "navigationBarTitleText": "长辈端",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/family/index",
+      "style": {
+        "navigationBarTitleText": "家属端",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/nurse/index",
+      "style": {
+        "navigationBarTitleText": "护理端",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/admin/index",
+      "style": {
+        "navigationBarTitleText": "管理端",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "CareNest",
+    "navigationBarBackgroundColor": "#f7faf8",
+    "backgroundColor": "#f7faf8"
+  },
+  "tabBar": {
+    "color": "#64748b",
+    "selectedColor": "#087b78",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/elder/index",
+        "text": "长辈"
+      },
+      {
+        "pagePath": "pages/family/index",
+        "text": "家属"
+      },
+      {
+        "pagePath": "pages/nurse/index",
+        "text": "护理"
+      },
+      {
+        "pagePath": "pages/admin/index",
+        "text": "管理"
+      }
+    ]
+  }
+}

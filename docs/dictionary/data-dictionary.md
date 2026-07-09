@@ -40,8 +40,33 @@
 | phase-02 | DictItem | sort | sort | 排序 | integer | yes |  | 从 1 开始 |
 | phase-02 | DictItem | enabled | enabled | 是否启用 | boolean | yes |  | false 表示暂不使用 |
 | phase-02 | DictItem | remark | remark | 备注 | string | no |  | 说明业务含义 |
+| identity | LoginRequest | username | username | 登录账号 | string | yes |  | 固定演示账号使用 |
+| identity | LoginRequest | password | password | 登录密码 | string | yes |  | 仅请求入参，不落库明文 |
+| identity | LoginResponse | token | token | 访问令牌 | string | yes |  | Authorization Bearer 使用 |
 | identity | User | userId | user_id | 用户 ID | string | yes |  | 登录用户唯一 ID |
+| identity | User | displayName | display_name | 展示名称 | string | yes |  | 前端顶部用户信息展示 |
+| identity | User | roles | roles | 角色列表 | array | yes | roleCode | 登录用户角色集合 |
 | identity | User | roleCode | role_code | 角色编码 | string | yes | roleCode | 角色和菜单权限使用 |
+| identity | RoleMenu | menus | menus | 菜单列表 | array | yes |  | 当前用户可访问菜单 |
+| identity | RoleMenu | name | name | 菜单名称 | string | yes |  | 菜单展示文本 |
+| identity | RoleMenu | path | path | 菜单路径 | string | yes |  | uni-app 页面路径 |
+| identity | RoleMenu | icon | icon | 菜单图标 | string | yes |  | 图标语义名称 |
+| identity | RolePermission | roleId | role_id | 角色 ID | string | yes |  | 管理端保存角色权限使用 |
+| identity | RolePermission | permissionCode | permission_code | 权限编码 | string | yes |  | 单个按钮或资源权限编码 |
+| identity | RolePermissionRequest | permissionCodes | permission_codes | 权限编码集合 | array | yes |  | 保存角色权限入参 |
+| identity | PermissionResponse | permissions | permissions | 权限列表 | array | yes |  | 当前登录角色权限集合 |
+| identity | Permission | resourceType | resource_type | 资源类型 | string | yes |  | 页面、按钮或接口 |
+| identity | Permission | resourceKey | resource_key | 资源标识 | string | yes |  | 资源唯一标识 |
+| identity | Permission | action | action | 操作 | string | yes |  | view、create、update、delete 等 |
+| phase-04 | HomeSummaryRequest | role | role | 请求角色 | string | yes | roleCode | 首页 summary 请求角色 |
+| phase-04 | HomeSummaryRequest | currentUserId | current_user_id | 当前用户 ID | string | yes |  | 当前登录用户 ID |
+| phase-04 | HomeSummaryResponse | cards | cards | 首页卡片 | array | yes |  | 四端首页关键指标卡片 |
+| phase-04 | HomeSummaryResponse | quickActions | quick_actions | 快捷入口 | array | yes |  | 四端首页快捷动作 |
+| phase-04 | HomeSummaryResponse | todoCount | todo_count | 待办数量 | integer | yes |  | 当前端首页待处理数量 |
+| phase-04 | HomeCard | key | key | 唯一键 | string | yes |  | 前端渲染 key |
+| phase-04 | HomeCard | unit | unit | 数值单位 | string | no |  | 卡片值单位 |
+| phase-04 | HomeCard | trend | trend | 趋势说明 | string | no |  | 卡片辅助趋势文案 |
+| phase-04 | HomeQuickAction | permissionCode | permission_code | 权限编码 | string | yes |  | 快捷入口按钮权限 |
 | elder | ElderProfile | elderId | elder_id | 长辈 ID | string | yes |  | 长辈业务主键 |
 | family | FamilyProfile | familyId | family_id | 家属 ID | string | yes |  | 家属业务主键 |
 | nurse | NurseProfile | nurseId | nurse_id | 护理人员 ID | string | yes |  | 护理人员业务主键 |
