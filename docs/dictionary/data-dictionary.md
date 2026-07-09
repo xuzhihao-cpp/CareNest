@@ -147,6 +147,34 @@
 | order | OrderStatusLog | toStatus | to_status | 变更后状态 | string | yes | orderStatus | 目标订单状态 |
 | order | OrderStatusLog | changedBy | changed_by | 变更人用户 ID | string | no |  | 状态变更操作人 |
 | order | OrderStatusLog | changeReason | change_reason | 变更原因 | string | no |  | 状态变更说明 |
+| task | NurseTask | taskId | task_id | 护理任务 ID | string | yes |  | 派单后生成的护理任务 |
+| task | NurseTask | orderId | order_id | 订单 ID | string | yes |  | 关联护理订单 |
+| task | NurseTask | nurseId | nurse_id | 护理人员用户 ID | string | yes |  | 被派单的护理人员 |
+| task | NurseTask | taskStatus | task_status | 任务状态 | string | yes | taskStatus | 护理端任务工作台使用 |
+| task | NurseTask | dispatchRemark | dispatch_remark | 派单备注 | string | no |  | 管理端派单说明 |
+| record | CareServiceRecord | recordId | record_id | 服务记录 ID | string | yes |  | 护理服务记录主键 |
+| record | CareServiceRecord | startTime | start_time | 服务开始时间 | datetime | yes |  | 护理服务开始时间 |
+| record | CareServiceRecord | endTime | end_time | 服务结束时间 | datetime | no |  | 护理服务结束时间 |
+| record | CareServiceRecord | content | content | 服务内容 | string | yes |  | 护理服务记录正文 |
+| record | CareServiceRecord | nursingAdvice | nursing_advice | 护理建议 | string | no |  | 服务后建议 |
+| record | CareServiceRecord | abnormalFlag | abnormal_flag | 是否异常 | boolean | yes |  | 异常服务标记 |
+| record | VitalSignRecord | vitalId | vital_id | 生命体征记录 ID | string | yes |  | 生命体征记录主键 |
+| record | VitalSignRecord | measuredAt | measured_at | 测量时间 | datetime | yes |  | 生命体征测量时间 |
+| record | VitalSignRecord | temperature | temperature | 体温 | decimal | no |  | 摄氏度 |
+| record | VitalSignRecord | pulse | pulse | 脉搏 | integer | no |  | 次/分钟 |
+| record | VitalSignRecord | bloodOxygen | blood_oxygen | 血氧 | integer | no |  | 百分比 |
+| report | ServiceReport | reportId | report_id | 服务报告 ID | string | yes |  | 服务报告主键 |
+| report | ServiceReport | reportStatus | report_status | 报告状态 | string | yes | reportStatus | 服务报告生成和确认流程 |
+| report | ServiceReport | summary | summary | 报告摘要 | string | yes |  | 服务报告摘要 |
+| report | ServiceReport | generatedBy | generated_by | 生成人用户 ID | string | no |  | 护理人员或系统生成 |
+| report | ServiceReportItem | itemId | item_id | 报告明细 ID | string | yes |  | 服务报告明细主键 |
+| report | ServiceReportItem | itemType | item_type | 明细类型 | string | yes | reportItemType | 服务记录、生命体征或护理建议 |
+| report | CareReportAck | ackId | ack_id | 报告确认 ID | string | yes |  | 报告确认记录主键 |
+| report | CareReportAck | ackRole | ack_role | 确认人角色 | string | yes | roleCode | 长辈或家属确认 |
+| report | CareReportAck | ackResult | ack_result | 确认结果 | string | yes | ackResult | 接受或驳回服务报告 |
+| review | HealthInfoReviewTask | reviewTaskId | review_task_id | 健康信息审核任务 ID | string | yes |  | 报告确认后产生的归档建议 |
+| review | HealthInfoReviewTask | fieldName | field_name | 建议变更字段 | string | yes |  | 健康档案字段名 |
+| review | HealthInfoReviewTask | reviewStatus | review_status | 审核状态 | string | yes | healthReviewStatus | 管理端健康信息审核 |
 | common | BaseEntity | createdAt | created_at | 创建时间 | datetime | yes |  | 数据库通用审计字段 |
 | common | BaseEntity | updatedAt | updated_at | 更新时间 | datetime | yes |  | 数据库通用审计字段 |
 
@@ -189,6 +217,11 @@
 | dictionaryCode | 字典编码 | careLevel | 照护等级 | 15 | true | 长辈基础档案 |
 | dictionaryCode | 字典编码 | relationType | 关系类型 | 16 | true | 长辈家属关系 |
 | dictionaryCode | 字典编码 | serviceStatus | 服务状态 | 17 | true | 服务项目上下架 |
+| dictionaryCode | 字典编码 | taskStatus | 护理任务状态 | 18 | true | 派单和护理任务工作台 |
+| dictionaryCode | 字典编码 | reportStatus | 服务报告状态 | 19 | true | 服务报告生成与确认 |
+| dictionaryCode | 字典编码 | reportItemType | 报告明细类型 | 20 | true | 服务报告明细来源 |
+| dictionaryCode | 字典编码 | ackResult | 报告确认结果 | 21 | true | 长辈或家属确认服务报告 |
+| dictionaryCode | 字典编码 | healthReviewStatus | 健康信息审核状态 | 22 | true | 健康归档建议审核 |
 | accountStatus | 账号状态 | ENABLED | 启用 | 1 | true | 账号可登录 |
 | accountStatus | 账号状态 | DISABLED | 禁用 | 2 | true | 账号不可登录 |
 | accountStatus | 账号状态 | LOCKED | 锁定 | 3 | true | 安全策略锁定 |
@@ -219,6 +252,25 @@
 | orderStatus | 订单状态 | WAIT_CONFIRM | 待确认 | 7 | true | 等待长辈或家属确认 |
 | orderStatus | 订单状态 | COMPLETED | 已完成 | 8 | true | 订单闭环完成 |
 | orderStatus | 订单状态 | CANCELED | 已取消 | 9 | true | 订单取消 |
+| taskStatus | 护理任务状态 | DISPATCHED | 已派单 | 1 | true | 管理端已派给护理人员 |
+| taskStatus | 护理任务状态 | ACCEPTED | 已接单 | 2 | true | 护理人员确认接单 |
+| taskStatus | 护理任务状态 | ON_THE_WAY | 前往中 | 3 | true | 护理人员正在前往 |
+| taskStatus | 护理任务状态 | SERVING | 服务中 | 4 | true | 护理服务进行中 |
+| taskStatus | 护理任务状态 | COMPLETED | 已完成 | 5 | true | 护理任务完成 |
+| taskStatus | 护理任务状态 | CANCELED | 已取消 | 6 | true | 订单取消导致任务取消 |
+| reportStatus | 服务报告状态 | DRAFT | 草稿 | 1 | true | 报告生成前草稿 |
+| reportStatus | 服务报告状态 | WAIT_CONFIRM | 待确认 | 2 | true | 等待长辈或家属确认 |
+| reportStatus | 服务报告状态 | CONFIRMED | 已确认 | 3 | true | 服务报告已确认 |
+| reportStatus | 服务报告状态 | REJECTED | 已驳回 | 4 | true | 报告被长辈或家属驳回 |
+| reportItemType | 报告明细类型 | SERVICE_RECORD | 服务记录 | 1 | true | 来自护理服务记录 |
+| reportItemType | 报告明细类型 | VITAL_SIGN | 生命体征 | 2 | true | 来自生命体征记录 |
+| reportItemType | 报告明细类型 | NURSING_ADVICE | 护理建议 | 3 | true | 护理人员建议 |
+| reportItemType | 报告明细类型 | RISK_NOTE | 风险提示 | 4 | true | 风险和注意事项 |
+| ackResult | 报告确认结果 | ACCEPTED | 已接受 | 1 | true | 确认服务完成 |
+| ackResult | 报告确认结果 | REJECTED | 已驳回 | 2 | true | 对服务报告有异议 |
+| healthReviewStatus | 健康信息审核状态 | PENDING | 待审核 | 1 | true | 等待管理端审核 |
+| healthReviewStatus | 健康信息审核状态 | APPROVED | 已通过 | 2 | true | 变更建议已通过 |
+| healthReviewStatus | 健康信息审核状态 | REJECTED | 已驳回 | 3 | true | 变更建议被驳回 |
 | auditStatus | 审核状态 | PENDING | 待审核 | 1 | true | 上传后等待审核 |
 | auditStatus | 审核状态 | APPROVED | 已通过 | 2 | true | 审核通过 |
 | auditStatus | 审核状态 | REJECTED | 已驳回 | 3 | true | 审核驳回 |
