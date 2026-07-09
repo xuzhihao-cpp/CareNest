@@ -39,6 +39,8 @@ export async function getHomeSummary(payload: HomeSummaryRequest): Promise<ApiRe
   return request<HomeSummaryResponse>({
     method: 'GET',
     url: endpointByRole[payload.role],
-    data: payload
+    data: payload,
+    mock: mockByRole[payload.role],
+    mockFallback: true
   });
 }
