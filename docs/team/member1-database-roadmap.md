@@ -16,10 +16,11 @@
 | --- | --- | --- | --- | --- |
 | 2 | 登录与角色菜单 MVP | `sys_user`、`sys_role`、`user_role`、`login_session`、演示账号 | 阶段 1 | 数据库首版完成 |
 | 3 | 权限拦截 MVP | `sys_permission`、`role_permission`、`operation_log` | 阶段 2 | 数据库首版完成 |
-| 6 | 长辈/家属多对多绑定 MVP | `elder_family_binding`、`authorization_scope`、绑定状态字典 | 阶段 2、5 | 等待阶段 5 合并 |
-| 7 | 长辈基础档案 MVP | `elder_profile`、`elder_contact`、`health_archive_change_log` | 阶段 6 | 未开始 |
-| 8 | 服务项目 MVP | `service_item`、服务项目演示数据 | 阶段 5 | 等待阶段 5 合并 |
-| 9 | 服务地址 MVP | `service_address`、默认地址约束规则 | 阶段 7 | 未开始 |
+| 6 | 长辈/家属多对多绑定 MVP | `elder_family_binding`、`authorization_scope`、绑定状态字典 | 阶段 2、5 | 数据库首版完成 |
+| 7 | 长辈基础档案 MVP | `elder_profile`、`elder_contact`、`health_archive_change_log` | 阶段 6 | 数据库首版完成 |
+| 8 | 服务项目 MVP | `service_item`、服务项目演示数据 | 阶段 5 | 数据库首版完成 |
+| 9 | 服务地址 MVP | `service_address`、默认地址约束规则 | 阶段 7 | 数据库首版完成 |
+| 10 | 预约下单 MVP | `nursing_order`、`order_status_log`、初始状态日志 | 阶段 8、9 | 数据库首版完成 |
 | 18 | MVP 全流程联调 | 联调数据、`operation_log` 检查 SQL、验收证据 | 阶段 1-17 | 未开始 |
 | 19 | 健康档案增强 | 慢病、过敏、风险、照护计划相关表 | 阶段 18 | 未开始 |
 | 20 | 病历资料上传 | `file_asset`、`medical_file`、审核状态 | 阶段 19 | 未开始 |
@@ -40,4 +41,4 @@
 
 ## 当前批次
 
-本批次收敛为阶段 5 可合并范围，仅保留阶段 2-3 的数据库基础。阶段 6-9 的数据库交付等待阶段 5 合并后再单独提交。
+阶段 5 已合并后，本批次继续补齐阶段 6-10 的数据库基础，供后续用户侧后端、护理/管理后端和前端围绕统一字段继续联调。
