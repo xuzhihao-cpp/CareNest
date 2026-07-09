@@ -1,0 +1,36 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "serviceId": "service-001",
+        "serviceName": "基础上门护理",
+        "category": "BASIC_CARE",
+        "price": 199,
+        "durationMinutes": 60,
+        "status": "ON_SHELF"
+      },
+      {
+        "serviceId": "service-002",
+        "serviceName": "康复陪护",
+        "category": "REHABILITATION",
+        "price": 299,
+        "durationMinutes": 90,
+        "status": "ON_SHELF"
+      },
+      {
+        "serviceId": "service-003",
+        "serviceName": "夜间照护",
+        "category": "NIGHT_CARE",
+        "price": 459,
+        "durationMinutes": 120,
+        "status": "OFF_SHELF"
+      }
+    ],
+    "total": 3,
+    "page": 1,
+    "size": 10
+  },
+  "traceId": "mock-8-service-items"
+}

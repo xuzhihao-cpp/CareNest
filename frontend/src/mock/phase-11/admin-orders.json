@@ -1,0 +1,31 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "orderId": "order-001",
+        "orderNo": "NO202607100001",
+        "orderStatus": "WAIT_DISPATCH",
+        "elderId": "elder-001",
+        "serviceId": "service-001",
+        "addressId": "address-001",
+        "scheduledStart": "2026-07-10T09:00",
+        "statusLogs": [
+          {
+            "statusLogId": "order-status-log-001",
+            "orderId": "order-001",
+            "fromStatus": "",
+            "toStatus": "WAIT_DISPATCH",
+            "changedBy": "family-001",
+            "changeReason": "演示订单创建"
+          }
+        ]
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 10
+  },
+  "traceId": "mock-11-admin-orders"
+}

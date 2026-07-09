@@ -1,0 +1,10 @@
+{
+  "code": 500,
+  "message": "服务异常",
+  "data": {
+    "ackId": "",
+    "ackResult": "REJECTED",
+    "reportStatus": "WAIT_CONFIRM"
+  },
+  "traceId": "mock-16-report-ack-error"
+}

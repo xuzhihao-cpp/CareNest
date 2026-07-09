@@ -1,0 +1,10 @@
+{
+  "code": 404,
+  "message": "数据不存在",
+  "data": {
+    "ready": false,
+    "accounts": 0,
+    "scenarioCount": 0
+  },
+  "traceId": "mock-18-integration-status-empty"
+}

@@ -1,0 +1,17 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "orderId": "order-001",
+        "orderNo": "NO202607100001",
+        "orderStatus": "WAIT_DISPATCH"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 10
+  },
+  "traceId": "mock-10-family-orders"
+}

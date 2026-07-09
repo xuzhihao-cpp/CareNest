@@ -10,6 +10,19 @@ import type { HealthResponse, RoleCode, RouteEntry, StageOneSnapshot, VersionRes
 import type { AuthMenu, AuthUser } from '@/types/stageTwo';
 import type { HomeQuickAction, HomeSummaryResponse } from '@/types/stageFour';
 import EmptyState from './EmptyState.vue';
+import StageEightServiceItemsPanel from './StageEightServiceItemsPanel.vue';
+import StageEighteenIntegrationPanel from './StageEighteenIntegrationPanel.vue';
+import StageElevenAdminOrdersPanel from './StageElevenAdminOrdersPanel.vue';
+import StageFifteenServiceReportPanel from './StageFifteenServiceReportPanel.vue';
+import StageFourteenCareExecutionPanel from './StageFourteenCareExecutionPanel.vue';
+import StageNineServiceAddressPanel from './StageNineServiceAddressPanel.vue';
+import StageSixBindingPanel from './StageSixBindingPanel.vue';
+import StageSevenProfilePanel from './StageSevenProfilePanel.vue';
+import StageSeventeenOrderChangePanel from './StageSeventeenOrderChangePanel.vue';
+import StageSixteenReportAckPanel from './StageSixteenReportAckPanel.vue';
+import StageTenOrderPanel from './StageTenOrderPanel.vue';
+import StageThirteenNurseTasksPanel from './StageThirteenNurseTasksPanel.vue';
+import StageTwelveDispatchPanel from './StageTwelveDispatchPanel.vue';
 
 type Accent = 'teal' | 'mint' | 'amber' | 'coral' | 'blue';
 
@@ -146,7 +159,7 @@ const roleProfiles: Record<RoleCode, VisualProfile> = {
   },
   ADMIN: {
     terminal: 'admin',
-    subtitle: '管理工作台 · 运营监管 · 质量控制',
+    subtitle: '电脑网页 · 运营监管 · 质量控制',
     heroTitle: '运营看板',
     heroMeta: '订单 1,248 · 完成率 95.6% · 待审核 28',
     primaryAction: '处理队列',
@@ -390,6 +403,84 @@ onMounted(async () => {
       <view v-if="homeMessage" class="error-banner" role="alert">
         <text>{{ homeMessage }}</text>
       </view>
+
+      <StageSixBindingPanel
+        v-if="props.roleCode === 'FAMILY' || props.roleCode === 'ELDER'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageSevenProfilePanel
+        v-if="props.roleCode === 'FAMILY' || props.roleCode === 'ELDER'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageEightServiceItemsPanel
+        v-if="props.roleCode === 'ADMIN' || props.roleCode === 'FAMILY'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageNineServiceAddressPanel
+        v-if="props.roleCode === 'FAMILY'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageTenOrderPanel
+        v-if="props.roleCode === 'FAMILY'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageElevenAdminOrdersPanel
+        v-if="props.roleCode === 'ADMIN'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageTwelveDispatchPanel
+        v-if="props.roleCode === 'ADMIN' || props.roleCode === 'NURSE'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageThirteenNurseTasksPanel
+        v-if="props.roleCode === 'ADMIN' || props.roleCode === 'NURSE'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageFourteenCareExecutionPanel
+        v-if="props.roleCode === 'ADMIN' || props.roleCode === 'NURSE'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageFifteenServiceReportPanel
+        v-if="props.roleCode === 'ADMIN' || props.roleCode === 'NURSE' || props.roleCode === 'FAMILY' || props.roleCode === 'ELDER'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageSixteenReportAckPanel
+        v-if="props.roleCode === 'ADMIN' || props.roleCode === 'NURSE' || props.roleCode === 'FAMILY' || props.roleCode === 'ELDER'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageSeventeenOrderChangePanel
+        v-if="props.roleCode === 'ADMIN' || props.roleCode === 'FAMILY'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
+
+      <StageEighteenIntegrationPanel
+        v-if="props.roleCode === 'ADMIN' || props.roleCode === 'NURSE' || props.roleCode === 'FAMILY' || props.roleCode === 'ELDER'"
+        :role-code="props.roleCode"
+        :auth-user="authUser"
+      />
 
       <view class="content-grid">
         <view class="flow-panel glass-panel">

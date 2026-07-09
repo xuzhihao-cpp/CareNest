@@ -1,0 +1,10 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "recordId": "service-record-001",
+    "orderId": "order-001",
+    "orderStatus": "WAIT_REPORT"
+  },
+  "traceId": "mock-14-execution-response"
+}

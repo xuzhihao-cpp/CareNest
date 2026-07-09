@@ -1,0 +1,10 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "ready": true,
+    "accounts": 4,
+    "scenarioCount": 17
+  },
+  "traceId": "mock-18-integration-status"
+}

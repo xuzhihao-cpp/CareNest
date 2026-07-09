@@ -1,0 +1,10 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "ackId": "ack-001",
+    "ackResult": "ACCEPTED",
+    "reportStatus": "CONFIRMED"
+  },
+  "traceId": "mock-16-report-ack"
+}

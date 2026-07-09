@@ -1,0 +1,48 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "elderId": "elder-001",
+        "profileVersion": 3,
+        "name": "张奶奶",
+        "gender": "FEMALE",
+        "birthDate": "1948-05-16",
+        "careLevel": "LEVEL_2",
+        "emergencyContacts": [
+          {
+            "contactName": "张小敏",
+            "contactPhone": "13800001111",
+            "relationType": "DAUGHTER"
+          },
+          {
+            "contactName": "张建国",
+            "contactPhone": "13900002222",
+            "relationType": "SON"
+          }
+        ]
+      },
+      {
+        "elderId": "elder-002",
+        "profileVersion": 1,
+        "name": "李爷爷",
+        "gender": "MALE",
+        "birthDate": "1942-11-02",
+        "careLevel": "LEVEL_1",
+        "emergencyContacts": [
+          {
+            "contactName": "李芳",
+            "contactPhone": "13700003333",
+            "relationType": "DAUGHTER"
+          }
+        ]
+      }
+    ],
+    "total": 2,
+    "page": 1,
+    "size": 10
+  },
+  "traceId": "mock-7-family-elders"
+}
+

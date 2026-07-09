@@ -1,0 +1,25 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "recordId": "service-record-001",
+        "orderId": "order-001",
+        "orderStatus": "WAIT_REPORT",
+        "recordType": "SERVICE_RECORD",
+        "taskId": "task-001",
+        "nurseId": "nurse-001",
+        "startTime": "2026-07-10T09:00",
+        "endTime": "2026-07-10T10:00",
+        "content": "完成基础护理、环境整理和用药提醒。",
+        "nursingAdvice": "建议继续观察血压和睡眠。",
+        "abnormalFlag": false
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 10
+  },
+  "traceId": "mock-14-service-records"
+}
