@@ -1,0 +1,15 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": [
+    {
+      "bindingId": "binding_001",
+      "elderId": "elder_001",
+      "elderName": "张爷爷",
+      "relationType": "SON",
+      "bindingStatus": "ACTIVE",
+      "scopeCodes": ["HEALTH_VIEW", "HEALTH_EDIT", "ORDER_CREATE", "REPORT_VIEW", "REPORT_CONFIRM"]
+    }
+  ],
+  "traceId": "mock-6"
+}

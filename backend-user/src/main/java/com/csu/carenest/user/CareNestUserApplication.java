@@ -5,7 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-@MapperScan("com.csu.carenest.user.auth")
+@MapperScan("com.csu.carenest.user")
 public class CareNestUserApplication {
 
     public static void main(String[] args) {

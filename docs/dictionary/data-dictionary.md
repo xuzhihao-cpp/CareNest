@@ -32,6 +32,20 @@
 | phase-01 | VersionResponse | gitCommit | git_commit | Git 提交号 | string | yes |  | 本地 mock 可用 local-kickoff |
 | phase-01 | VersionResponse | buildTime | build_time | 构建时间 | datetime | yes |  | ISO-8601，含 +08:00 |
 | phase-01 | VersionResponse | apiPrefix | api_prefix | API 前缀 | string | yes |  | 固定 `/api/v1` |
+| phase-06 | BindingRequest | elderInviteCode | elder_id | 长辈邀请码 | string | yes |  | MVP 中使用 elder_id 作为绑定邀请码 |
+| binding | ElderFamilyBinding | relationType | relation_type | 家属关系类型 | string | no | relationType | 长辈家属绑定关系 |
+| phase-07 | ElderProfileRequest | name | elder_name | 长辈姓名 | string | yes |  | 按 PDF 请求字段命名，落库到 elder_name |
+| phase-07 | ElderProfileRequest | emergencyContacts |  | 紧急联系人列表 | array | yes |  | 元素结构为 ElderContact |
+| phase-07 | ElderProfileResponse | profileVersion | updated_at | 档案版本 | string | yes |  | 由 elder_id 与 updated_at 组合生成 |
+| phase-09 | ServiceAddressResponse | fullAddress |  | 完整服务地址 | string | yes |  | 由省市区编码和详细地址拼接生成 |
+| phase-16 | ReportAckRequest | ackResult | ack_result | 确认结果 | string | yes | reportAckResult | 长辈或家属确认报告结果 |
+| phase-16 | ReportAckRequest | satisfaction | satisfaction | 满意度 | integer | no |  | 报告确认时的 1-5 分满意度 |
+| phase-16 | ReportAckRequest | acceptedSuggestionIds | accepted_suggestion_ids | 接受的归档建议 ID 列表 | array | no |  | 家属处理档案变更建议使用 |
+| phase-16 | ReportAckResponse | ackId | ack_id | 报告确认 ID | string | yes |  | 报告确认记录主键 |
+| phase-16 | ReportAckResponse | reportStatus | report_status | 报告状态 | string | yes | reportStatus | 确认后报告状态 |
+| phase-18 | DemoDataStatusResponse | ready | ready | 演示数据是否就绪 | boolean | yes |  | 演示账号与核心场景数据均存在时为 true |
+| phase-18 | DemoDataStatusResponse | accounts | accounts | 演示账号列表 | array | yes |  | 固定演示账号用户名集合 |
+| phase-18 | DemoDataStatusResponse | scenarioCount | scenario_count | 演示场景数量 | integer | yes |  | 当前已就绪的演示场景计数 |
 | phase-02 | DictionaryResponse | dictCode | dict_code | 字典编码 | string | yes | dictionaryCode | 枚举字典唯一编码 |
 | phase-02 | DictionaryResponse | dictName | dict_name | 字典名称 | string | yes |  | 中文名称 |
 | phase-02 | DictionaryResponse | items | items | 字典项列表 | array | yes |  | 元素结构为 DictItem |
@@ -189,6 +203,8 @@
 | dictionaryCode | 字典编码 | careLevel | 照护等级 | 15 | true | 长辈基础档案 |
 | dictionaryCode | 字典编码 | relationType | 关系类型 | 16 | true | 长辈家属关系 |
 | dictionaryCode | 字典编码 | serviceStatus | 服务状态 | 17 | true | 服务项目上下架 |
+| dictionaryCode | 字典编码 | reportAckResult | 报告确认结果 | 18 | true | 阶段 16 报告确认使用 |
+| dictionaryCode | 字典编码 | reportStatus | 报告状态 | 19 | true | 阶段 16 报告状态流转使用 |
 | accountStatus | 账号状态 | ENABLED | 启用 | 1 | true | 账号可登录 |
 | accountStatus | 账号状态 | DISABLED | 禁用 | 2 | true | 账号不可登录 |
 | accountStatus | 账号状态 | LOCKED | 锁定 | 3 | true | 安全策略锁定 |
@@ -210,6 +226,12 @@
 | relationType | 关系类型 | OTHER | 其他 | 4 | true | 家属关系 |
 | serviceStatus | 服务状态 | ON_SHELF | 已上架 | 1 | true | 家属端可见 |
 | serviceStatus | 服务状态 | OFF_SHELF | 已下架 | 2 | true | 家属端不可见 |
+| reportAckResult | 报告确认结果 | CONFIRMED | 已确认 | 1 | true | 长辈或家属确认报告 |
+| reportAckResult | 报告确认结果 | ACCEPTED | 已接受 | 2 | true | 家属接受归档建议 |
+| reportAckResult | 报告确认结果 | REJECTED | 已驳回 | 3 | true | 家属或长辈提出异议 |
+| reportStatus | 报告状态 | CONFIRMED | 已确认 | 1 | true | 报告已完成确认 |
+| reportStatus | 报告状态 | ARCHIVE_REVIEW_PENDING | 待归档审核 | 2 | true | 家属接受建议后进入健康信息审核 |
+| reportStatus | 报告状态 | PENDING | 待处理 | 3 | true | 异议报告回到待处理 |
 | orderStatus | 订单状态 | WAIT_DISPATCH | 待派单 | 1 | true | 订单已提交，等待派单 |
 | orderStatus | 订单状态 | DISPATCHED | 已派单 | 2 | true | 管理端已派给护理人员 |
 | orderStatus | 订单状态 | ACCEPTED | 已接单 | 3 | true | 护理人员已接单 |

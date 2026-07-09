@@ -1,0 +1,11 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": [
+    {
+      "elderId": "elder_001",
+      "profileVersion": "elder_001:2026-07-09T11:00:00"
+    }
+  ],
+  "traceId": "mock-7"
+}

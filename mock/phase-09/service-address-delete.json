@@ -1,0 +1,8 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "addressId": "address_mock_001"
+  },
+  "traceId": "mock-9"
+}

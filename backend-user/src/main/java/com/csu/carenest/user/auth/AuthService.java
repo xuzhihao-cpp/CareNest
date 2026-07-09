@@ -75,6 +75,14 @@ public class AuthService {
         return new PermissionResponse(targetRole.name(), authRepository.findPermissionsByRole(targetRole));
     }
 
+    public CurrentUser requireCurrentUser(String authorization) {
+        AuthenticatedSession session = authenticate(authorization);
+        return new CurrentUser(
+                session.user().getUserId(),
+                authRepository.findRolesByUserId(session.user().getUserId())
+        );
+    }
+
     AuthenticatedSession authenticate(String authorization) {
         if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
             throw new UnauthorizedException();
@@ -132,5 +140,8 @@ public class AuthService {
     }
 
     record AuthenticatedSession(String token, SysUser user, LoginSession session) {
+    }
+
+    public record CurrentUser(String userId, List<RoleCode> roles) {
     }
 }
