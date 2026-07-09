@@ -16,11 +16,28 @@ CREATE TABLE IF NOT EXISTS sys_permission (
 CREATE TABLE IF NOT EXISTS role_permission (
   role_id VARCHAR(32) NOT NULL COMMENT '角色ID',
   permission_id VARCHAR(32) NOT NULL COMMENT '权限ID',
+  sort INT NOT NULL DEFAULT 0 COMMENT '排序',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (role_id, permission_id),
   CONSTRAINT fk_role_permission_role FOREIGN KEY (role_id) REFERENCES sys_role (role_id),
   CONSTRAINT fk_role_permission_permission FOREIGN KEY (permission_id) REFERENCES sys_permission (permission_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='角色权限关系';
+
+SET @role_permission_sort_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'role_permission'
+    AND column_name = 'sort'
+);
+SET @role_permission_sort_sql = IF(
+  @role_permission_sort_exists = 0,
+  'ALTER TABLE role_permission ADD COLUMN sort INT NOT NULL DEFAULT 0 COMMENT ''排序'' AFTER permission_id',
+  'DO 0'
+);
+PREPARE role_permission_sort_stmt FROM @role_permission_sort_sql;
+EXECUTE role_permission_sort_stmt;
+DEALLOCATE PREPARE role_permission_sort_stmt;
 
 CREATE TABLE IF NOT EXISTS operation_log (
   log_id VARCHAR(32) NOT NULL COMMENT '操作日志ID',

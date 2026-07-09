@@ -1,12 +1,12 @@
 package com.csu.carenest.user.auth;
 
-import com.csu.carenest.user.common.UnauthorizedException;
 import com.csu.carenest.user.common.ForbiddenException;
 import com.csu.carenest.user.common.NotFoundException;
+import com.csu.carenest.user.common.UnauthorizedException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -14,18 +14,30 @@ public class AuthService {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final DemoAuthRepository authRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    public AuthService(DemoAuthRepository authRepository) {
+    public AuthService(
+            DemoAuthRepository authRepository,
+            PasswordEncoder passwordEncoder,
+            JwtTokenProvider jwtTokenProvider) {
         this.authRepository = authRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     public AuthResponse login(LoginRequest request) {
         SysUser user = authRepository.findUserByUsername(request.username())
-                .filter(candidate -> candidate.password().equals(request.password()))
+                .filter(candidate -> passwordEncoder.matches(request.password(), candidate.getPasswordHash()))
                 .orElseThrow(UnauthorizedException::new);
-        String token = "cn-" + UUID.randomUUID();
-        authRepository.saveSession(new LoginSession(token, user.userId()));
-        return responseFor(token, user);
+        JwtTokenProvider.IssuedToken issuedToken = jwtTokenProvider.issue(user.getUserId());
+        LoginSession session = new LoginSession();
+        session.setSessionId(issuedToken.sessionId());
+        session.setUserId(user.getUserId());
+        session.setTokenHash(jwtTokenProvider.tokenHash(issuedToken.token()));
+        session.setExpireAt(issuedToken.expireAt());
+        authRepository.saveSession(session);
+        return responseFor(issuedToken.token(), user);
     }
 
     public AuthResponse currentUser(String authorization) {
@@ -35,27 +47,27 @@ public class AuthService {
 
     public AuthResponse logout(String authorization) {
         AuthenticatedSession session = authenticate(authorization);
-        authRepository.deleteSession(session.token());
+        authRepository.deleteSession(session.session().getSessionId());
         return responseFor(session.token(), session.user());
     }
 
     public PermissionResponse currentPermissions(String authorization) {
         AuthenticatedSession session = authenticate(authorization);
-        List<RoleCode> roles = authRepository.findRolesByUserId(session.user().userId());
+        List<RoleCode> roles = authRepository.findRolesByUserId(session.user().getUserId());
         RoleCode primaryRole = primaryRole(roles);
         return new PermissionResponse(primaryRole.name(), authRepository.findPermissionsByRoles(roles));
     }
 
     public PermissionResponse updateRolePermissions(String authorization, String roleId, PermissionRequest request) {
         AuthenticatedSession session = authenticate(authorization);
-        List<RoleCode> operatorRoles = authRepository.findRolesByUserId(session.user().userId());
+        List<RoleCode> operatorRoles = authRepository.findRolesByUserId(session.user().getUserId());
         if (!canManageRolePermissions(operatorRoles)) {
             throw new ForbiddenException();
         }
         RoleCode targetRole = parseRoleId(roleId);
         authRepository.replaceRolePermissions(targetRole, request.permissionCodes());
         authRepository.saveOperationLog(new OperationLog(
-                session.user().userId(),
+                session.user().getUserId(),
                 "UPDATE_ROLE_PERMISSIONS",
                 targetRole.name(),
                 request.permissionCodes()
@@ -71,11 +83,22 @@ public class AuthService {
         if (token.isEmpty()) {
             throw new UnauthorizedException();
         }
-        LoginSession session = authRepository.findSession(token)
+        JwtTokenProvider.ParsedToken parsedToken = parseToken(token);
+        LoginSession session = authRepository.findSession(parsedToken.sessionId())
+                .filter(candidate -> jwtTokenProvider.tokenHash(token).equals(candidate.getTokenHash()))
+                .filter(candidate -> parsedToken.userId().equals(candidate.getUserId()))
                 .orElseThrow(UnauthorizedException::new);
-        SysUser user = authRepository.findUserById(session.userId())
+        SysUser user = authRepository.findUserById(session.getUserId())
                 .orElseThrow(UnauthorizedException::new);
-        return new AuthenticatedSession(token, user);
+        return new AuthenticatedSession(token, user, session);
+    }
+
+    private JwtTokenProvider.ParsedToken parseToken(String token) {
+        try {
+            return jwtTokenProvider.parse(token);
+        } catch (JwtTokenProvider.InvalidTokenException exception) {
+            throw new UnauthorizedException();
+        }
     }
 
     private boolean canManageRolePermissions(List<RoleCode> roles) {
@@ -100,14 +123,14 @@ public class AuthService {
     }
 
     private AuthResponse responseFor(String token, SysUser user) {
-        List<RoleCode> roleCodes = authRepository.findRolesByUserId(user.userId());
+        List<RoleCode> roleCodes = authRepository.findRolesByUserId(user.getUserId());
         List<String> roles = roleCodes.stream()
                 .map(RoleCode::name)
                 .toList();
         List<String> menus = authRepository.findMenusByRoles(roleCodes);
-        return new AuthResponse(token, user.userId(), user.displayName(), roles, menus);
+        return new AuthResponse(token, user.getUserId(), user.getDisplayName(), roles, menus);
     }
 
-    record AuthenticatedSession(String token, SysUser user) {
+    record AuthenticatedSession(String token, SysUser user, LoginSession session) {
     }
 }
