@@ -69,6 +69,9 @@ const visibleRoutes = computed(() => {
 const permissionSet = computed(() => new Set(permissions.value));
 const canUsePrimaryAction = computed(() => permissionSet.value.has(visualProfile.value.primaryPermission));
 const canManageRolePermissions = computed(() => permissionSet.value.has('role:permission:update'));
+const adminProbeHint = computed(() =>
+  canManageRolePermissions.value ? '管理账号应返回 0，普通用户应返回 403' : '普通用户访问管理端接口应返回 403'
+);
 const visibleQuickActions = computed(() =>
   (homeSummary.value?.quickActions ?? []).filter((item) => permissionSet.value.has(item.permissionCode))
 );
@@ -212,8 +215,8 @@ onMounted(async () => {
       permissionMessage.value = `${permissionsResponse.code} ${permissionsResponse.message}`;
     }
 
-    const probeResponse = await updateRolePermissions('ADMIN', {
-      permissionCodes: ['role:permission:update']
+    const probeResponse = await updateRolePermissions('NURSE', {
+      permissionCodes: ['NURSE_ORDER_VIEW', 'NURSE_REPORT_CREATE', 'NURSE_APPEAL_CREATE']
     });
     adminPermissionProbe.value = `${probeResponse.code} ${probeResponse.message}`;
 
@@ -315,7 +318,7 @@ onMounted(async () => {
             <text class="permission-main" :class="{ denied: adminPermissionProbe.startsWith('403') }">
               {{ adminPermissionProbe || '待校验' }}
             </text>
-            <text class="auth-meta">普通用户访问管理端接口应返回 403</text>
+            <text class="auth-meta">{{ adminProbeHint }}</text>
           </view>
         </view>
         <view class="permission-tags">

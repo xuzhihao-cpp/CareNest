@@ -7,7 +7,13 @@ export default defineConfig({
   plugins: [uni()],
   server: {
     port: 5173,
-    strictPort: true
+    strictPort: true,
+    proxy: {
+      '/api/v1': {
+        target: 'http://127.0.0.1:8081',
+        changeOrigin: true
+      }
+    }
   },
   preview: {
     port: 5173,

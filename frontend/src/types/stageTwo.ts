@@ -11,6 +11,8 @@ export interface AuthMenu {
   icon: string;
 }
 
+export type RawAuthMenu = string | AuthMenu;
+
 export interface AuthUser {
   userId: string;
   displayName: string;
@@ -27,12 +29,19 @@ export interface AuthSession {
   user: AuthUser;
 }
 
+export interface BackendAuthResponse {
+  token: string;
+  userId: string;
+  displayName: string;
+  roles: string[];
+  menus: RawAuthMenu[];
+}
+
 export interface DemoAccount {
   username: string;
   password: string;
   userId: string;
   displayName: string;
   roles: RoleCode[];
-  menus: AuthMenu[];
+  menus: RawAuthMenu[];
 }
-

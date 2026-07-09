@@ -48,6 +48,14 @@ export function clearAuthSession() {
   uni.removeStorageSync(STORAGE_KEY);
 }
 
+function isApiResponse<T>(payload: unknown): payload is ApiResponse<T> {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+  const value = payload as Partial<ApiResponse<T>>;
+  return typeof value.code === 'number' && typeof value.message === 'string' && 'traceId' in value;
+}
+
 export async function request<T>(options: RequestOptions<T>): Promise<ApiResponse<T>> {
   if (USE_MOCK && options.mock) {
     return options.mock;
@@ -67,9 +75,34 @@ export async function request<T>(options: RequestOptions<T>): Promise<ApiRespons
         ...(options.headers ?? {})
       },
       success: (response) => {
-        resolve(response.data as ApiResponse<T>);
+        if (isApiResponse<T>(response.data)) {
+          if (options.mockFallback && options.mock && response.data.code !== 0) {
+            resolve(options.mock);
+            return;
+          }
+          resolve(response.data);
+          return;
+        }
+
+        if (options.mockFallback && options.mock) {
+          resolve(options.mock);
+          return;
+        }
+
+        resolve(
+          failure(
+            response.statusCode >= 400 ? response.statusCode : 500,
+            '接口响应格式错误',
+            {} as T,
+            `frontend-${Date.now()}`
+          )
+        );
       },
       fail: () => {
+        if (options.mockFallback && options.mock) {
+          resolve(options.mock);
+          return;
+        }
         resolve(failure(500, '接口请求失败', {} as T, `frontend-${Date.now()}`));
       }
     });

@@ -8,7 +8,8 @@ export function getHealth() {
   return request<HealthResponse>({
     method: 'GET',
     url: '/health',
-    mock: healthMock as ApiResponse<HealthResponse>
+    mock: healthMock as ApiResponse<HealthResponse>,
+    mockFallback: true
   });
 }
 
@@ -16,7 +17,8 @@ export function getVersion() {
   return request<VersionResponse>({
     method: 'GET',
     url: '/version',
-    mock: versionMock as ApiResponse<VersionResponse>
+    mock: versionMock as ApiResponse<VersionResponse>,
+    mockFallback: true
   });
 }
 

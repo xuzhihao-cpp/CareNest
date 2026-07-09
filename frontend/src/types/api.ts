@@ -26,6 +26,7 @@ export interface RequestOptions<T> {
   url: string;
   data?: object | string | ArrayBuffer;
   mock?: ApiResponse<T>;
+  mockFallback?: boolean;
   headers?: Record<string, string>;
 }
 
