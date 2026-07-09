@@ -1,0 +1,53 @@
+{
+  "accounts": [
+    {
+      "username": "elder_demo",
+      "password": "CareNest@2026",
+      "userId": "user-elder-001",
+      "displayName": "张奶奶",
+      "roles": ["ELDER"],
+      "menus": [
+        {"name": "长辈首页", "path": "/pages/elder/index", "icon": "home"},
+        {"name": "今日提醒", "path": "/pages/elder/index", "icon": "reminder"},
+        {"name": "一键求助", "path": "/pages/elder/index", "icon": "phone"}
+      ]
+    },
+    {
+      "username": "family_demo",
+      "password": "CareNest@2026",
+      "userId": "user-family-001",
+      "displayName": "李爷爷家属",
+      "roles": ["FAMILY"],
+      "menus": [
+        {"name": "家属首页", "path": "/pages/family/index", "icon": "home"},
+        {"name": "健康档案", "path": "/pages/family/index", "icon": "health"},
+        {"name": "服务进度", "path": "/pages/family/index", "icon": "timeline"}
+      ]
+    },
+    {
+      "username": "nurse_demo",
+      "password": "CareNest@2026",
+      "userId": "user-nurse-001",
+      "displayName": "王小雨",
+      "roles": ["NURSE"],
+      "menus": [
+        {"name": "护理工作台", "path": "/pages/nurse/index", "icon": "workbench"},
+        {"name": "任务管理", "path": "/pages/nurse/index", "icon": "task"},
+        {"name": "服务记录", "path": "/pages/nurse/index", "icon": "file"}
+      ]
+    },
+    {
+      "username": "admin_demo",
+      "password": "CareNest@2026",
+      "userId": "user-admin-001",
+      "displayName": "管理员",
+      "roles": ["ADMIN"],
+      "menus": [
+        {"name": "管理首页", "path": "/pages/admin/index", "icon": "dashboard"},
+        {"name": "订单管理", "path": "/pages/admin/index", "icon": "order"},
+        {"name": "质控管理", "path": "/pages/admin/index", "icon": "audit"}
+      ]
+    }
+  ]
+}
+

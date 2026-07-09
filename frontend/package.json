@@ -1,0 +1,27 @@
+{
+  "name": "carenest-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "uni -p h5 --host 127.0.0.1 --port 5173",
+    "dev:h5": "uni -p h5 --host 127.0.0.1 --port 5173",
+    "build": "vue-tsc --noEmit && uni build -p h5",
+    "build:h5": "vue-tsc --noEmit && uni build -p h5",
+    "typecheck": "vue-tsc --noEmit",
+    "preview": "vite preview --host 127.0.0.1 --port 5173"
+  },
+  "dependencies": {
+    "@dcloudio/uni-app": "3.0.0-alpha-5020120260706001",
+    "@dcloudio/uni-components": "3.0.0-alpha-5020120260706001",
+    "@dcloudio/uni-h5": "3.0.0-alpha-5020120260706001",
+    "vue": "^3.4.38"
+  },
+  "devDependencies": {
+    "@dcloudio/types": "^3.4.31",
+    "@dcloudio/vite-plugin-uni": "3.0.0-alpha-5020120260706001",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2",
+    "vue-tsc": "^2.0.29"
+  }
+}

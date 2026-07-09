@@ -1,0 +1,19 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "cards": [
+      {"key": "elderStatus", "label": "长辈状态", "value": "稳定", "unit": "", "trend": "血压 128/78"},
+      {"key": "serviceProgress", "label": "服务进度", "value": "09:45", "unit": "预计到达", "trend": "护理员已出发"},
+      {"key": "pendingConfirm", "label": "待确认", "value": "2", "unit": "项", "trend": "报告与付款"}
+    ],
+    "quickActions": [
+      {"key": "healthArchive", "label": "健康档案", "path": "/pages/family/index?view=health-archive", "permissionCode": "health:view"},
+      {"key": "createOrder", "label": "预约服务", "path": "/pages/family/index?view=create-order", "permissionCode": "order:create"},
+      {"key": "confirmReport", "label": "确认报告", "path": "/pages/family/index?view=confirm-report", "permissionCode": "report:confirm"}
+    ],
+    "todoCount": 3
+  },
+  "traceId": "mock-4"
+}
+

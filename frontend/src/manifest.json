@@ -1,0 +1,27 @@
+{
+  "name": "CareNest",
+  "appid": "__UNI__CARENEST",
+  "description": "互联网智慧护理平台四端前端",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "h5": {
+    "router": {
+      "mode": "hash",
+      "base": "/"
+    },
+    "devServer": {
+      "port": 5173
+    }
+  },
+  "app-plus": {
+    "usingComponents": true
+  },
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false
+    },
+    "usingComponents": true
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "status": "UP",
+    "appName": "CareNest",
+    "version": "0.1.0",
+    "dbConnected": false,
+    "serverTime": "2026-07-08T09:00:00+08:00"
+  },
+  "traceId": "mock-phase-01-health"
+}

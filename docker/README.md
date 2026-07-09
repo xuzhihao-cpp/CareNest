@@ -2,7 +2,7 @@
 
 本目录用于后续维护本地联调和部署相关配置。
 
-阶段 1-2 只保留目录说明，不提前编写 `docker-compose`，避免在数据库、后端端口、MinIO、Redis、Nginx 等依赖未最终确认前引入误导性配置。
+根目录 `docker-compose.yml` 已按 `need/` 开工文档固定本地依赖服务：MySQL 8.0、Redis 7、MinIO。
 
 后续建议文件：
 
