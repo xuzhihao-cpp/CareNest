@@ -100,7 +100,7 @@ const roleProfiles: Record<RoleCode, VisualProfile> = {
   ELDER: {
     terminal: 'mobile',
     subtitle: '移动端 · 简单易用 · 安心陪伴',
-    heroTitle: '上午好，张奶奶',
+    heroTitle: '上午好，张爷爷',
     heroMeta: '今日提醒 4 项 · 护理员预计 09:45 到达',
     primaryAction: '一键求助',
     primarySymbol: '☎',
@@ -120,8 +120,8 @@ const roleProfiles: Record<RoleCode, VisualProfile> = {
   FAMILY: {
     terminal: 'mobile',
     subtitle: '移动端 · 远程守护 · 及时掌握',
-    heroTitle: '张奶奶健康状态稳定',
-    heroMeta: '血压 128/78 · 心率 72 · 今日提醒完成 3/5',
+    heroTitle: '张爷爷挂了，挂在一个温暖的地方，被这货打死了->，我要把我所有的东西留给我的嗝屁猫',
+    heroMeta: '血压 0/0 · 心率 0 · 今日提醒完成 3/5',
     primaryAction: '去确认',
     primarySymbol: '✓',
     primaryPermission: 'report:confirm',

@@ -42,6 +42,7 @@ class UserApiOpenApiContractTest {
                 .andExpect(jsonPath("$.openapi").isString())
                 .andExpect(jsonPath("$.paths['/api/v1/family/bindings'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/family/bindings'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/elder/bindings'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/elders/{elderId}/profile'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/elders/{elderId}/service-addresses'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/elder/reports/{reportId}/ack'].post").exists())
@@ -78,6 +79,7 @@ class UserApiOpenApiContractTest {
         Set<String> allowedPaths = new HashSet<>();
         committed.path("paths").fieldNames().forEachRemaining(allowedPaths::add);
         allowedPaths.add("/api/v1/elder/reports/{reportId}/ack");
+        allowedPaths.add("/api/v1/elder/bindings");
         allowedPaths.add("/api/v1/family/reports/{reportId}/ack");
         allowedPaths.add("/api/v1/family/reports/{reportId}/archive-suggestions/decision");
         Iterator<String> pathNames = paths.fieldNames();

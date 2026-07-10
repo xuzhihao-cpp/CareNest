@@ -7,6 +7,7 @@ INSERT INTO sys_role (role_id, role_code, role_name, enabled) VALUES
 
 INSERT INTO sys_user (user_id, username, password_hash, display_name, phone, account_status) VALUES
 ('elder-001', 'elder_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '长辈演示账号', '13800000001', 'ENABLED'),
+('elder-002', 'elder_other_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '其他长辈账号', '13800000006', 'ENABLED'),
 ('family-001', 'family_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '家属演示账号', '13800000002', 'ENABLED'),
 ('nurse-001', 'nurse_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '护理演示账号', '13800000003', 'ENABLED'),
 ('admin-001', 'admin_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '管理员演示账号', '13800000004', 'ENABLED'),
@@ -14,6 +15,7 @@ INSERT INTO sys_user (user_id, username, password_hash, display_name, phone, acc
 
 INSERT INTO user_role (user_id, role_id) VALUES
 ('elder-001', 'role_elder'),
+('elder-002', 'role_elder'),
 ('family-001', 'role_family'),
 ('nurse-001', 'role_nurse'),
 ('admin-001', 'role_admin'),
@@ -62,6 +64,14 @@ INSERT INTO elder_profile (
 INSERT INTO elder_contact (contact_id, elder_id, contact_name, contact_phone, relation_type, is_primary) VALUES
 ('contact_001', 'elder_001', '张小明', '13800000002', 'SON', TRUE);
 
+INSERT INTO elder_profile (
+  elder_id, user_id, elder_name, gender, birth_date, care_level,
+  emergency_contact_name, emergency_contact_phone, health_summary
+) VALUES (
+  'elder_002', 'elder-002', '李爷爷', 'MALE', DATE '1942-11-02', 'LEVEL_1',
+  '李芳', '13800000006', '无'
+);
+
 INSERT INTO elder_family_binding (
   binding_id, elder_id, family_id, binding_status, scope_codes,
   relation_type, inviter_user_id, approver_user_id, remark
@@ -69,6 +79,14 @@ INSERT INTO elder_family_binding (
   'binding_001', 'elder_001', 'family-001', 'ACTIVE',
   '["HEALTH_VIEW","HEALTH_EDIT","ORDER_CREATE","REPORT_VIEW","REPORT_CONFIRM"]',
   'SON', 'family-001', 'elder-001', '演示绑定关系'
+);
+
+INSERT INTO elder_family_binding (
+  binding_id, elder_id, family_id, binding_status, scope_codes,
+  relation_type, inviter_user_id, approver_user_id, remark
+) VALUES (
+  'binding_other_elder', 'elder_002', 'family-001', 'PENDING',
+  '["HEALTH_VIEW"]', 'OTHER', 'family-001', NULL, '隔离测试绑定'
 );
 
 INSERT INTO service_address (

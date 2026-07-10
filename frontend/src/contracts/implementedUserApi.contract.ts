@@ -1,6 +1,6 @@
 import type { ApiResponse } from '@/types/api';
 import type { components } from '@/types/generated/user-api';
-import type { approveElderBinding } from '@/api/stageSix';
+import type { approveElderBinding, getElderBindings } from '@/api/stageSix';
 import type { BindingListResult, BindingRequest, BindingResponse } from '@/types/stageSix';
 import type { ElderProfileResponse, FamilyElderListResult } from '@/types/stageSeven';
 import type { ServiceAddressListResult } from '@/types/stageNine';
@@ -27,6 +27,9 @@ type ApproveBindingMatchesBackend = Assert<
     (bindingId: string, payload: BindingRequest) => Promise<ApiResponse<BindingResponse>>
   >
 >;
+type ElderBindingListMatchesBackend = Assert<
+  Equal<typeof getElderBindings, (scenario?: 'normal' | 'empty' | 'error') => Promise<ApiResponse<BindingListResult>>>
+>;
 
 export type ImplementedUserApiContractAssertions =
   | BindingListMatchesBackend
@@ -35,4 +38,5 @@ export type ImplementedUserApiContractAssertions =
   | ElderProfileMatchesBackend
   | HealthMatchesBackend
   | DemoStatusMatchesBackend
+  | ElderBindingListMatchesBackend
   | ApproveBindingMatchesBackend;

@@ -99,6 +99,62 @@ class UserSidePhaseApiTest {
     }
 
     @Test
+    void elderReadsRealPendingBindingAndApprovesIt() throws Exception {
+        String familyToken = loginAndReadToken("family_demo");
+        String elderToken = loginAndReadToken("elder_demo");
+
+        String createBody = mockMvc.perform(post("/api/v1/family/bindings")
+                        .header("Authorization", "Bearer " + familyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "elderInviteCode", "elder_001",
+                                "relationType", "DAUGHTER",
+                                "scopeCodes", List.of("HEALTH_VIEW", "REPORT_VIEW")
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bindingStatus").value("PENDING"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String bindingId = objectMapper.readTree(createBody).path("data").path("bindingId").asText();
+
+        mockMvc.perform(get("/api/v1/elder/bindings")
+                        .header("Authorization", "Bearer " + elderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.bindingId == '%s')].bindingStatus", bindingId)
+                        .value(hasItem("PENDING")))
+                .andExpect(jsonPath("$.data[*].bindingId", not(hasItem("binding_other_elder"))));
+
+        mockMvc.perform(get("/api/v1/elder/bindings")
+                        .header("Authorization", "Bearer " + familyToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403));
+
+        mockMvc.perform(post("/api/v1/elder/bindings/{bindingId}/approve", bindingId)
+                        .header("Authorization", "Bearer " + elderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "elderInviteCode", "elder_001",
+                                "relationType", "DAUGHTER",
+                                "scopeCodes", List.of("HEALTH_VIEW", "REPORT_VIEW")
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bindingStatus").value("ACTIVE"));
+
+        mockMvc.perform(get("/api/v1/elder/bindings")
+                        .header("Authorization", "Bearer " + elderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.bindingId == '%s')].bindingStatus", bindingId)
+                        .value(hasItem("ACTIVE")));
+
+        mockMvc.perform(get("/api/v1/family/bindings")
+                        .header("Authorization", "Bearer " + familyToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.bindingId == '%s')].bindingStatus", bindingId)
+                        .value(hasItem("ACTIVE")));
+    }
+
+    @Test
     void familyReadsAndUpdatesAuthorizedElderProfile() throws Exception {
         String familyToken = loginAndReadToken("family_demo");
 

@@ -41,11 +41,12 @@ Response:
 | Method | Path | 说明 |
 | --- | --- | --- |
 | GET | `/api/v1/family/bindings` | 查询当前家属绑定列表 |
+| GET | `/api/v1/elder/bindings` | 查询当前长辈的真实绑定列表，包括待确认绑定 |
 | POST | `/api/v1/elder/bindings/{bindingId}/approve` | 长辈确认绑定 |
 | PUT | `/api/v1/family/bindings/{bindingId}/scopes` | 家属调整授权范围 |
 | POST | `/api/v1/family/bindings/{bindingId}/revoke` | 家属撤销绑定 |
 
-规则：绑定确认只能由绑定对应长辈本人完成；只有 `ACTIVE` 绑定且 `scopeCodes` 包含对应授权时，家属才可访问档案、地址、报告确认等资源。
+规则：长辈绑定列表按当前登录用户对应的 `elder_profile.user_id` 隔离；绑定确认只能由绑定对应长辈本人完成；只有 `ACTIVE` 绑定且 `scopeCodes` 包含对应授权时，家属才可访问档案、地址、报告确认等资源。
 
 ## 阶段 7 长辈基础档案
 

@@ -84,6 +84,26 @@ public class UserSideFlowService {
                 .toList();
     }
 
+    public List<BindingResponse> elderBindings(String authorization) {
+        AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.ELDER);
+        List<ElderProfile> elders = elderProfileMapper.selectList(Wrappers.<ElderProfile>lambdaQuery()
+                .eq(ElderProfile::getUserId, currentUser.userId()));
+        if (elders.isEmpty()) {
+            throw new NotFoundException();
+        }
+        List<String> elderIds = elders.stream().map(ElderProfile::getElderId).toList();
+        return bindingMapper.selectList(Wrappers.<ElderFamilyBinding>lambdaQuery()
+                        .in(ElderFamilyBinding::getElderId, elderIds))
+                .stream()
+                .map(binding -> toBindingResponse(
+                        binding,
+                        elders.stream()
+                                .filter(elder -> elder.getElderId().equals(binding.getElderId()))
+                                .findFirst()
+                                .orElseThrow(NotFoundException::new)))
+                .toList();
+    }
+
     @Transactional
     public BindingResponse approveBinding(String authorization, String bindingId, BindingRequest request) {
         AuthService.CurrentUser currentUser = authService.requireCurrentUser(authorization);

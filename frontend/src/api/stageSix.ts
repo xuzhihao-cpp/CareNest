@@ -11,14 +11,25 @@ import type {
   BindingScopeUpdateRequest
 } from '@/types/stageSix';
 
+type BindingMockData = BindingListResult | { records: BindingResponse[] };
+type BindingMockResponse = ApiResponse<BindingMockData>;
+
 const familyBindingsPath = '/family/bindings';
+const elderBindingsPath = '/elder/bindings';
 const elderApprovePath = (bindingId: string) => `/elder/bindings/${bindingId}/approve`;
 const familyScopesPath = (bindingId: string) => `/family/bindings/${bindingId}/scopes`;
 const familyRevokePath = (bindingId: string) => `/family/bindings/${bindingId}/revoke`;
 
-let bindingRecords: BindingResponse[] = [
-  ...(familyBindingsMock as ApiResponse<BindingListResult>).data
-];
+function readMockBindings(mock: BindingMockResponse): BindingResponse[] {
+  const data = mock.data;
+  return Array.isArray(data) ? data : data.records;
+}
+
+function normalizeMockResponse(mock: BindingMockResponse): ApiResponse<BindingListResult> {
+  return { ...mock, data: readMockBindings(mock) };
+}
+
+let bindingRecords: BindingResponse[] = readMockBindings(familyBindingsMock as BindingMockResponse);
 
 function requireFamily<T>(emptyData: T): ApiResponse<T> | null {
   const session = readAuthSession();
@@ -31,12 +42,12 @@ function requireFamily<T>(emptyData: T): ApiResponse<T> | null {
   return null;
 }
 
-function requireElderOrFamily<T>(emptyData: T): ApiResponse<T> | null {
+function requireElder<T>(emptyData: T): ApiResponse<T> | null {
   const session = readAuthSession();
   if (!session) {
     return failure(401, '未登录', emptyData, 'mock-6-unauthorized');
   }
-  if (!session.user.roles.includes('ELDER') && !session.user.roles.includes('FAMILY')) {
+  if (!session.user.roles.includes('ELDER')) {
     return failure(403, '无权限', emptyData, 'mock-6-forbidden');
   }
   return null;
@@ -46,10 +57,37 @@ export function getStageSixEndpointSummary() {
   return [
     'POST /api/v1/family/bindings',
     'GET /api/v1/family/bindings',
+    'GET /api/v1/elder/bindings',
     'POST /api/v1/elder/bindings/{bindingId}/approve',
     'PUT /api/v1/family/bindings/{bindingId}/scopes',
     'POST /api/v1/family/bindings/{bindingId}/revoke'
   ];
+}
+
+export async function getElderBindings(scenario: BindingScenario = 'normal'): Promise<ApiResponse<BindingListResult>> {
+  if (isMockEnabled()) {
+    const denied = requireElder<BindingListResult>([]);
+    if (denied) {
+      return denied;
+    }
+    if (scenario === 'empty') {
+      return normalizeMockResponse(familyBindingsEmptyMock as BindingMockResponse);
+    }
+    if (scenario === 'error') {
+      return normalizeMockResponse(familyBindingsErrorMock as BindingMockResponse);
+    }
+    const session = readAuthSession();
+    const elderId = session?.user.userId.replace(/^elder-/, 'elder_');
+    return success(
+      bindingRecords.filter((binding) => binding.elderId === elderId),
+      'mock-6-elder-bindings'
+    );
+  }
+
+  return request<BindingListResult>({
+    method: 'GET',
+    url: elderBindingsPath
+  });
 }
 
 export function getStageSixBindingSnapshot(): BindingResponse[] {
@@ -63,10 +101,10 @@ export async function getFamilyBindings(scenario: BindingScenario = 'normal'): P
       return denied;
     }
     if (scenario === 'empty') {
-      return familyBindingsEmptyMock as ApiResponse<BindingListResult>;
+      return normalizeMockResponse(familyBindingsEmptyMock as BindingMockResponse);
     }
     if (scenario === 'error') {
-      return familyBindingsErrorMock as ApiResponse<BindingListResult>;
+      return normalizeMockResponse(familyBindingsErrorMock as BindingMockResponse);
     }
     return success(bindingRecords, 'mock-6-family-bindings');
   }
@@ -89,7 +127,7 @@ export async function createFamilyBinding(payload: BindingRequest): Promise<ApiR
     const created: BindingResponse = {
       bindingId: `binding-${String(bindingRecords.length + 1).padStart(3, '0')}`,
       elderId: `elder-${String(bindingRecords.length + 1).padStart(3, '0')}`,
-      elderName: payload.elderInviteCode === 'ELDER-LI-2026' ? '李爷爷' : '王奶奶',
+      elderName: '张爷爷',
       relationType: payload.relationType,
       bindingStatus: 'PENDING',
       scopeCodes: payload.scopeCodes
@@ -110,7 +148,7 @@ export async function approveElderBinding(
   payload: BindingRequest
 ): Promise<ApiResponse<BindingResponse>> {
   if (isMockEnabled()) {
-    const denied = requireElderOrFamily({} as BindingResponse);
+    const denied = requireElder({} as BindingResponse);
     if (denied) {
       return denied;
     }
@@ -187,5 +225,5 @@ export async function revokeFamilyBinding(bindingId: string, source: BindingRequ
 }
 
 export function resetStageSixMockRecords() {
-  bindingRecords = [...(familyBindingsMock as ApiResponse<BindingListResult>).data];
+  bindingRecords = readMockBindings(familyBindingsMock as BindingMockResponse);
 }
