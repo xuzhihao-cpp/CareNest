@@ -42,6 +42,7 @@ INSERT INTO elder_family_binding (
   JSON_ARRAY('HEALTH_VIEW','HEALTH_EDIT','ORDER_CREATE','REPORT_VIEW','REPORT_CONFIRM'),
   'SON', 'family-001', 'elder-001', '演示绑定关系'
 ) ON DUPLICATE KEY UPDATE
+  family_id = VALUES(family_id),
   binding_status = VALUES(binding_status),
   scope_codes = VALUES(scope_codes),
   relation_type = VALUES(relation_type),
@@ -68,6 +69,7 @@ INSERT INTO service_address (
   'address_001', 'elder_001', 'family-001', '张小明', '13800000002',
   '310000', '310100', '310101', '人民路100号1单元201', 1
 ) ON DUPLICATE KEY UPDATE
+  family_id = VALUES(family_id),
   contact_name = VALUES(contact_name),
   contact_phone = VALUES(contact_phone),
   province_code = VALUES(province_code),
