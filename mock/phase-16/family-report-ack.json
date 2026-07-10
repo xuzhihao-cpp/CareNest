@@ -1,0 +1,10 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "ackId": "ack_mock_family_001",
+    "ackResult": "CONFIRMED",
+    "reportStatus": "CONFIRMED"
+  },
+  "traceId": "mock-16"
+}
