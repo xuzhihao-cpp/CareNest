@@ -4,23 +4,15 @@
   "data": {
     "records": [
       {
-        "bindingId": "binding-001",
-        "elderId": "elder-001",
-        "elderName": "张奶奶",
-        "relationType": "DAUGHTER",
+        "bindingId": "binding_001",
+        "elderId": "elder_001",
+        "elderName": "张爷爷",
+        "relationType": "SON",
         "bindingStatus": "ACTIVE",
         "scopeCodes": ["HEALTH_VIEW", "HEALTH_EDIT", "ORDER_CREATE", "REPORT_VIEW", "REPORT_CONFIRM"]
-      },
-      {
-        "bindingId": "binding-002",
-        "elderId": "elder-002",
-        "elderName": "李爷爷",
-        "relationType": "SON",
-        "bindingStatus": "PENDING",
-        "scopeCodes": ["HEALTH_VIEW", "REPORT_VIEW"]
       }
     ],
-    "total": 2,
+    "total": 1,
     "page": 1,
     "size": 10
   },

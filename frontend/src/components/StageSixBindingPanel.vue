@@ -3,11 +3,13 @@ import { computed, onMounted, ref } from 'vue';
 import {
   approveElderBinding,
   createFamilyBinding,
+  getElderBindings,
   getFamilyBindings,
   getStageSixEndpointSummary,
   revokeFamilyBinding,
   updateFamilyBindingScopes
 } from '@/api/stageSix';
+import { isMockEnabled } from '@/api/client';
 import type { ApiResponse } from '@/types/api';
 import type { RoleCode } from '@/types/stageOne';
 import type { AuthUser } from '@/types/stageTwo';
@@ -60,17 +62,13 @@ const message = ref('');
 const error = ref('');
 const lastTraceId = ref('');
 const lastResponse = ref<ApiResponse<BindingResponse> | null>(null);
-const approvalBindingId = ref('');
 const endpoints = getStageSixEndpointSummary();
+const mockEnabled = isMockEnabled();
 
 const activeCount = computed(() => records.value.filter((item) => item.bindingStatus === 'ACTIVE').length);
 const pendingCount = computed(() => records.value.filter((item) => item.bindingStatus === 'PENDING').length);
 const canFamilyOperate = computed(() => props.authUser?.roles.includes('FAMILY') && props.roleCode === 'FAMILY');
 const canElderApprove = computed(() => props.authUser?.roles.includes('ELDER') && props.roleCode === 'ELDER');
-
-const elderPendingBinding = computed<BindingResponse | null>(() =>
-  records.value.find((item) => item.bindingStatus === 'PENDING') ?? null
-);
 
 function labelRelation(value: string) {
   return relationOptions.find((item) => item.value === value)?.label ?? value;
@@ -110,13 +108,13 @@ function applyResponse(response: ApiResponse<BindingResponse>, successText: stri
 }
 
 async function loadBindings(scenario: BindingScenario = 'normal') {
-  if (!canFamilyOperate.value && props.roleCode !== 'ELDER') {
+  if (!canFamilyOperate.value && !canElderApprove.value) {
     return;
   }
   loading.value = true;
   const response = canFamilyOperate.value
     ? await getFamilyBindings(scenario)
-    : ({ code: 0, message: 'success', data: [], traceId: 'elder-binding-list-not-supported' } as ApiResponse<BindingResponse[]>);
+    : await getElderBindings(scenario);
   loading.value = false;
   lastTraceId.value = response.traceId;
   if (response.code === 0) {
@@ -160,20 +158,14 @@ async function revokeBinding(record: BindingResponse) {
   await loadBindings();
 }
 
-async function approvePending() {
-  const target = elderPendingBinding.value;
-  const bindingId = target?.bindingId || approvalBindingId.value.trim();
-  if (!bindingId) {
-    error.value = '请输入家属提供的绑定申请编号。';
-    return;
-  }
-  const response = await approveElderBinding(bindingId, {
-    elderInviteCode: target?.elderId || 'elder_001',
-    relationType: target?.relationType || form.value.relationType,
-    scopeCodes: target?.scopeCodes || form.value.scopeCodes
+async function approvePending(target: BindingResponse) {
+  const response = await approveElderBinding(target.bindingId, {
+    elderInviteCode: target.elderId,
+    relationType: target.relationType,
+    scopeCodes: target.scopeCodes
   });
   applyResponse(response, '长辈端已确认绑定');
-  records.value = response.code === 0 ? [response.data] : records.value;
+  await loadBindings();
 }
 
 onMounted(() => {
@@ -208,7 +200,7 @@ onMounted(() => {
     <view v-if="roleCode === 'FAMILY'" class="binding-form">
       <label class="field">
         <text>长辈邀请码 elderInviteCode</text>
-        <input v-model="form.elderInviteCode" class="input" placeholder="ELDER-WANG-2026" />
+        <input v-model="form.elderInviteCode" class="input" placeholder="elder_001" />
       </label>
 
       <view class="binding-options">
@@ -247,28 +239,16 @@ onMounted(() => {
         <button class="hero-action" type="button" :disabled="loading" @click="submitBinding">
           <text>提交绑定</text>
         </button>
-        <button class="ghost-action test-action" type="button" @click="loadBindings('normal')">
-          <text>正常 mock</text>
+        <button class="ghost-action" type="button" @click="loadBindings('normal')">
+          <text>刷新列表</text>
         </button>
-        <button class="ghost-action test-action" type="button" @click="loadBindings('empty')">
+        <button v-if="mockEnabled" class="ghost-action" type="button" @click="loadBindings('empty')">
           <text>空数据 mock</text>
         </button>
-        <button class="ghost-action test-action" type="button" @click="loadBindings('error')">
+        <button v-if="mockEnabled" class="ghost-action" type="button" @click="loadBindings('error')">
           <text>错误 mock</text>
         </button>
       </view>
-    </view>
-
-    <view v-if="roleCode === 'ELDER'" class="elder-approval-card">
-      <text class="section-mini">POST /api/v1/elder/bindings/{bindingId}/approve</text>
-      <text class="access-title">确认家属绑定申请</text>
-      <label class="field"><text>绑定申请编号</text><input v-model="approvalBindingId" class="input" placeholder="请输入家属提供的 bindingId" /></label>
-      <text v-if="elderPendingBinding" class="access-desc">{{ elderPendingBinding.elderName }} · {{ labelRelation(elderPendingBinding.relationType) }}</text>
-      <text v-else class="access-desc">当前后端没有长辈待确认列表接口，因此页面不会伪造待确认记录。</text>
-      <button v-if="canElderApprove" class="hero-action" type="button" @click="approvePending">
-        <text>确认绑定</text>
-      </button>
-      <text v-else class="tag tag-coral">403 无权限</text>
     </view>
 
     <view v-if="message" class="success-banner">
@@ -282,7 +262,7 @@ onMounted(() => {
       <text class="empty-icon">∅</text>
       <view>
         <text class="empty-title">暂无绑定记录</text>
-        <text class="empty-desc">空数据 mock 已返回 records: []，分页结构仍保持 total / page / size。</text>
+        <text class="empty-desc">当前账号没有可显示的绑定记录。</text>
       </view>
     </view>
 
@@ -301,6 +281,14 @@ onMounted(() => {
           <text class="tag" :class="statusClass(record.bindingStatus)">
             {{ record.bindingStatus }} · {{ statusLabels[record.bindingStatus] }}
           </text>
+          <button
+            v-if="roleCode === 'ELDER' && record.bindingStatus === 'PENDING'"
+            class="hero-action"
+            type="button"
+            @click="approvePending(record)"
+          >
+            <text>确认绑定</text>
+          </button>
           <button
             v-if="roleCode === 'FAMILY' && record.bindingStatus === 'ACTIVE'"
             class="ghost-action"
