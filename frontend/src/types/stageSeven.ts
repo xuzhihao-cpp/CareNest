@@ -1,4 +1,6 @@
-import type { PageResult } from './api';
+import type { components } from './generated/user-api';
+
+type Schemas = components['schemas'];
 
 export type Gender = 'MALE' | 'FEMALE' | 'UNKNOWN';
 
@@ -8,25 +10,7 @@ export type RelationType = 'SON' | 'DAUGHTER' | 'SPOUSE' | 'OTHER';
 
 export type ElderProfileScenario = 'normal' | 'empty' | 'error';
 
-export interface EmergencyContact {
-  contactName: string;
-  contactPhone: string;
-  relationType: RelationType;
-}
-
-export interface ElderProfileRequest {
-  name: string;
-  gender: Gender;
-  birthDate: string;
-  careLevel: CareLevel;
-  emergencyContacts: EmergencyContact[];
-}
-
-export interface ElderProfileResponse {
-  elderId: string;
-  profileVersion: number;
-}
-
-export interface ElderProfileDetail extends ElderProfileRequest, ElderProfileResponse {}
-
-export type FamilyElderPageResult = PageResult<ElderProfileDetail>;
+export type EmergencyContact = Schemas['EmergencyContactRequest'];
+export type ElderProfileRequest = Schemas['ElderProfileRequest'];
+export type ElderProfileResponse = Schemas['ElderProfileResponse'];
+export type FamilyElderListResult = Schemas['ElderProfileResponse'][];

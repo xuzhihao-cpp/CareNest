@@ -1,0 +1,1094 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "OpenAPI definition",
+    "version" : "v0"
+  },
+  "servers" : [ {
+    "url" : "http://localhost",
+    "description" : "Generated server url"
+  } ],
+  "paths" : {
+    "/api/v1/service-addresses/{addressId}" : {
+      "put" : {
+        "tags" : [ "service-address-controller" ],
+        "operationId" : "updateServiceAddress",
+        "parameters" : [ {
+          "name" : "addressId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ServiceAddressRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseServiceAddressResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "service-address-controller" ],
+        "operationId" : "deleteServiceAddress",
+        "parameters" : [ {
+          "name" : "addressId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseServiceAddressResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/family/bindings/{bindingId}/scopes" : {
+      "put" : {
+        "tags" : [ "binding-controller" ],
+        "operationId" : "updateBindingScopes",
+        "parameters" : [ {
+          "name" : "bindingId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BindingRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseBindingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elders/{elderId}/profile" : {
+      "get" : {
+        "tags" : [ "elder-profile-controller" ],
+        "operationId" : "elderProfile",
+        "parameters" : [ {
+          "name" : "elderId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseElderProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "elder-profile-controller" ],
+        "operationId" : "updateElderProfile",
+        "parameters" : [ {
+          "name" : "elderId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ElderProfileRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseElderProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/family/bindings" : {
+      "get" : {
+        "tags" : [ "binding-controller" ],
+        "operationId" : "familyBindings",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseListBindingResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "binding-controller" ],
+        "operationId" : "createBinding",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BindingRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseBindingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/family/bindings/{bindingId}/revoke" : {
+      "post" : {
+        "tags" : [ "binding-controller" ],
+        "operationId" : "revokeBinding",
+        "parameters" : [ {
+          "name" : "bindingId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BindingRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseBindingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elders/{elderId}/service-addresses" : {
+      "get" : {
+        "tags" : [ "service-address-controller" ],
+        "operationId" : "serviceAddresses",
+        "parameters" : [ {
+          "name" : "elderId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseListServiceAddressResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "service-address-controller" ],
+        "operationId" : "createServiceAddress",
+        "parameters" : [ {
+          "name" : "elderId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ServiceAddressRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseServiceAddressResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elder/bindings/{bindingId}/approve" : {
+      "post" : {
+        "tags" : [ "binding-controller" ],
+        "operationId" : "approveBinding",
+        "parameters" : [ {
+          "name" : "bindingId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BindingRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseBindingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "logout",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseAuthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseAuthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/roles/{roleId}/permissions" : {
+      "post" : {
+        "tags" : [ "admin-role-permission-controller" ],
+        "operationId" : "updatePermissions",
+        "parameters" : [ {
+          "name" : "roleId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PermissionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponsePermissionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health" : {
+      "get" : {
+        "tags" : [ "status-controller" ],
+        "operationId" : "health",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/family/elders" : {
+      "get" : {
+        "tags" : [ "elder-profile-controller" ],
+        "operationId" : "familyElders",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseListElderProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/permissions" : {
+      "get" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "permissions",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponsePermissionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/menus" : {
+      "get" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "menus",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseAuthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me" : {
+      "get" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "me",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseAuthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/demo-data/status" : {
+      "get" : {
+        "tags" : [ "status-controller" ],
+        "operationId" : "demoDataStatus",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseDemoDataStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "ServiceAddressRequest" : {
+        "required" : [ "contactName", "contactPhone", "detailAddress", "isDefault", "regionCode" ],
+        "type" : "object",
+        "properties" : {
+          "contactName" : {
+            "type" : "string"
+          },
+          "contactPhone" : {
+            "type" : "string"
+          },
+          "regionCode" : {
+            "type" : "string"
+          },
+          "detailAddress" : {
+            "type" : "string"
+          },
+          "isDefault" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "ApiResponseServiceAddressResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/ServiceAddressResponse"
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ServiceAddressResponse" : {
+        "type" : "object",
+        "properties" : {
+          "addressId" : {
+            "type" : "string"
+          },
+          "fullAddress" : {
+            "type" : "string"
+          },
+          "isDefault" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "BindingRequest" : {
+        "required" : [ "elderInviteCode", "relationType", "scopeCodes" ],
+        "type" : "object",
+        "properties" : {
+          "elderInviteCode" : {
+            "type" : "string"
+          },
+          "relationType" : {
+            "type" : "string"
+          },
+          "scopeCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "ApiResponseBindingResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/BindingResponse"
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "BindingResponse" : {
+        "type" : "object",
+        "properties" : {
+          "bindingId" : {
+            "type" : "string"
+          },
+          "elderId" : {
+            "type" : "string"
+          },
+          "elderName" : {
+            "type" : "string"
+          },
+          "relationType" : {
+            "type" : "string"
+          },
+          "bindingStatus" : {
+            "type" : "string"
+          },
+          "scopeCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "ElderProfileRequest" : {
+        "required" : [ "birthDate", "careLevel", "emergencyContacts", "gender", "name" ],
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "gender" : {
+            "type" : "string"
+          },
+          "birthDate" : {
+            "type" : "string"
+          },
+          "careLevel" : {
+            "type" : "string"
+          },
+          "emergencyContacts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EmergencyContactRequest"
+            }
+          }
+        }
+      },
+      "EmergencyContactRequest" : {
+        "required" : [ "contactName", "contactPhone" ],
+        "type" : "object",
+        "properties" : {
+          "contactName" : {
+            "type" : "string"
+          },
+          "contactPhone" : {
+            "type" : "string"
+          },
+          "relationType" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ApiResponseElderProfileResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/ElderProfileResponse"
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ElderProfileResponse" : {
+        "type" : "object",
+        "properties" : {
+          "elderId" : {
+            "type" : "string"
+          },
+          "profileVersion" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ApiResponseAuthResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/AuthResponse"
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "AuthResponse" : {
+        "type" : "object",
+        "properties" : {
+          "token" : {
+            "type" : "string"
+          },
+          "userId" : {
+            "type" : "string"
+          },
+          "displayName" : {
+            "type" : "string"
+          },
+          "roles" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "menus" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "LoginRequest" : {
+        "required" : [ "password", "username" ],
+        "type" : "object",
+        "properties" : {
+          "username" : {
+            "type" : "string"
+          },
+          "password" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PermissionRequest" : {
+        "required" : [ "permissionCodes" ],
+        "type" : "object",
+        "properties" : {
+          "permissionCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "ApiResponsePermissionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/PermissionResponse"
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "PermissionResponse" : {
+        "type" : "object",
+        "properties" : {
+          "roleCode" : {
+            "type" : "string"
+          },
+          "permissions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "ApiResponseHealthResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/HealthResponse"
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "HealthResponse" : {
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "type" : "string"
+          },
+          "appName" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          },
+          "dbConnected" : {
+            "type" : "boolean"
+          },
+          "serverTime" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "ApiResponseListElderProfileResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ElderProfileResponse"
+            }
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ApiResponseListBindingResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/BindingResponse"
+            }
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ApiResponseListServiceAddressResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ServiceAddressResponse"
+            }
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ApiResponseDemoDataStatusResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/DemoDataStatusResponse"
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "DemoDataStatusResponse" : {
+        "type" : "object",
+        "properties" : {
+          "ready" : {
+            "type" : "boolean"
+          },
+          "accounts" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "scenarioCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      }
+    }
+  }
+}

@@ -41,7 +41,7 @@ const scopeOptions: Array<{ value: BindingScopeCode; label: string }> = [
   { value: 'ARCHIVE_EDIT', label: '归档编辑' }
 ];
 
-const statusLabels: Record<BindingStatus, string> = {
+const statusLabels: Record<string, string> = {
   PENDING: '待确认',
   ACTIVE: '已生效',
   REJECTED: '已拒绝',
@@ -80,15 +80,15 @@ const elderPendingBinding = computed<BindingResponse>(() => {
   );
 });
 
-function labelRelation(value: RelationType) {
+function labelRelation(value: string) {
   return relationOptions.find((item) => item.value === value)?.label ?? value;
 }
 
-function labelScope(value: BindingScopeCode) {
+function labelScope(value: string) {
   return scopeOptions.find((item) => item.value === value)?.label ?? value;
 }
 
-function statusClass(value: BindingStatus) {
+function statusClass(value: string) {
   if (value === 'ACTIVE') {
     return 'tag-teal';
   }
@@ -127,18 +127,13 @@ async function loadBindings(scenario: BindingScenario = 'normal') {
     : ({
         code: 0,
         message: 'success',
-        data: {
-          records: [elderPendingBinding.value],
-          total: 1,
-          page: 1,
-          size: 10
-        },
+        data: [elderPendingBinding.value],
         traceId: 'mock-6-elder-approval-card'
-      } as ApiResponse<{ records: BindingResponse[]; total: number; page: number; size: number }>);
+      } as ApiResponse<BindingResponse[]>);
   loading.value = false;
   lastTraceId.value = response.traceId;
   if (response.code === 0) {
-    records.value = response.data.records;
+    records.value = response.data;
     error.value = '';
     message.value =
       scenario === 'empty' ? '已切换为空数据 mock' : scenario === 'normal' ? '绑定列表已加载' : message.value;
@@ -156,7 +151,7 @@ async function submitBinding() {
 }
 
 async function updateScopes(record: BindingResponse) {
-  const nextScopes: BindingScopeCode[] = record.scopeCodes.includes('ARCHIVE_EDIT')
+  const nextScopes = record.scopeCodes.includes('ARCHIVE_EDIT')
     ? record.scopeCodes.filter((item) => item !== 'ARCHIVE_EDIT')
     : [...record.scopeCodes, 'ARCHIVE_EDIT'];
   const response = await updateFamilyBindingScopes(record.bindingId, {
@@ -180,7 +175,11 @@ async function revokeBinding(record: BindingResponse) {
 
 async function approvePending() {
   const target = elderPendingBinding.value;
-  const response = await approveElderBinding(target.bindingId);
+  const response = await approveElderBinding(target.bindingId, {
+    elderInviteCode: target.elderId,
+    relationType: target.relationType,
+    scopeCodes: target.scopeCodes
+  });
   applyResponse(response, '长辈端已确认绑定');
   records.value = response.code === 0 ? [response.data] : [target];
 }

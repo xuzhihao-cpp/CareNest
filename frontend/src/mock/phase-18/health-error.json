@@ -1,0 +1,12 @@
+{
+  "code": 500,
+  "message": "service error",
+  "data": {
+    "status": "DOWN",
+    "appName": "carenest-user",
+    "version": "unknown",
+    "dbConnected": false,
+    "serverTime": "2026-07-10T09:00:00+08:00"
+  },
+  "traceId": "mock-18-health-error"
+}

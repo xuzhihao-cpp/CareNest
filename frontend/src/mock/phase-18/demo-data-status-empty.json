@@ -1,0 +1,10 @@
+{
+  "code": 404,
+  "message": "data not found",
+  "data": {
+    "ready": false,
+    "accounts": [],
+    "scenarioCount": 0
+  },
+  "traceId": "mock-18-demo-data-status-empty"
+}

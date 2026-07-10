@@ -5,7 +5,7 @@ import { failure, isMockEnabled, readAuthSession, request, success } from '@/api
 import type { ApiResponse } from '@/types/api';
 import type {
   ServiceAddressDetail,
-  ServiceAddressPageResult,
+  ServiceAddressListResult,
   ServiceAddressRequest,
   ServiceAddressResponse,
   ServiceAddressScenario
@@ -67,13 +67,8 @@ function toResponse(record: ServiceAddressDetail): ServiceAddressResponse {
   };
 }
 
-function toPage(records: ServiceAddressDetail[]): ServiceAddressPageResult {
-  return {
-    records: records.map(toResponse),
-    total: records.length,
-    page: 1,
-    size: 10
-  };
+function toList(records: ServiceAddressDetail[]): ServiceAddressListResult {
+  return records.map(toResponse);
 }
 
 function buildFullAddress(payload: ServiceAddressRequest) {
@@ -130,26 +125,24 @@ export function getStageNineEndpointSummary() {
 export async function getServiceAddresses(
   elderId: string,
   scenario: ServiceAddressScenario = 'normal'
-): Promise<ApiResponse<ServiceAddressPageResult>> {
+): Promise<ApiResponse<ServiceAddressListResult>> {
   if (isMockEnabled()) {
-    const denied = requireFamily(toPage([]));
+    const denied = requireFamily<ServiceAddressListResult>([]);
     if (denied) {
       return denied;
     }
     if (scenario === 'empty') {
-      return serviceAddressesEmptyMock as ApiResponse<ServiceAddressPageResult>;
+      return serviceAddressesEmptyMock as ApiResponse<ServiceAddressListResult>;
     }
     if (scenario === 'error') {
-      return serviceAddressesErrorMock as ApiResponse<ServiceAddressPageResult>;
+      return serviceAddressesErrorMock as ApiResponse<ServiceAddressListResult>;
     }
-    return success(toPage(readDetails().filter((item) => item.elderId === elderId)), 'mock-9-service-addresses');
+    return success(toList(readDetails().filter((item) => item.elderId === elderId)), 'mock-9-service-addresses');
   }
 
-  return request<ServiceAddressPageResult>({
+  return request<ServiceAddressListResult>({
     method: 'GET',
-    url: elderServiceAddressesPath(elderId),
-    mock: serviceAddressesMock as ApiResponse<ServiceAddressPageResult>,
-    mockFallback: true
+    url: elderServiceAddressesPath(elderId)
   });
 }
 

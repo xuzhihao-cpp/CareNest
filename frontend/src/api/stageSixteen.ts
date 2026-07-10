@@ -297,8 +297,7 @@ export async function ackElderReport(
     method: 'POST',
     url: elderAckPath(reportId),
     data: payload,
-    mock: reportAckMock as ApiResponse<ReportAckResponse>,
-    mockFallback: true
+    mock: reportAckMock as ApiResponse<ReportAckResponse>
   });
 }
 
@@ -321,8 +320,7 @@ export async function ackFamilyReport(
     method: 'POST',
     url: familyAckPath(reportId),
     data: payload,
-    mock: reportAckMock as ApiResponse<ReportAckResponse>,
-    mockFallback: true
+    mock: reportAckMock as ApiResponse<ReportAckResponse>
   });
 }
 
@@ -345,7 +343,6 @@ export async function decideArchiveSuggestions(
     method: 'POST',
     url: archiveDecisionPath(reportId),
     data: payload,
-    mock: reportAckMock as ApiResponse<ReportAckResponse>,
-    mockFallback: true
+    mock: reportAckMock as ApiResponse<ReportAckResponse>
   });
 }

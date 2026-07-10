@@ -1,0 +1,10 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "ready": true,
+    "accounts": ["elder", "family", "nurse", "admin"],
+    "scenarioCount": 17
+  },
+  "traceId": "mock-18-demo-data-status"
+}

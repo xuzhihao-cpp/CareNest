@@ -13,7 +13,7 @@ import {
 import type { ApiResponse } from '@/types/api';
 import type { RoleCode } from '@/types/stageOne';
 import type { AuthUser } from '@/types/stageTwo';
-import type { ElderProfileDetail } from '@/types/stageSeven';
+import type { ElderProfileResponse } from '@/types/stageSeven';
 import type { ServiceItemResponse } from '@/types/stageEight';
 import type { ServiceAddressResponse } from '@/types/stageNine';
 import type {
@@ -27,7 +27,7 @@ const props = defineProps<{
   authUser: AuthUser | null;
 }>();
 
-const elders = ref<ElderProfileDetail[]>([]);
+const elders = ref<ElderProfileResponse[]>([]);
 const services = ref<ServiceItemResponse[]>([]);
 const addresses = ref<ServiceAddressResponse[]>([]);
 const orders = ref<FamilyOrderResponse[]>([]);
@@ -60,7 +60,7 @@ function setDefaultAddress() {
 async function loadPrerequisites() {
   const [elderResponse, serviceResponse] = await Promise.all([getFamilyElders(), getServiceItems('normal')]);
   if (elderResponse.code === 0) {
-    elders.value = elderResponse.data.records;
+    elders.value = elderResponse.data;
     form.value.elderId = form.value.elderId || elders.value[0]?.elderId || '';
   } else {
     error.value = `${elderResponse.code} ${elderResponse.message}`;
@@ -82,7 +82,7 @@ async function loadAddresses() {
   }
   const response = await getServiceAddresses(form.value.elderId);
   if (response.code === 0) {
-    addresses.value = response.data.records;
+    addresses.value = response.data;
     setDefaultAddress();
   } else {
     addresses.value = [];
@@ -198,7 +198,7 @@ onMounted(async () => {
               type="button"
               @click="selectElder(elder.elderId)"
             >
-              <text>{{ elder.name }}</text>
+              <text>{{ elder.elderId }}</text>
             </button>
           </view>
         </view>
@@ -262,7 +262,7 @@ onMounted(async () => {
 
         <view class="order-preview">
           <text class="section-mini">下单预览</text>
-          <text class="permission-main">{{ selectedElder?.name ?? '未选长辈' }} · {{ selectedService?.serviceName ?? '未选服务' }}</text>
+          <text class="permission-main">{{ selectedElder?.elderId ?? '未选长辈' }} · {{ selectedService?.serviceName ?? '未选服务' }}</text>
           <text class="auth-meta">{{ selectedAddress?.fullAddress ?? '未选地址' }} · {{ form.scheduledStart }}</text>
         </view>
 

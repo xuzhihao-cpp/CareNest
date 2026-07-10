@@ -1,0 +1,12 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "status": "UP",
+    "appName": "carenest-user",
+    "version": "1.0.0-SNAPSHOT",
+    "dbConnected": true,
+    "serverTime": "2026-07-10T09:00:00+08:00"
+  },
+  "traceId": "mock-18-health"
+}

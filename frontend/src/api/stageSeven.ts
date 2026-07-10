@@ -4,28 +4,18 @@ import familyEldersMock from '@/mock/phase-07/family-elders.json';
 import { failure, isMockEnabled, readAuthSession, request, success } from '@/api/client';
 import type { ApiResponse } from '@/types/api';
 import type {
-  ElderProfileDetail,
   ElderProfileRequest,
   ElderProfileResponse,
   ElderProfileScenario,
-  FamilyElderPageResult
+  FamilyElderListResult
 } from '@/types/stageSeven';
 
 const familyEldersPath = '/family/elders';
 const elderProfilePath = (elderId: string) => `/elders/${elderId}/profile`;
 
-let elderProfiles: ElderProfileDetail[] = [
-  ...(familyEldersMock as ApiResponse<FamilyElderPageResult>).data.records
+let elderProfiles: ElderProfileResponse[] = [
+  ...(familyEldersMock as ApiResponse<FamilyElderListResult>).data
 ];
-
-function toPage(records: ElderProfileDetail[]): FamilyElderPageResult {
-  return {
-    records,
-    total: records.length,
-    page: 1,
-    size: 10
-  };
-}
 
 function requireFamily<T>(emptyData: T): ApiResponse<T> | null {
   const session = readAuthSession();
@@ -59,43 +49,41 @@ export function getStageSevenEndpointSummary() {
 
 export async function getFamilyElders(
   scenario: ElderProfileScenario = 'normal'
-): Promise<ApiResponse<FamilyElderPageResult>> {
+): Promise<ApiResponse<FamilyElderListResult>> {
   if (isMockEnabled()) {
-    const denied = requireFamily(toPage([]));
+    const denied = requireFamily<FamilyElderListResult>([]);
     if (denied) {
       return denied;
     }
     if (scenario === 'empty') {
-      return familyEldersEmptyMock as ApiResponse<FamilyElderPageResult>;
+      return familyEldersEmptyMock as ApiResponse<FamilyElderListResult>;
     }
     if (scenario === 'error') {
-      return familyEldersErrorMock as ApiResponse<FamilyElderPageResult>;
+      return familyEldersErrorMock as ApiResponse<FamilyElderListResult>;
     }
-    return success(toPage(elderProfiles), 'mock-7-family-elders');
+    return success(elderProfiles, 'mock-7-family-elders');
   }
 
-  return request<FamilyElderPageResult>({
+  return request<FamilyElderListResult>({
     method: 'GET',
-    url: familyEldersPath,
-    mock: familyEldersMock as ApiResponse<FamilyElderPageResult>,
-    mockFallback: true
+    url: familyEldersPath
   });
 }
 
-export async function getElderProfile(elderId: string): Promise<ApiResponse<ElderProfileDetail>> {
+export async function getElderProfile(elderId: string): Promise<ApiResponse<ElderProfileResponse>> {
   if (isMockEnabled()) {
-    const denied = requireElderOrFamily({} as ElderProfileDetail);
+    const denied = requireElderOrFamily({} as ElderProfileResponse);
     if (denied) {
       return denied;
     }
     const found = elderProfiles.find((item) => item.elderId === elderId);
     if (!found) {
-      return failure(404, '数据不存在', {} as ElderProfileDetail, 'mock-7-profile-not-found');
+      return failure(404, '数据不存在', {} as ElderProfileResponse, 'mock-7-profile-not-found');
     }
     return success(found, 'mock-7-elder-profile');
   }
 
-  return request<ElderProfileDetail>({
+  return request<ElderProfileResponse>({
     method: 'GET',
     url: elderProfilePath(elderId)
   });
@@ -117,7 +105,7 @@ export async function updateElderProfile(
     if (!found) {
       return failure(404, '数据不存在', {} as ElderProfileResponse, 'mock-7-profile-update-not-found');
     }
-    Object.assign(found, payload, { profileVersion: found.profileVersion + 1 });
+    found.profileVersion = String(Number(found.profileVersion) + 1);
     return success(
       {
         elderId: found.elderId,
@@ -135,6 +123,6 @@ export async function updateElderProfile(
 }
 
 export function resetStageSevenMockRecords() {
-  elderProfiles = [...(familyEldersMock as ApiResponse<FamilyElderPageResult>).data.records];
+  elderProfiles = [...(familyEldersMock as ApiResponse<FamilyElderListResult>).data];
 }
 

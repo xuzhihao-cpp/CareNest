@@ -108,8 +108,7 @@ export async function getFamilyOrders(
   return request<FamilyOrderPageResult>({
     method: 'GET',
     url: familyOrdersPath,
-    mock: familyOrdersMock as ApiResponse<FamilyOrderPageResult>,
-    mockFallback: true
+    mock: familyOrdersMock as ApiResponse<FamilyOrderPageResult>
   });
 }
 
@@ -149,7 +148,7 @@ export async function createFamilyOrder(payload: FamilyOrderRequest): Promise<Ap
     ]);
     const hasBindingScope =
       bindingResponse.code === 0 &&
-      bindingResponse.data.records.some(
+      bindingResponse.data.some(
         (item) =>
           item.elderId === payload.elderId &&
           item.bindingStatus === 'ACTIVE' &&
@@ -158,7 +157,7 @@ export async function createFamilyOrder(payload: FamilyOrderRequest): Promise<Ap
     const serviceOnShelf =
       serviceResponse.code === 0 && serviceResponse.data.records.some((item) => item.serviceId === payload.serviceId);
     const addressBelongs =
-      addressResponse.code === 0 && addressResponse.data.records.some((item) => item.addressId === payload.addressId);
+      addressResponse.code === 0 && addressResponse.data.some((item) => item.addressId === payload.addressId);
 
     if (!hasBindingScope || !serviceOnShelf || !addressBelongs) {
       return failure(403, '无权限或业务规则不满足', {} as FamilyOrderResponse, 'mock-10-order-forbidden');

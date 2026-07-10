@@ -139,8 +139,7 @@ export async function generateServiceReport(orderId: string): Promise<ApiRespons
   return request<ServiceReportResponse>({
     method: 'POST',
     url: generatePath(orderId),
-    mock: reportMock as ApiResponse<ServiceReportResponse>,
-    mockFallback: true
+    mock: reportMock as ApiResponse<ServiceReportResponse>
   });
 }
 
@@ -169,7 +168,6 @@ export async function getServiceReport(
   return request<ServiceReportResponse>({
     method: 'GET',
     url: reportPath(orderId),
-    mock: reportMock as ApiResponse<ServiceReportResponse>,
-    mockFallback: true
+    mock: reportMock as ApiResponse<ServiceReportResponse>
   });
 }

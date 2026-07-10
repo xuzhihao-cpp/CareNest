@@ -1,23 +1,14 @@
-import type { PageResult } from './api';
+import type { components } from './generated/user-api';
+
+type Schemas = components['schemas'];
 
 export type ServiceAddressScenario = 'normal' | 'empty' | 'error';
 
-export interface ServiceAddressRequest {
-  contactName: string;
-  contactPhone: string;
-  regionCode: string;
-  detailAddress: string;
-  isDefault: boolean;
-}
-
-export interface ServiceAddressResponse {
-  addressId: string;
-  fullAddress: string;
-  isDefault: boolean;
-}
+export type ServiceAddressRequest = Schemas['ServiceAddressRequest'];
+export type ServiceAddressResponse = Schemas['ServiceAddressResponse'];
 
 export interface ServiceAddressDetail extends ServiceAddressRequest, ServiceAddressResponse {
   elderId: string;
 }
 
-export type ServiceAddressPageResult = PageResult<ServiceAddressResponse>;
+export type ServiceAddressListResult = Schemas['ServiceAddressResponse'][];

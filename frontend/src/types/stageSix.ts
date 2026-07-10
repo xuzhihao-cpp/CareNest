@@ -1,4 +1,6 @@
-import type { PageResult } from './api';
+import type { components } from './generated/user-api';
+
+type Schemas = components['schemas'];
 
 export type BindingStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED' | 'EXPIRED';
 
@@ -12,28 +14,10 @@ export type BindingScopeCode =
 
 export type RelationType = 'SON' | 'DAUGHTER' | 'SPOUSE' | 'OTHER';
 
-export interface BindingRequest {
-  elderInviteCode: string;
-  relationType: RelationType;
-  scopeCodes: BindingScopeCode[];
-}
-
-export interface BindingResponse {
-  bindingId: string;
-  elderId: string;
-  elderName: string;
-  relationType: RelationType;
-  bindingStatus: BindingStatus;
-  scopeCodes: BindingScopeCode[];
-}
-
-export interface BindingScopeUpdateRequest {
-  elderInviteCode: string;
-  relationType: RelationType;
-  scopeCodes: BindingScopeCode[];
-}
-
-export type BindingPageResult = PageResult<BindingResponse>;
+export type BindingRequest = Schemas['BindingRequest'];
+export type BindingResponse = Schemas['BindingResponse'];
+export type BindingScopeUpdateRequest = Schemas['BindingRequest'];
+export type BindingListResult = Schemas['BindingResponse'][];
 
 export type BindingScenario = 'normal' | 'empty' | 'error';
 

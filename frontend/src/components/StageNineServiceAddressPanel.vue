@@ -12,7 +12,7 @@ import {
 import type { ApiResponse } from '@/types/api';
 import type { RoleCode } from '@/types/stageOne';
 import type { AuthUser } from '@/types/stageTwo';
-import type { ElderProfileDetail } from '@/types/stageSeven';
+import type { ElderProfileResponse } from '@/types/stageSeven';
 import type {
   ServiceAddressRequest,
   ServiceAddressResponse,
@@ -32,7 +32,7 @@ const emptyForm: ServiceAddressRequest = {
   isDefault: true
 };
 
-const elders = ref<ElderProfileDetail[]>([]);
+const elders = ref<ElderProfileResponse[]>([]);
 const selectedElderId = ref('');
 const records = ref<ServiceAddressResponse[]>([]);
 const selectedAddressId = ref('');
@@ -50,7 +50,7 @@ const defaultAddress = computed(() => records.value.find((item) => item.isDefaul
 const bookingAddress = computed(
   () => records.value.find((item) => item.addressId === bookingAddressId.value) ?? defaultAddress.value
 );
-const selectedElderName = computed(() => elders.value.find((item) => item.elderId === selectedElderId.value)?.name ?? '未选择');
+const selectedElderName = computed(() => selectedElderId.value || '未选择');
 
 function parseFullAddress(fullAddress: string) {
   const [regionCode, ...detailParts] = fullAddress.split(' ');
@@ -96,7 +96,7 @@ function applyResponse(response: ApiResponse<ServiceAddressResponse>, successTex
 async function loadElders() {
   const response = await getFamilyElders();
   if (response.code === 0) {
-    elders.value = response.data.records;
+    elders.value = response.data;
     selectedElderId.value = elders.value[0]?.elderId ?? '';
   } else {
     error.value = `${response.code} ${response.message}`;
@@ -115,7 +115,7 @@ async function loadAddresses(scenario: ServiceAddressScenario = 'normal', keepMu
     lastResponse.value = null;
   }
   if (response.code === 0) {
-    records.value = response.data.records;
+    records.value = response.data;
     error.value = '';
     if (!keepMutationState) {
       message.value =
@@ -246,7 +246,7 @@ onMounted(async () => {
               type="button"
               @click="selectElder(elder.elderId)"
             >
-              <text>{{ elder.name }}</text>
+              <text>{{ elder.elderId }}</text>
             </button>
           </view>
         </view>
