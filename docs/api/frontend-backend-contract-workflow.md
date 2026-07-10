@@ -22,8 +22,8 @@ This project uses the member kickoff PDFs as the business contract and the imple
 
 ## Runtime rules
 
-- Implemented real endpoints are phases 6, 7, 9, and 18 in `backend-user`.
-- Phases 8 and 10-17 are `MOCK_ONLY` until a backend controller and contract snapshot exist.
+- Implemented real endpoints are phases 6, 7, 9, 16, and 18 in `backend-user`.
+- Phases 8, 10-15, and 17 are `MOCK_ONLY` until a backend controller and contract snapshot exist.
 - Real mode must not use `mockFallback: true` for a mock-only stage. A missing endpoint must be visible as an error.
 - Mock JSON must have the same `data` shape as the real DTO. Server arrays must not be represented as `PageResult` objects.
 - `frontend/src/types/generated/user-api.ts` is generated output and must not be edited manually.

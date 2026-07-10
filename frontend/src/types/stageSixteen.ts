@@ -2,7 +2,7 @@ export type StageSixteenScenario = 'normal' | 'empty' | 'error';
 
 export type ReportAckResult = 'ACCEPTED' | 'REJECTED';
 
-export type ServiceReportStatus = 'WAIT_CONFIRM' | 'CONFIRMED' | 'DISPUTED' | 'ARCHIVE_PENDING';
+export type ServiceReportStatus = 'WAIT_CONFIRM' | 'CONFIRMED' | 'REJECTED';
 
 export interface ReportAckRequest {
   ackResult: ReportAckResult;
@@ -25,7 +25,7 @@ export interface ReportAckRecord extends ReportAckResponse {
   satisfaction: number;
   remark: string;
   acceptedSuggestionIds: string[];
-  orderStatus: 'WAIT_CONFIRM' | 'COMPLETED';
+  orderStatus: 'WAIT_REPORT' | 'COMPLETED';
   createdAt: string;
 }
 
@@ -36,5 +36,5 @@ export interface HealthInfoReviewTaskRecord {
   suggestionId: string;
   fieldName: string;
   newValue: string;
-  status: 'PENDING';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }

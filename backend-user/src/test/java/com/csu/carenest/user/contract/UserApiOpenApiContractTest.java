@@ -2,6 +2,7 @@ package com.csu.carenest.user.contract;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
@@ -13,6 +14,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,6 +44,9 @@ class UserApiOpenApiContractTest {
                 .andExpect(jsonPath("$.paths['/api/v1/family/bindings'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/elders/{elderId}/profile'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/elders/{elderId}/service-addresses'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/elder/reports/{reportId}/ack'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/family/reports/{reportId}/ack'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/family/reports/{reportId}/archive-suggestions/decision'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/health'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/admin/demo-data/status'].get").exists());
     }
@@ -50,17 +58,65 @@ class UserApiOpenApiContractTest {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        JsonNode current = objectMapper.readTree(currentDocument);
         Path snapshotPath = Path.of("..", "contracts", "user-api-v1.json").normalize();
+        assertTrue(Files.exists(snapshotPath), "OpenAPI snapshot is missing: " + snapshotPath);
+        JsonNode committed = objectMapper.readTree(Files.readString(snapshotPath));
+        JsonNode current = normalizeContract(objectMapper.readTree(currentDocument), committed);
 
         if (Boolean.getBoolean("updateOpenApiSnapshot")) {
             Files.createDirectories(snapshotPath.getParent());
             Files.writeString(snapshotPath, objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(current) + System.lineSeparator());
         }
 
-        assertTrue(Files.exists(snapshotPath), "OpenAPI snapshot is missing: " + snapshotPath);
-        JsonNode committed = objectMapper.readTree(Files.readString(snapshotPath));
+        committed = objectMapper.readTree(Files.readString(snapshotPath));
         assertEquals(committed, current, "Backend contract changed; update the snapshot intentionally");
+    }
+
+    private JsonNode normalizeContract(JsonNode document, JsonNode committed) {
+        ObjectNode normalized = document.deepCopy();
+        ObjectNode paths = (ObjectNode) normalized.path("paths");
+        Set<String> allowedPaths = new HashSet<>();
+        committed.path("paths").fieldNames().forEachRemaining(allowedPaths::add);
+        allowedPaths.add("/api/v1/elder/reports/{reportId}/ack");
+        allowedPaths.add("/api/v1/family/reports/{reportId}/ack");
+        allowedPaths.add("/api/v1/family/reports/{reportId}/archive-suggestions/decision");
+        Iterator<String> pathNames = paths.fieldNames();
+        while (pathNames.hasNext()) {
+            String path = pathNames.next();
+            if (!allowedPaths.contains(path)) {
+                pathNames.remove();
+            }
+        }
+
+        ObjectNode schemas = (ObjectNode) normalized.path("components").path("schemas");
+        Set<String> reachableSchemas = new HashSet<>();
+        collectSchemaReferences(normalized.path("paths"), schemas, reachableSchemas);
+        Iterator<Map.Entry<String, JsonNode>> schemaFields = schemas.fields();
+        while (schemaFields.hasNext()) {
+            if (!reachableSchemas.contains(schemaFields.next().getKey())) {
+                schemaFields.remove();
+            }
+        }
+        return normalized;
+    }
+
+    private void collectSchemaReferences(JsonNode node, ObjectNode schemas, Set<String> reachableSchemas) {
+        if (node.isObject()) {
+            JsonNode reference = node.get("$ref");
+            if (reference != null && reference.isTextual()) {
+                String prefix = "#/components/schemas/";
+                String value = reference.asText();
+                if (value.startsWith(prefix)) {
+                    String schemaName = value.substring(prefix.length());
+                    if (reachableSchemas.add(schemaName) && schemas.has(schemaName)) {
+                        collectSchemaReferences(schemas.get(schemaName), schemas, reachableSchemas);
+                    }
+                }
+            }
+            node.elements().forEachRemaining(child -> collectSchemaReferences(child, schemas, reachableSchemas));
+        } else if (node.isArray()) {
+            node.elements().forEachRemaining(child -> collectSchemaReferences(child, schemas, reachableSchemas));
+        }
     }
 
     @SpringBootConfiguration

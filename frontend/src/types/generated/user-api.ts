@@ -132,6 +132,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/elder/reports/{reportId}/ack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["elderAck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/elders/{elderId}/profile": {
         parameters: {
             query?: never;
@@ -222,6 +238,38 @@ export interface paths {
         get: operations["familyElders"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/family/reports/{reportId}/ack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["familyAck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/family/reports/{reportId}/archive-suggestions/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decideArchiveSuggestions"];
         delete?: never;
         options?: never;
         head?: never;
@@ -327,6 +375,13 @@ export interface components {
             message: string;
             traceId: string;
         };
+        ApiResponseReportAckResponse: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["ReportAckResponse"];
+            message: string;
+            traceId: string;
+        };
         ApiResponseServiceAddressResponse: {
             /** Format: int32 */
             code: number;
@@ -394,6 +449,18 @@ export interface components {
         PermissionResponse: {
             permissions: string[];
             roleCode: string;
+        };
+        ReportAckRequest: {
+            acceptedSuggestionIds: string[];
+            ackResult: string;
+            remark: string;
+            /** Format: int32 */
+            satisfaction: number;
+        };
+        ReportAckResponse: {
+            ackId: string;
+            ackResult: string;
+            reportStatus: string;
         };
         ServiceAddressRequest: {
             contactName: string;
@@ -602,6 +669,34 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseBindingResponse"];
+                };
+            };
+        };
+    };
+    elderAck: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportAckRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseReportAckResponse"];
                 };
             };
         };
@@ -832,6 +927,62 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseListElderProfileResponse"];
+                };
+            };
+        };
+    };
+    familyAck: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportAckRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseReportAckResponse"];
+                };
+            };
+        };
+    };
+    decideArchiveSuggestions: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                reportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportAckRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseReportAckResponse"];
                 };
             };
         };

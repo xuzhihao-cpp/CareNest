@@ -152,7 +152,7 @@ Response:
 
 文档要求数据表：`care_report_ack`、`health_info_review_task`。
 
-当前 `db/schema` 尚未提供上述两张表，因此本阶段接口暂不实现，避免脱离数据库模型自建字段。待成员 1 提交 schema 后再按以下路径补齐：
+`db/schema/phase-16-report-ack-schema.sql` 已提供上述两张表，本阶段接口已在 `backend-user` 实现：
 
 | Method | Path |
 | --- | --- |
@@ -164,7 +164,7 @@ Request:
 
 ```json
 {
-  "ackResult": "CONFIRMED",
+  "ackResult": "ACCEPTED",
   "satisfaction": 5,
   "remark": "服务已确认",
   "acceptedSuggestionIds": ["suggestion_001"]
@@ -179,12 +179,14 @@ Response:
   "message": "success",
   "data": {
     "ackId": "ack_mock_001",
-    "ackResult": "CONFIRMED",
+    "ackResult": "ACCEPTED",
     "reportStatus": "CONFIRMED"
   },
   "traceId": "mock-16"
 }
 ```
+
+状态规则：`ACCEPTED` 对应报告 `CONFIRMED`、订单 `COMPLETED`；`REJECTED` 对应报告 `REJECTED`、订单 `WAIT_REPORT`。家属调用必须具有有效绑定和 `REPORT_CONFIRM` 授权。
 
 契约 mock：
 
