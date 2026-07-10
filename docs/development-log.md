@@ -44,3 +44,12 @@
 - 同步更新 `docs/dictionary/data-dictionary.md`，补充任务状态、报告状态、报告明细类型、确认结果和健康信息审核状态。
 - 创建验收记录：`docs/stage-check/member1-phase-11-18.md`。
 - 已执行阶段 11-18 SQL 到本地 MySQL 容器 `carenest-mysql`，验证护理任务、服务记录、生命体征、服务报告、报告确认、健康信息审核任务和订单状态链路正常。
+
+## 2026-07-10
+
+### 成员1：演示数据一致性修复
+
+- 排查长辈档案关联数据时发现 `elder_family_binding`、`service_address` 中历史演示数据仍保留 `family_001`，与当前演示账号和订单使用的 `family-001` 不一致。
+- 修正 `db/seed/phase-06-09-demo-data.sql`：在绑定关系和服务地址的 `ON DUPLICATE KEY UPDATE` 中补充 `family_id = VALUES(family_id)`，避免旧库重复执行 seed 后继续保留错误 ID。
+- 新增 `db/migration/fix-family-id-demo-data.sql`，用于将已存在数据中的 `family_001` 迁移为 `family-001`。
+- 已更新本地 MySQL 容器 `carenest-mysql`，验证 `elder_family_binding`、`service_address`、`nursing_order` 的 `family_id` 均统一为 `family-001`。
