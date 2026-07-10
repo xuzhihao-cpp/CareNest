@@ -1,0 +1,13 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "reportId": "report-001",
+    "orderId": "order-001",
+    "summary": "已完成基础护理服务，生命体征平稳，建议继续观察血压和睡眠。",
+    "vitalSigns": ["血压 128/78", "心率 72", "体温 36.5"],
+    "serviceRecords": ["完成基础护理、环境整理和用药提醒。"],
+    "nursingAdvice": "建议继续观察血压和睡眠。"
+  },
+  "traceId": "mock-15-service-report"
+}

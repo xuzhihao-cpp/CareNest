@@ -1,0 +1,26 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "taskId": "task-001",
+        "orderId": "order-001",
+        "orderNo": "NO202607100001",
+        "nurseId": "nurse-001",
+        "nurseName": "护理演示账号",
+        "elderId": "elder-001",
+        "serviceId": "service-001",
+        "addressId": "address-001",
+        "scheduledStart": "2026-07-10T09:00",
+        "dispatchRemark": "阶段12派单演示任务",
+        "taskStatus": "DISPATCHED",
+        "orderStatus": "DISPATCHED"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 10
+  },
+  "traceId": "mock-12-nurse-tasks"
+}

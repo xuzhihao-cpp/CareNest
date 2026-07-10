@@ -1,0 +1,10 @@
+{
+  "code": 404,
+  "message": "数据不存在",
+  "data": {
+    "ackId": "",
+    "ackResult": "REJECTED",
+    "reportStatus": "WAIT_CONFIRM"
+  },
+  "traceId": "mock-16-report-ack-empty"
+}

@@ -1,0 +1,10 @@
+{
+  "code": 500,
+  "message": "服务异常",
+  "data": {
+    "ready": false,
+    "accounts": 0,
+    "scenarioCount": 0
+  },
+  "traceId": "mock-18-integration-status-error"
+}

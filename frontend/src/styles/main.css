@@ -467,6 +467,379 @@ uni-tabbar,
   border-radius: 24px;
 }
 
+.stage-six-panel,
+.stage-seven-panel,
+.stage-eight-panel,
+.stage-nine-panel,
+.stage-ten-panel,
+.stage-eleven-panel,
+.stage-twelve-panel,
+.stage-thirteen-panel,
+.stage-fourteen-panel,
+.stage-fifteen-panel,
+.stage-sixteen-panel,
+.stage-seventeen-panel,
+.stage-eighteen-panel {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 24px;
+}
+
+.stage-six-summary,
+.stage-seven-summary,
+.stage-eight-summary,
+.stage-nine-summary,
+.stage-ten-summary,
+.stage-eleven-summary,
+.stage-twelve-summary,
+.stage-thirteen-summary,
+.stage-fourteen-summary,
+.stage-fifteen-summary,
+.stage-sixteen-summary,
+.stage-seventeen-summary,
+.stage-eighteen-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stage-six-summary > view,
+.stage-seven-summary > view,
+.stage-eight-summary > view,
+.stage-nine-summary > view,
+.stage-ten-summary > view,
+.stage-eleven-summary > view,
+.stage-twelve-summary > view,
+.stage-thirteen-summary > view,
+.stage-fourteen-summary > view,
+.stage-fifteen-summary > view,
+.stage-sixteen-summary > view,
+.stage-seventeen-summary > view,
+.stage-eighteen-summary > view,
+.elder-approval-card,
+.profile-detail,
+.booking-preview,
+.order-preview,
+.contract-response {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid rgba(120, 144, 156, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.stage-six-endpoints,
+.stage-seven-endpoints,
+.stage-eight-endpoints,
+.stage-nine-endpoints,
+.stage-ten-endpoints,
+.stage-eleven-endpoints,
+.stage-twelve-endpoints,
+.stage-thirteen-endpoints,
+.stage-fourteen-endpoints,
+.stage-fifteen-endpoints,
+.stage-sixteen-endpoints,
+.stage-seventeen-endpoints,
+.stage-eighteen-endpoints,
+.segmented-row,
+.binding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.binding-form {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+  gap: 12px;
+}
+
+.profile-list,
+.profile-form,
+.profile-readonly {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 70px;
+  padding: 12px;
+  border: 1px solid rgba(120, 144, 156, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.48);
+  color: #40505d;
+  text-align: left;
+}
+
+.profile-row.active {
+  border-color: rgba(11, 143, 157, 0.34);
+  background: rgba(223, 247, 240, 0.72);
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.service-admin-workbench {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.1fr);
+  gap: 12px;
+}
+
+.address-workbench {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 12px;
+}
+
+.order-workbench {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 0.95fr);
+  gap: 12px;
+}
+
+.admin-order-filters {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.4fr) repeat(3, minmax(160px, 0.7fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-order-filters .binding-actions {
+  grid-column: 1 / -1;
+}
+
+.admin-order-workbench {
+  display: grid;
+  grid-template-columns: minmax(520px, 1.15fr) minmax(360px, 0.85fr);
+  gap: 12px;
+}
+
+.dispatch-workbench {
+  display: grid;
+  grid-template-columns: minmax(520px, 1.15fr) minmax(360px, 0.85fr);
+  gap: 12px;
+}
+
+.nurse-task-toolbar {
+  display: grid;
+  gap: 12px;
+}
+
+.stage-thirteen-workbench {
+  display: grid;
+  grid-template-columns: minmax(480px, 1.05fr) minmax(360px, 0.95fr);
+  gap: 12px;
+}
+
+.care-execution-workbench {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.8fr) repeat(2, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.report-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.7fr) minmax(360px, 1.3fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.service-report-workbench {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) repeat(2, minmax(220px, 0.8fr));
+  gap: 12px;
+}
+
+.service-list,
+.service-editor,
+.service-family-catalog,
+.address-list,
+.address-form,
+.order-picker,
+.order-form,
+.order-option-list,
+.order-list,
+.admin-order-table,
+.admin-order-detail,
+.status-log-list,
+.dispatch-order-list,
+.dispatch-form,
+.nurse-task-list,
+.nurse-task-detail,
+.care-task-list,
+.care-record-form,
+.care-record-list,
+.report-section {
+  display: grid;
+  gap: 12px;
+}
+
+.service-row,
+.service-card,
+.address-row,
+.order-option,
+.order-row,
+.admin-order-row,
+.status-log-row,
+.nurse-task-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 76px;
+  padding: 14px;
+  border: 1px solid rgba(120, 144, 156, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.48);
+  color: #40505d;
+  text-align: left;
+}
+
+.service-row.active {
+  border-color: rgba(11, 143, 157, 0.34);
+  background: rgba(223, 247, 240, 0.72);
+}
+
+.address-row.active {
+  border-color: rgba(11, 143, 157, 0.34);
+  background: rgba(223, 247, 240, 0.72);
+}
+
+.order-option.active {
+  border-color: rgba(11, 143, 157, 0.34);
+  background: rgba(223, 247, 240, 0.72);
+}
+
+.admin-order-row.active {
+  border-color: rgba(11, 143, 157, 0.34);
+  background: rgba(223, 247, 240, 0.72);
+}
+
+.nurse-task-row.active {
+  border-color: rgba(11, 143, 157, 0.34);
+  background: rgba(223, 247, 240, 0.72);
+}
+
+.status-log-row {
+  grid-template-columns: 1fr;
+  min-height: 64px;
+}
+
+.order-row-side {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.service-number-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.service-card-main,
+.service-price-box {
+  display: grid;
+  gap: 6px;
+}
+
+.service-price-box {
+  justify-items: end;
+}
+
+.service-price {
+  color: var(--text-main);
+  font-size: 24px;
+  font-weight: 880;
+  line-height: 1.15;
+}
+
+.binding-options {
+  display: grid;
+  gap: 8px;
+}
+
+.choice-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(120, 144, 156, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.52);
+  color: #40505d;
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.choice-button.scope {
+  min-height: 34px;
+  font-size: 12px;
+}
+
+.choice-button.active {
+  border-color: rgba(11, 143, 157, 0.34);
+  background: rgba(223, 247, 240, 0.76);
+  color: var(--teal-deep);
+}
+
+.binding-list {
+  display: grid;
+  gap: 10px;
+}
+
+.binding-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border: 1px solid rgba(120, 144, 156, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.binding-row-main,
+.binding-row-side {
+  display: grid;
+  gap: 8px;
+}
+
+.binding-row-side {
+  justify-items: end;
+}
+
+.success-banner {
+  padding: 12px 14px;
+  border: 1px solid rgba(11, 143, 157, 0.28);
+  border-radius: 18px;
+  background: rgba(223, 247, 240, 0.72);
+  color: var(--teal-deep);
+  font-weight: 760;
+}
+
+.danger-lite {
+  border-color: rgba(255, 94, 91, 0.24);
+  color: #c73b38;
+}
+
 .request-layer-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -949,6 +1322,52 @@ uni-tabbar,
   .request-layer-grid {
     grid-template-columns: 1fr;
   }
+
+  .stage-six-summary,
+  .stage-seven-summary,
+  .stage-eight-summary,
+  .stage-nine-summary,
+  .stage-ten-summary,
+  .stage-eleven-summary,
+  .stage-twelve-summary,
+  .stage-thirteen-summary,
+  .stage-fourteen-summary,
+  .stage-fifteen-summary,
+  .stage-sixteen-summary,
+  .stage-seventeen-summary,
+  .stage-eighteen-summary,
+  .binding-row,
+  .profile-workbench,
+  .contact-grid,
+  .service-admin-workbench,
+  .address-workbench,
+  .order-workbench,
+  .admin-order-filters,
+  .admin-order-workbench,
+  .dispatch-workbench,
+  .stage-thirteen-workbench,
+  .care-execution-workbench,
+  .report-toolbar,
+  .service-report-workbench,
+  .service-number-grid,
+  .service-row,
+  .service-card,
+  .address-row,
+  .order-option,
+  .order-row,
+  .admin-order-row,
+  .nurse-task-row {
+    grid-template-columns: 1fr;
+  }
+
+  .service-price-box,
+  .order-row-side {
+    justify-items: start;
+  }
+
+  .binding-row-side {
+    justify-items: start;
+  }
 }
 
 @media (max-width: 700px) {
@@ -994,4 +1413,42 @@ uni-tabbar,
   .login-title {
     font-size: 24px;
   }
+}
+
+/* 管理端固定为电脑网页工作台，不随移动端断点折叠成手机形态。 */
+.terminal-admin {
+  grid-template-columns: 236px minmax(900px, 1fr);
+  justify-content: stretch;
+  min-width: 1180px;
+}
+
+.terminal-admin .workspace {
+  width: 100%;
+  max-width: none;
+}
+
+.terminal-admin .workspace-header,
+.terminal-admin .hero-board {
+  display: flex;
+}
+
+.terminal-admin .quick-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.terminal-admin .content-grid {
+  grid-template-columns: minmax(420px, 0.95fr) minmax(460px, 1.05fr);
+}
+
+.terminal-admin .metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.terminal-admin .stage-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.terminal-admin .side-nav {
+  position: sticky;
+  min-height: calc(100vh - 44px);
 }

@@ -1,0 +1,10 @@
+{
+  "code": 500,
+  "message": "服务异常",
+  "data": {
+    "orderId": "",
+    "orderStatus": "WAIT_DISPATCH",
+    "scheduledStart": ""
+  },
+  "traceId": "mock-17-order-change-error"
+}

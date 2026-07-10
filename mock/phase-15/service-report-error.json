@@ -1,0 +1,13 @@
+{
+  "code": 500,
+  "message": "服务异常",
+  "data": {
+    "reportId": "",
+    "orderId": "",
+    "summary": "",
+    "vitalSigns": [],
+    "serviceRecords": [],
+    "nursingAdvice": ""
+  },
+  "traceId": "mock-15-service-report-error"
+}

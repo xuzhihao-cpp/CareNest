@@ -1,0 +1,11 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "orderId": "order-001",
+    "orderNo": "NO202607100001",
+    "orderStatus": "DISPATCHED",
+    "taskId": "task-001"
+  },
+  "traceId": "mock-12-dispatch"
+}
