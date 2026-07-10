@@ -270,13 +270,13 @@ onMounted(async () => {
           <button class="hero-action" type="button" :disabled="loading" @click="submitOrder">
             <text>提交预约</text>
           </button>
-          <button class="ghost-action" type="button" @click="resetNormalMock">
+        <button class="ghost-action test-action" type="button" @click="resetNormalMock">
             <text>重置 mock</text>
           </button>
-          <button class="ghost-action" type="button" @click="loadOrders('empty')">
+        <button class="ghost-action test-action" type="button" @click="loadOrders('empty')">
             <text>空数据 mock</text>
           </button>
-          <button class="ghost-action" type="button" @click="loadOrders('error')">
+        <button class="ghost-action test-action" type="button" @click="loadOrders('error')">
             <text>错误 mock</text>
           </button>
         </view>

@@ -1370,6 +1370,22 @@ uni-tabbar,
   }
 }
 
+/* Shared command shape: compact work-tool buttons, not pill controls. */
+button,
+.hero-action,
+.ghost-action,
+.choice-button,
+.action-button,
+.account-chip,
+.nav-button {
+  border-radius: 4px !important;
+}
+
+/* Legacy scenario controls are not part of the real-API product UI. */
+.test-action {
+  display: none !important;
+}
+
 @media (max-width: 700px) {
   .app-shell {
     gap: 16px;

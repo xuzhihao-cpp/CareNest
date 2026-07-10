@@ -327,13 +327,13 @@ onMounted(async () => {
           <button class="ghost-action" type="button" :disabled="loading || !selectedAddressId" @click="saveAddress">
             <text>保存所选</text>
           </button>
-          <button class="ghost-action" type="button" @click="resetNormalMock">
+          <button class="ghost-action test-action" type="button" @click="resetNormalMock">
             <text>重置 mock</text>
           </button>
-          <button class="ghost-action" type="button" @click="loadAddresses('empty')">
+          <button class="ghost-action test-action" type="button" @click="loadAddresses('empty')">
             <text>空数据 mock</text>
           </button>
-          <button class="ghost-action" type="button" @click="loadAddresses('error')">
+          <button class="ghost-action test-action" type="button" @click="loadAddresses('error')">
             <text>错误 mock</text>
           </button>
         </view>

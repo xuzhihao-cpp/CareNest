@@ -165,10 +165,10 @@ function handleReportIdBlur() {
       <button v-if="canFamilyAck" class="ghost-action" type="button" :disabled="loading" @click="submitArchiveDecision">
         <text>档案建议确认</text>
       </button>
-      <button class="ghost-action" type="button" :disabled="loading" @click="loadScenario('empty')">
+      <button class="ghost-action test-action" type="button" :disabled="loading" @click="loadScenario('empty')">
         <text>空数据 mock</text>
       </button>
-      <button class="ghost-action" type="button" :disabled="loading" @click="loadScenario('error')">
+      <button class="ghost-action test-action" type="button" :disabled="loading" @click="loadScenario('error')">
         <text>错误 mock</text>
       </button>
     </view>

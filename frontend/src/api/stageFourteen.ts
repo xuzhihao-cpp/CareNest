@@ -261,9 +261,16 @@ export async function getOrderServiceRecords(
     return success(toPage(visibleRecords.filter((item) => item.orderId === orderId)), 'mock-14-service-records');
   }
 
-  return request<CareExecutionPageResult>({
+  const response = await request<Array<Omit<CareExecutionRecord, 'recordType' | 'taskId' | 'nurseId'>>>({
     method: 'GET',
     url: orderServiceRecordsPath(orderId),
-    mock: serviceRecordsMock as ApiResponse<CareExecutionPageResult>
+    mock: serviceRecordsMock as unknown as ApiResponse<Array<Omit<CareExecutionRecord, 'recordType' | 'taskId' | 'nurseId'>>>
   });
+  if (response.code !== 0) {
+    return response as unknown as ApiResponse<CareExecutionPageResult>;
+  }
+  return success(
+    toPage(response.data.map((record) => ({ ...record, recordType: 'SERVICE_RECORD', taskId: '', nurseId: '' }))),
+    response.traceId
+  );
 }

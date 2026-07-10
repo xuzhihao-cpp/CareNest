@@ -50,7 +50,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const form = ref<BindingRequest>({
-  elderInviteCode: 'ELDER-WANG-2026',
+  elderInviteCode: 'elder_001',
   relationType: 'DAUGHTER',
   scopeCodes: ['HEALTH_VIEW', 'REPORT_VIEW']
 });
@@ -60,6 +60,7 @@ const message = ref('');
 const error = ref('');
 const lastTraceId = ref('');
 const lastResponse = ref<ApiResponse<BindingResponse> | null>(null);
+const approvalBindingId = ref('');
 const endpoints = getStageSixEndpointSummary();
 
 const activeCount = computed(() => records.value.filter((item) => item.bindingStatus === 'ACTIVE').length);
@@ -67,18 +68,9 @@ const pendingCount = computed(() => records.value.filter((item) => item.bindingS
 const canFamilyOperate = computed(() => props.authUser?.roles.includes('FAMILY') && props.roleCode === 'FAMILY');
 const canElderApprove = computed(() => props.authUser?.roles.includes('ELDER') && props.roleCode === 'ELDER');
 
-const elderPendingBinding = computed<BindingResponse>(() => {
-  return (
-    records.value.find((item) => item.bindingStatus === 'PENDING') ?? {
-      bindingId: 'binding-002',
-      elderId: 'elder-002',
-      elderName: '李爷爷',
-      relationType: 'SON',
-      bindingStatus: 'PENDING',
-      scopeCodes: ['HEALTH_VIEW', 'REPORT_VIEW']
-    }
-  );
-});
+const elderPendingBinding = computed<BindingResponse | null>(() =>
+  records.value.find((item) => item.bindingStatus === 'PENDING') ?? null
+);
 
 function labelRelation(value: string) {
   return relationOptions.find((item) => item.value === value)?.label ?? value;
@@ -124,12 +116,7 @@ async function loadBindings(scenario: BindingScenario = 'normal') {
   loading.value = true;
   const response = canFamilyOperate.value
     ? await getFamilyBindings(scenario)
-    : ({
-        code: 0,
-        message: 'success',
-        data: [elderPendingBinding.value],
-        traceId: 'mock-6-elder-approval-card'
-      } as ApiResponse<BindingResponse[]>);
+    : ({ code: 0, message: 'success', data: [], traceId: 'elder-binding-list-not-supported' } as ApiResponse<BindingResponse[]>);
   loading.value = false;
   lastTraceId.value = response.traceId;
   if (response.code === 0) {
@@ -175,13 +162,18 @@ async function revokeBinding(record: BindingResponse) {
 
 async function approvePending() {
   const target = elderPendingBinding.value;
-  const response = await approveElderBinding(target.bindingId, {
-    elderInviteCode: target.elderId,
-    relationType: target.relationType,
-    scopeCodes: target.scopeCodes
+  const bindingId = target?.bindingId || approvalBindingId.value.trim();
+  if (!bindingId) {
+    error.value = '请输入家属提供的绑定申请编号。';
+    return;
+  }
+  const response = await approveElderBinding(bindingId, {
+    elderInviteCode: target?.elderId || 'elder_001',
+    relationType: target?.relationType || form.value.relationType,
+    scopeCodes: target?.scopeCodes || form.value.scopeCodes
   });
   applyResponse(response, '长辈端已确认绑定');
-  records.value = response.code === 0 ? [response.data] : [target];
+  records.value = response.code === 0 ? [response.data] : records.value;
 }
 
 onMounted(() => {
@@ -255,13 +247,13 @@ onMounted(() => {
         <button class="hero-action" type="button" :disabled="loading" @click="submitBinding">
           <text>提交绑定</text>
         </button>
-        <button class="ghost-action" type="button" @click="loadBindings('normal')">
+        <button class="ghost-action test-action" type="button" @click="loadBindings('normal')">
           <text>正常 mock</text>
         </button>
-        <button class="ghost-action" type="button" @click="loadBindings('empty')">
+        <button class="ghost-action test-action" type="button" @click="loadBindings('empty')">
           <text>空数据 mock</text>
         </button>
-        <button class="ghost-action" type="button" @click="loadBindings('error')">
+        <button class="ghost-action test-action" type="button" @click="loadBindings('error')">
           <text>错误 mock</text>
         </button>
       </view>
@@ -269,11 +261,10 @@ onMounted(() => {
 
     <view v-if="roleCode === 'ELDER'" class="elder-approval-card">
       <text class="section-mini">POST /api/v1/elder/bindings/{bindingId}/approve</text>
-      <text class="access-title">{{ elderPendingBinding.elderName }} 的绑定确认</text>
-      <text class="access-desc">
-        {{ elderPendingBinding.bindingId }} · {{ labelRelation(elderPendingBinding.relationType) }} ·
-        {{ elderPendingBinding.scopeCodes.map(labelScope).join('、') }}
-      </text>
+      <text class="access-title">确认家属绑定申请</text>
+      <label class="field"><text>绑定申请编号</text><input v-model="approvalBindingId" class="input" placeholder="请输入家属提供的 bindingId" /></label>
+      <text v-if="elderPendingBinding" class="access-desc">{{ elderPendingBinding.elderName }} · {{ labelRelation(elderPendingBinding.relationType) }}</text>
+      <text v-else class="access-desc">当前后端没有长辈待确认列表接口，因此页面不会伪造待确认记录。</text>
       <button v-if="canElderApprove" class="hero-action" type="button" @click="approvePending">
         <text>确认绑定</text>
       </button>

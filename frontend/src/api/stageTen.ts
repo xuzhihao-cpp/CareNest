@@ -21,12 +21,12 @@ export const STAGE_TEN_STORAGE_KEY = 'carenest_stage_10_family_orders';
 function seedOrders(): FamilyOrderDetail[] {
   return [
     {
-      orderId: 'order-001',
+      orderId: 'order_001',
       orderNo: 'NO202607100001',
       orderStatus: 'WAIT_DISPATCH',
-      elderId: 'elder-001',
-      serviceId: 'service-001',
-      addressId: 'address-001',
+      elderId: 'elder_001',
+      serviceId: 'service_001',
+      addressId: 'address_001',
       scheduledStart: '2026-07-10T09:00',
       preferredNurseId: '',
       remark: '阶段10预约下单演示订单'

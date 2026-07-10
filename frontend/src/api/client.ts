@@ -6,7 +6,8 @@ const API_BASE =
   (import.meta.env.FRONTEND_API_BASE as string | undefined) ||
   '/api/v1';
 
-const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'true') !== 'false';
+// Production frontend is real-API only. Mock fixtures are retained only as legacy test assets.
+const USE_MOCK = false;
 const STORAGE_KEY = 'carenest_auth_session';
 
 export function isMockEnabled() {
@@ -56,6 +57,17 @@ function isApiResponse<T>(payload: unknown): payload is ApiResponse<T> {
   return typeof value.code === 'number' && typeof value.message === 'string' && 'traceId' in value;
 }
 
+function parseResponsePayload(payload: unknown) {
+  if (typeof payload !== 'string') {
+    return payload;
+  }
+  try {
+    return JSON.parse(payload) as unknown;
+  } catch {
+    return payload;
+  }
+}
+
 export async function request<T>(options: RequestOptions<T>): Promise<ApiResponse<T>> {
   if (USE_MOCK && options.mock) {
     return options.mock;
@@ -75,16 +87,17 @@ export async function request<T>(options: RequestOptions<T>): Promise<ApiRespons
         ...(options.headers ?? {})
       },
       success: (response) => {
-        if (isApiResponse<T>(response.data)) {
-          if (options.mockFallback && options.mock && response.data.code !== 0) {
+        const responseData = parseResponsePayload(response.data);
+        if (isApiResponse<T>(responseData)) {
+          if (USE_MOCK && options.mockFallback && options.mock && responseData.code !== 0) {
             resolve(options.mock);
             return;
           }
-          resolve(response.data);
+          resolve(responseData);
           return;
         }
 
-        if (options.mockFallback && options.mock) {
+        if (USE_MOCK && options.mockFallback && options.mock) {
           resolve(options.mock);
           return;
         }
@@ -99,7 +112,7 @@ export async function request<T>(options: RequestOptions<T>): Promise<ApiRespons
         );
       },
       fail: () => {
-        if (options.mockFallback && options.mock) {
+        if (USE_MOCK && options.mockFallback && options.mock) {
           resolve(options.mock);
           return;
         }

@@ -108,11 +108,20 @@ export async function getServiceItems(
     return success(toPage(records), 'mock-8-service-items');
   }
 
-  return request<ServiceItemPageResult>({
+  type BackendServiceItem = Omit<ServiceItemResponse, 'category'> & { category?: string };
+  const response = await request<Array<BackendServiceItem> | ServiceItemPageResult>({
     method: 'GET',
     url: serviceItemsPath,
     mock: serviceItemsMock as ApiResponse<ServiceItemPageResult>
   });
+  if (response.code !== 0) {
+    return response as ApiResponse<ServiceItemPageResult>;
+  }
+  const records = Array.isArray(response.data) ? response.data : response.data.records;
+  return success(
+    toPage(records.map((item) => ({ ...item, category: item.category ?? '' }))),
+    response.traceId
+  );
 }
 
 export async function getServiceItem(serviceId: string): Promise<ApiResponse<ServiceItemResponse>> {

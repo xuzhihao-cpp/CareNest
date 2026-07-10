@@ -29,6 +29,25 @@ const defaultTaskQuery: NurseTaskQuery = {
   size: 10
 };
 
+type BackendTask = Omit<NurseTaskRecord, 'orderNo' | 'nurseName' | 'elderId' | 'serviceId' | 'addressId'>;
+type BackendTaskPage = { records: BackendTask[]; total: number; page: number; size: number };
+type BackendTaskAction = Omit<TaskActionResponse, 'orderNo'>;
+
+function fromBackendTask(task: BackendTask): NurseTaskRecord {
+  return {
+    ...task,
+    orderNo: task.orderId,
+    nurseName: task.nurseId,
+    elderId: '',
+    serviceId: '',
+    addressId: ''
+  };
+}
+
+function fromBackendAction(result: BackendTaskAction): TaskActionResponse {
+  return { ...result, orderNo: result.orderId };
+}
+
 function readTasks(): NurseTaskRecord[] {
   const stored = uni.getStorageSync(STAGE_TWELVE_TASKS_STORAGE_KEY);
   return stored ? (stored as NurseTaskRecord[]) : [];
@@ -227,12 +246,15 @@ export async function dispatchAdminOrder(
     );
   }
 
-  return request<TaskActionResponse>({
+  const response = await request<BackendTaskAction>({
     method: 'POST',
     url: dispatchPath(orderId),
     data: payload,
     mock: dispatchResponseMock as ApiResponse<TaskActionResponse>
   });
+  return response.code === 0
+    ? success(fromBackendAction(response.data), response.traceId)
+    : (response as ApiResponse<TaskActionResponse>);
 }
 
 export async function getStageTwelveNurseTasks(
@@ -254,12 +276,15 @@ export async function getStageTwelveNurseTasks(
     return success(toTaskPage(readTasks(), nextQuery), 'mock-12-nurse-tasks');
   }
 
-  return request<NurseTaskPageResult>({
+  const response = await request<BackendTaskPage>({
     method: 'GET',
     url: '/nurse/tasks',
     data: nextQuery,
     mock: nurseTasksMock as ApiResponse<NurseTaskPageResult>
   });
+  return response.code === 0
+    ? success({ ...response.data, records: response.data.records.map(fromBackendTask) }, response.traceId)
+    : (response as ApiResponse<NurseTaskPageResult>);
 }
 
 export async function acceptNurseTask(
@@ -285,12 +310,15 @@ export async function acceptNurseTask(
     return success(applyTaskStatus(task, 'ACCEPTED', payload.dispatchRemark || '护理端接单'), 'mock-12-accept');
   }
 
-  return request<TaskActionResponse>({
+  const response = await request<BackendTaskAction>({
     method: 'POST',
     url: acceptPath(taskId),
     data: payload,
     mock: dispatchResponseMock as ApiResponse<TaskActionResponse>
   });
+  return response.code === 0
+    ? success(fromBackendAction(response.data), response.traceId)
+    : (response as ApiResponse<TaskActionResponse>);
 }
 
 export async function updateNurseTaskStatus(
@@ -318,12 +346,15 @@ export async function updateNurseTaskStatus(
     );
   }
 
-  return request<TaskActionResponse>({
+  const response = await request<BackendTaskAction>({
     method: 'POST',
     url: statusPath(taskId),
     data: payload,
     mock: dispatchResponseMock as ApiResponse<TaskActionResponse>
   });
+  return response.code === 0
+    ? success(fromBackendAction(response.data), response.traceId)
+    : (response as ApiResponse<TaskActionResponse>);
 }
 
 export function resetStageTwelveMockRecords() {

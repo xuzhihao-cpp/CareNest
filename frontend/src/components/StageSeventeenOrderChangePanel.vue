@@ -25,7 +25,7 @@ const props = defineProps<{
   authUser: AuthUser | null;
 }>();
 
-const orderId = ref('order-001');
+const orderId = ref('order_001');
 const reason = ref('家属临时调整时间，保留状态日志。');
 const newScheduledStart = ref('2026-07-10T14:00');
 const familyOrders = ref<FamilyOrderResponse[]>([]);
@@ -171,13 +171,13 @@ onMounted(() => {
       <button v-if="canAdminChange" class="hero-action" type="button" :disabled="loading" @click="handleAdminCancel()">
         <text>管理端取消</text>
       </button>
-      <button class="ghost-action" type="button" :disabled="loading" @click="resetMock">
+      <button class="ghost-action test-action" type="button" :disabled="loading" @click="resetMock">
         <text>重置阶段17 mock</text>
       </button>
-      <button class="ghost-action" type="button" :disabled="loading" @click="loadScenario('empty')">
+      <button class="ghost-action test-action" type="button" :disabled="loading" @click="loadScenario('empty')">
         <text>空数据 mock</text>
       </button>
-      <button class="ghost-action" type="button" :disabled="loading" @click="loadScenario('error')">
+      <button class="ghost-action test-action" type="button" :disabled="loading" @click="loadScenario('error')">
         <text>错误 mock</text>
       </button>
     </view>

@@ -139,7 +139,7 @@ async function loadElderProfile() {
     return;
   }
   loading.value = true;
-  const response = await getElderProfile('elder-001');
+  const response = await getElderProfile('elder_001');
   loading.value = false;
   lastTraceId.value = response.traceId;
   if (response.code === 0) {
@@ -211,8 +211,8 @@ onMounted(() => {
       <text v-for="item in endpoints" :key="item" class="tag tag-blue">{{ item }}</text>
     </view>
 
-    <view v-if="roleCode === 'FAMILY'" class="profile-workbench">
-      <view class="profile-list">
+    <view v-if="roleCode === 'FAMILY' || roleCode === 'ELDER'" class="profile-workbench">
+      <view v-if="roleCode === 'FAMILY'" class="profile-list">
         <button
           v-for="record in records"
           :key="record.elderId"
@@ -229,19 +229,26 @@ onMounted(() => {
         </button>
 
         <view class="binding-actions">
-          <button class="ghost-action" type="button" :disabled="loading" @click="resetNormalMock">
+          <button class="ghost-action test-action" type="button" :disabled="loading" @click="resetNormalMock">
             <text>正常 mock</text>
           </button>
-          <button class="ghost-action" type="button" @click="loadFamilyElders('empty')">
+          <button class="ghost-action test-action" type="button" @click="loadFamilyElders('empty')">
             <text>空数据 mock</text>
           </button>
-          <button class="ghost-action" type="button" @click="loadFamilyElders('error')">
+          <button class="ghost-action test-action" type="button" @click="loadFamilyElders('error')">
             <text>错误 mock</text>
           </button>
         </view>
       </view>
 
       <view class="profile-form">
+        <view v-if="!selectedElderId" class="empty-state">
+          <view>
+            <text class="empty-title">暂无已授权长辈</text>
+            <text class="empty-desc">请先在“绑定授权”完成长辈确认，授权生效后即可编辑基础档案。</text>
+          </view>
+        </view>
+        <template v-else>
         <label class="field">
           <text>姓名 name</text>
           <input v-model="form.name" class="input" placeholder="请输入长辈姓名" />
@@ -313,6 +320,7 @@ onMounted(() => {
         <button class="hero-action" type="button" :disabled="loading || !selectedElderId" @click="saveProfile">
           <text>保存基础档案</text>
         </button>
+        </template>
       </view>
     </view>
 

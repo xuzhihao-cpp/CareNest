@@ -253,13 +253,13 @@ onMounted(() => {
           <button class="ghost-action" type="button" :disabled="loading || !selectedServiceId" @click="saveSelectedService">
             <text>保存所选</text>
           </button>
-          <button class="ghost-action" type="button" @click="resetNormalMock">
+          <button class="ghost-action test-action" type="button" @click="resetNormalMock">
             <text>重置 mock</text>
           </button>
-          <button class="ghost-action" type="button" @click="loadServices('empty')">
+          <button class="ghost-action test-action" type="button" @click="loadServices('empty')">
             <text>空数据 mock</text>
           </button>
-          <button class="ghost-action" type="button" @click="loadServices('error')">
+          <button class="ghost-action test-action" type="button" @click="loadServices('error')">
             <text>错误 mock</text>
           </button>
         </view>
@@ -283,10 +283,10 @@ onMounted(() => {
         <button class="ghost-action" type="button" @click="loadServices('normal')">
           <text>正常 mock</text>
         </button>
-        <button class="ghost-action" type="button" @click="loadServices('empty')">
+        <button class="ghost-action test-action" type="button" @click="loadServices('empty')">
           <text>空数据 mock</text>
         </button>
-        <button class="ghost-action" type="button" @click="loadServices('error')">
+        <button class="ghost-action test-action" type="button" @click="loadServices('error')">
           <text>错误 mock</text>
         </button>
       </view>

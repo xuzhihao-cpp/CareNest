@@ -268,7 +268,7 @@ onMounted(() => {
           <button class="hero-action" type="button" :disabled="loading || !selectedOrderId" @click="handleDispatch">
             <text>确认派单</text>
           </button>
-          <button class="ghost-action" type="button" @click="resetMock">
+          <button class="ghost-action test-action" type="button" @click="resetMock">
             <text>重置 mock</text>
           </button>
         </view>
@@ -298,10 +298,10 @@ onMounted(() => {
         <button class="ghost-action" type="button" @click="loadTasks('normal')">
           <text>刷新任务</text>
         </button>
-        <button class="ghost-action" type="button" @click="loadTasks('empty')">
+        <button class="ghost-action test-action" type="button" @click="loadTasks('empty')">
           <text>空数据 mock</text>
         </button>
-        <button class="ghost-action" type="button" @click="loadTasks('error')">
+        <button class="ghost-action test-action" type="button" @click="loadTasks('error')">
           <text>错误 mock</text>
         </button>
       </view>
