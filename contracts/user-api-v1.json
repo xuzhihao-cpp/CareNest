@@ -200,6 +200,92 @@
         }
       }
     },
+    "/api/v1/family/reports/{reportId}/archive-suggestions/decision" : {
+      "post" : {
+        "tags" : [ "report-ack-controller" ],
+        "operationId" : "decideArchiveSuggestions",
+        "parameters" : [ {
+          "name" : "reportId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReportAckRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseReportAckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/family/reports/{reportId}/ack" : {
+      "post" : {
+        "tags" : [ "report-ack-controller" ],
+        "operationId" : "familyAck",
+        "parameters" : [ {
+          "name" : "reportId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReportAckRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseReportAckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/family/bindings" : {
       "get" : {
         "tags" : [ "binding-controller" ],
@@ -370,6 +456,49 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ApiResponseServiceAddressResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elder/reports/{reportId}/ack" : {
+      "post" : {
+        "tags" : [ "report-ack-controller" ],
+        "operationId" : "elderAck",
+        "parameters" : [ {
+          "name" : "reportId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReportAckRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseReportAckResponse"
                 }
               }
             }
@@ -847,6 +976,62 @@
             "type" : "string"
           },
           "profileVersion" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ReportAckRequest" : {
+        "required" : [ "acceptedSuggestionIds", "ackResult", "remark", "satisfaction" ],
+        "type" : "object",
+        "properties" : {
+          "ackResult" : {
+            "type" : "string"
+          },
+          "satisfaction" : {
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "remark" : {
+            "type" : "string"
+          },
+          "acceptedSuggestionIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "ApiResponseReportAckResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/ReportAckResponse"
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ReportAckResponse" : {
+        "type" : "object",
+        "properties" : {
+          "ackId" : {
+            "type" : "string"
+          },
+          "ackResult" : {
+            "type" : "string"
+          },
+          "reportStatus" : {
             "type" : "string"
           }
         }

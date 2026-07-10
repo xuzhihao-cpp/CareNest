@@ -17,7 +17,7 @@ export const stageImplementationStatus: StageImplementationMetadata[] = [
   { stage: '13', status: 'MOCK_ONLY', backendModule: 'not implemented' },
   { stage: '14', status: 'MOCK_ONLY', backendModule: 'not implemented' },
   { stage: '15', status: 'MOCK_ONLY', backendModule: 'not implemented' },
-  { stage: '16', status: 'MOCK_ONLY', backendModule: 'not implemented' },
+  { stage: '16', status: 'READY', backendModule: 'backend-user' },
   { stage: '17', status: 'MOCK_ONLY', backendModule: 'not implemented' },
   { stage: '18', status: 'READY', backendModule: 'backend-user' }
 ];

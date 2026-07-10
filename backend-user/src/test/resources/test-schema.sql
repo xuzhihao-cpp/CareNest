@@ -1,4 +1,9 @@
 DROP TABLE IF EXISTS role_permission;
+DROP TABLE IF EXISTS care_report_ack;
+DROP TABLE IF EXISTS health_info_review_task;
+DROP TABLE IF EXISTS order_status_log;
+DROP TABLE IF EXISTS service_report;
+DROP TABLE IF EXISTS nursing_order;
 DROP TABLE IF EXISTS sys_permission;
 DROP TABLE IF EXISTS login_session;
 DROP TABLE IF EXISTS user_role;
@@ -163,4 +168,77 @@ CREATE TABLE service_address (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (address_id)
+);
+
+CREATE TABLE nursing_order (
+  order_id VARCHAR(32) NOT NULL PRIMARY KEY,
+  elder_id VARCHAR(32) NOT NULL,
+  family_id VARCHAR(32) NOT NULL,
+  service_id VARCHAR(32) NOT NULL,
+  address_id VARCHAR(32) NOT NULL,
+  order_status VARCHAR(32) NOT NULL,
+  scheduled_start_at TIMESTAMP NOT NULL,
+  scheduled_end_at TIMESTAMP,
+  service_price_cent INT NOT NULL DEFAULT 0,
+  contact_name VARCHAR(64) NOT NULL,
+  contact_phone VARCHAR(32) NOT NULL,
+  remark VARCHAR(255),
+  created_by VARCHAR(32),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE service_report (
+  report_id VARCHAR(32) NOT NULL PRIMARY KEY,
+  order_id VARCHAR(32) NOT NULL UNIQUE,
+  report_status VARCHAR(32) NOT NULL,
+  summary VARCHAR(1000) NOT NULL,
+  nursing_advice VARCHAR(1000),
+  generated_by VARCHAR(32),
+  generated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  confirmed_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE care_report_ack (
+  ack_id VARCHAR(32) NOT NULL PRIMARY KEY,
+  report_id VARCHAR(32) NOT NULL UNIQUE,
+  order_id VARCHAR(32) NOT NULL,
+  ack_user_id VARCHAR(32) NOT NULL,
+  ack_role VARCHAR(32) NOT NULL,
+  ack_result VARCHAR(32) NOT NULL,
+  satisfaction INT,
+  remark VARCHAR(255),
+  accepted_suggestion_ids VARCHAR(4000),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE health_info_review_task (
+  review_task_id VARCHAR(32) NOT NULL PRIMARY KEY,
+  report_id VARCHAR(32),
+  order_id VARCHAR(32),
+  elder_id VARCHAR(32) NOT NULL,
+  field_name VARCHAR(64) NOT NULL,
+  old_value VARCHAR(512),
+  new_value VARCHAR(512) NOT NULL,
+  source_type VARCHAR(32) NOT NULL,
+  source_id VARCHAR(32),
+  review_status VARCHAR(32) NOT NULL,
+  created_by VARCHAR(32),
+  reviewer_id VARCHAR(32),
+  reviewed_at TIMESTAMP,
+  review_remark VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE order_status_log (
+  status_log_id VARCHAR(32) NOT NULL PRIMARY KEY,
+  order_id VARCHAR(32) NOT NULL,
+  from_status VARCHAR(32),
+  to_status VARCHAR(32) NOT NULL,
+  changed_by VARCHAR(32),
+  change_reason VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

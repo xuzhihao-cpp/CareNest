@@ -138,18 +138,18 @@ function validatePayload(payload: ReportAckRequest) {
   return ['ACCEPTED', 'REJECTED'].includes(payload.ackResult) && payload.satisfaction >= 1 && payload.satisfaction <= 5;
 }
 
-function reportStatusFromAck(payload: ReportAckRequest, archiveDecision: boolean): ServiceReportStatus {
+function reportStatusFromAck(payload: ReportAckRequest): ServiceReportStatus {
   if (payload.ackResult === 'REJECTED') {
-    return 'DISPUTED';
+    return 'REJECTED';
   }
-  return archiveDecision && payload.acceptedSuggestionIds.length > 0 ? 'ARCHIVE_PENDING' : 'CONFIRMED';
+  return 'CONFIRMED';
 }
 
-function orderStatusFromReportStatus(reportStatus: ServiceReportStatus): 'WAIT_CONFIRM' | 'COMPLETED' {
-  return reportStatus === 'DISPUTED' ? 'WAIT_CONFIRM' : 'COMPLETED';
+function orderStatusFromReportStatus(reportStatus: ServiceReportStatus): 'WAIT_REPORT' | 'COMPLETED' {
+  return reportStatus === 'REJECTED' ? 'WAIT_REPORT' : 'COMPLETED';
 }
 
-function upsertFallbackOrder(orderId: string, orderStatus: 'WAIT_CONFIRM' | 'COMPLETED', operatorId: string) {
+function upsertFallbackOrder(orderId: string, orderStatus: 'WAIT_REPORT' | 'COMPLETED', operatorId: string) {
   const orders = readOrders();
   const index = orders.findIndex((item) => item.orderId === orderId);
   if (index >= 0) {
@@ -183,7 +183,7 @@ function upsertFallbackOrder(orderId: string, orderStatus: 'WAIT_CONFIRM' | 'COM
   ]);
 }
 
-function syncTaskStatus(orderId: string, orderStatus: 'WAIT_CONFIRM' | 'COMPLETED') {
+function syncTaskStatus(orderId: string, orderStatus: 'WAIT_REPORT' | 'COMPLETED') {
   const tasks = readTasks();
   writeTasks(tasks.map((task) => (task.orderId === orderId ? { ...task, taskStatus: orderStatus, orderStatus } : task)));
 }
@@ -235,7 +235,7 @@ function submitAck(
 
   const session = readAuthSession();
   const acks = readAcks();
-  const reportStatus = reportStatusFromAck(payload, archiveDecision);
+  const reportStatus = reportStatusFromAck(payload);
   const orderStatus = orderStatusFromReportStatus(reportStatus);
   const ack: ReportAckRecord = {
     ackId: nextAckId(acks),
@@ -255,7 +255,7 @@ function submitAck(
   writeAcks([ack, ...acks.filter((item) => item.reportId !== reportId || item.operatorId !== ack.operatorId)]);
   upsertFallbackOrder(report.orderId, orderStatus, ack.operatorId);
   syncTaskStatus(report.orderId, orderStatus);
-  if (archiveDecision && reportStatus === 'ARCHIVE_PENDING') {
+  if (archiveDecision) {
     createReviewTasks(reportId, report.orderId, payload.acceptedSuggestionIds);
   }
 
@@ -290,7 +290,7 @@ export async function ackElderReport(
     if (scenario === 'error') {
       return reportAckErrorMock as ApiResponse<ReportAckResponse>;
     }
-    return submitAck(reportId, payload, ['ELDER', 'FAMILY'], false, 'mock-16-elder-report-ack');
+    return submitAck(reportId, payload, ['ELDER'], false, 'mock-16-elder-report-ack');
   }
 
   return request<ReportAckResponse>({
