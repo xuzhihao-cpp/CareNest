@@ -1,0 +1,19 @@
+# Replace or extend @xuzhihao-cpp with actual team GitHub usernames when members join the repository.
+
+# Project coordination
+/README.md @xuzhihao-cpp
+/CONTRIBUTING.md @xuzhihao-cpp
+/.github/ @xuzhihao-cpp
+
+# Data and database
+/docs/dictionary/data-dictionary.md @xuzhihao-cpp
+/db/ @xuzhihao-cpp
+
+# API and backend
+/docs/api/ @xuzhihao-cpp
+/backend-user/ @xuzhihao-cpp
+/backend-care-admin/ @xuzhihao-cpp
+
+# Frontend and mock
+/frontend/ @xuzhihao-cpp
+/mock/ @xuzhihao-cpp

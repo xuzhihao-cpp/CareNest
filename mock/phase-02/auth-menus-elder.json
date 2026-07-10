@@ -1,0 +1,12 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "token": "mock-token-elder",
+    "userId": "elder-001",
+    "displayName": "长辈演示账号",
+    "roles": ["ELDER"],
+    "menus": ["/elder/home", "/elder/reminders", "/elder/ai"]
+  },
+  "traceId": "mock-2"
+}

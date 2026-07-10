@@ -1,0 +1,36 @@
+{
+  "accounts": [
+    {
+      "username": "elder_demo",
+      "password": "Demo@123456",
+      "userId": "elder-001",
+      "displayName": "长辈演示账号",
+      "roles": ["ELDER"],
+      "menus": ["/elder/home", "/elder/reminders", "/elder/ai"]
+    },
+    {
+      "username": "family_demo",
+      "password": "Demo@123456",
+      "userId": "family-001",
+      "displayName": "家属演示账号",
+      "roles": ["FAMILY"],
+      "menus": ["/family/home", "/family/elders", "/family/orders"]
+    },
+    {
+      "username": "nurse_demo",
+      "password": "Demo@123456",
+      "userId": "nurse-001",
+      "displayName": "护理演示账号",
+      "roles": ["NURSE"],
+      "menus": ["/nurse/home", "/nurse/orders", "/nurse/reports"]
+    },
+    {
+      "username": "admin_demo",
+      "password": "Demo@123456",
+      "userId": "admin-001",
+      "displayName": "管理员演示账号",
+      "roles": ["ADMIN"],
+      "menus": ["/admin/home", "/admin/users", "/admin/dashboard"]
+    }
+  ]
+}

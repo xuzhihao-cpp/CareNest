@@ -1,0 +1,12 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "token": "mock-token-customer-service",
+    "userId": "cs-001",
+    "displayName": "客服演示账号",
+    "roles": ["CUSTOMER_SERVICE"],
+    "menus": ["/customer-service/home", "/customer-service/tickets"]
+  },
+  "traceId": "mock-2"
+}

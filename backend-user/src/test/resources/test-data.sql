@@ -1,0 +1,80 @@
+INSERT INTO sys_role (role_id, role_code, role_name, enabled) VALUES
+('role_elder', 'ELDER', '长辈', TRUE),
+('role_family', 'FAMILY', '家属', TRUE),
+('role_nurse', 'NURSE', '护理人员', TRUE),
+('role_admin', 'ADMIN', '管理员', TRUE),
+('role_customer_service', 'CUSTOMER_SERVICE', '客服', TRUE);
+
+INSERT INTO sys_user (user_id, username, password_hash, display_name, phone, account_status) VALUES
+('elder-001', 'elder_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '长辈演示账号', '13800000001', 'ENABLED'),
+('family-001', 'family_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '家属演示账号', '13800000002', 'ENABLED'),
+('nurse-001', 'nurse_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '护理演示账号', '13800000003', 'ENABLED'),
+('admin-001', 'admin_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '管理员演示账号', '13800000004', 'ENABLED'),
+('cs-001', 'cs_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '客服演示账号', '13800000005', 'ENABLED');
+
+INSERT INTO user_role (user_id, role_id) VALUES
+('elder-001', 'role_elder'),
+('family-001', 'role_family'),
+('nurse-001', 'role_nurse'),
+('admin-001', 'role_admin'),
+('cs-001', 'role_customer_service');
+
+INSERT INTO sys_permission (permission_id, permission_code, permission_name, permission_group, enabled) VALUES
+('perm_elder_reminder_view', 'ELDER_REMINDER_VIEW', '查看提醒', 'elder', TRUE),
+('perm_elder_ai_chat', 'ELDER_AI_CHAT', '使用AI聊天', 'elder', TRUE),
+('perm_family_elder_view', 'FAMILY_ELDER_VIEW', '查看长辈信息', 'family', TRUE),
+('perm_family_order_create', 'FAMILY_ORDER_CREATE', '创建护理订单', 'family', TRUE),
+('perm_nurse_order_view', 'NURSE_ORDER_VIEW', '查看护理订单', 'nurse', TRUE),
+('perm_nurse_report_create', 'NURSE_REPORT_CREATE', '创建服务报告', 'nurse', TRUE),
+('perm_nurse_appeal_create', 'NURSE_APPEAL_CREATE', '提交申诉', 'nurse', TRUE),
+('perm_admin_dashboard_view', 'ADMIN_DASHBOARD_VIEW', '查看管理看板', 'admin', TRUE),
+('perm_role_permission_manage', 'ROLE_PERMISSION_MANAGE', '管理角色权限', 'permission', TRUE),
+('perm_cs_ticket_handle', 'CUSTOMER_SERVICE_TICKET_HANDLE', '处理客服工单', 'customer_service', TRUE);
+
+INSERT INTO role_permission (role_id, permission_id, sort) VALUES
+('role_elder', 'perm_elder_reminder_view', 1),
+('role_elder', 'perm_elder_ai_chat', 2),
+('role_family', 'perm_family_elder_view', 1),
+('role_family', 'perm_family_order_create', 2),
+('role_nurse', 'perm_nurse_order_view', 1),
+('role_nurse', 'perm_nurse_report_create', 2),
+('role_admin', 'perm_admin_dashboard_view', 1),
+('role_admin', 'perm_role_permission_manage', 2),
+('role_customer_service', 'perm_cs_ticket_handle', 1),
+('role_customer_service', 'perm_role_permission_manage', 2);
+
+INSERT INTO authorization_scope (scope_code, scope_name, enabled, sort) VALUES
+('HEALTH_VIEW', '查看健康档案', TRUE, 1),
+('HEALTH_EDIT', '编辑健康档案', TRUE, 2),
+('ORDER_CREATE', '创建护理订单', TRUE, 3),
+('REPORT_VIEW', '查看服务报告', TRUE, 4),
+('REPORT_CONFIRM', '确认服务报告', TRUE, 5),
+('ARCHIVE_EDIT', '编辑归档信息', TRUE, 6);
+
+INSERT INTO elder_profile (
+  elder_id, user_id, elder_name, gender, birth_date, care_level,
+  emergency_contact_name, emergency_contact_phone, health_summary
+) VALUES (
+  'elder_001', 'elder-001', '张爷爷', 'MALE', DATE '1946-05-12', 'LEVEL_2',
+  '张小明', '13800000002', '高血压，需定期测量血压'
+);
+
+INSERT INTO elder_contact (contact_id, elder_id, contact_name, contact_phone, relation_type, is_primary) VALUES
+('contact_001', 'elder_001', '张小明', '13800000002', 'SON', TRUE);
+
+INSERT INTO elder_family_binding (
+  binding_id, elder_id, family_id, binding_status, scope_codes,
+  relation_type, inviter_user_id, approver_user_id, remark
+) VALUES (
+  'binding_001', 'elder_001', 'family-001', 'ACTIVE',
+  '["HEALTH_VIEW","HEALTH_EDIT","ORDER_CREATE","REPORT_VIEW","REPORT_CONFIRM"]',
+  'SON', 'family-001', 'elder-001', '演示绑定关系'
+);
+
+INSERT INTO service_address (
+  address_id, elder_id, family_id, contact_name, contact_phone,
+  province_code, city_code, region_code, detail_address, is_default
+) VALUES (
+  'address_001', 'elder_001', 'family-001', '张小明', '13800000002',
+  '310000', '310100', '310101', '人民路100号1单元201', TRUE
+);

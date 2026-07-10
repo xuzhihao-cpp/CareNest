@@ -1,0 +1,20 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "dictCode": "orderStatus",
+    "dictName": "订单状态",
+    "items": [
+      {"value":"WAIT_DISPATCH","label":"待派单","sort":1,"enabled":true,"remark":"订单已提交，等待派单"},
+      {"value":"DISPATCHED","label":"已派单","sort":2,"enabled":true,"remark":"管理端已派给护理人员"},
+      {"value":"ACCEPTED","label":"已接单","sort":3,"enabled":true,"remark":"护理人员已接单"},
+      {"value":"ON_THE_WAY","label":"前往中","sort":4,"enabled":true,"remark":"护理人员正在前往服务地址"},
+      {"value":"SERVING","label":"服务中","sort":5,"enabled":true,"remark":"护理服务进行中"},
+      {"value":"WAIT_REPORT","label":"待报告","sort":6,"enabled":true,"remark":"服务结束，等待报告生成"},
+      {"value":"WAIT_CONFIRM","label":"待确认","sort":7,"enabled":true,"remark":"等待长辈或家属确认"},
+      {"value":"COMPLETED","label":"已完成","sort":8,"enabled":true,"remark":"订单闭环完成"},
+      {"value":"CANCELED","label":"已取消","sort":9,"enabled":true,"remark":"订单取消"}
+    ]
+  },
+  "traceId": "mock-phase-02-order-status"
+}

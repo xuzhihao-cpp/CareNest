@@ -1,0 +1,19 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "cards": [
+      {"key": "pendingTasks", "label": "待接单", "value": "3", "unit": "单", "trend": "今日新增 1 单"},
+      {"key": "servingTasks", "label": "服务中", "value": "2", "unit": "单", "trend": "1 单待留档"},
+      {"key": "missingProof", "label": "待补资料", "value": "1", "unit": "项", "trend": "报告照片缺失"}
+    ],
+    "quickActions": [
+      {"key": "taskList", "label": "任务列表", "path": "/pages/nurse/index?view=task-list", "permissionCode": "nurse:workbench:view"},
+      {"key": "acceptTask", "label": "接单", "path": "/pages/nurse/index?view=accept-task", "permissionCode": "task:accept"},
+      {"key": "submitReport", "label": "提交报告", "path": "/pages/nurse/index?view=submit-report", "permissionCode": "report:submit"}
+    ],
+    "todoCount": 6
+  },
+  "traceId": "mock-4"
+}
+

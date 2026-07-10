@@ -1,0 +1,12 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "token": "mock-token-nurse",
+    "userId": "nurse-001",
+    "displayName": "护理演示账号",
+    "roles": ["NURSE"],
+    "menus": ["/nurse/home", "/nurse/orders", "/nurse/reports"]
+  },
+  "traceId": "mock-2"
+}
