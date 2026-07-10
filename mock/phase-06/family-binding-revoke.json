@@ -1,0 +1,13 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "bindingId": "binding_mock_001",
+    "elderId": "elder_001",
+    "elderName": "张爷爷",
+    "relationType": "DAUGHTER",
+    "bindingStatus": "REVOKED",
+    "scopeCodes": ["HEALTH_VIEW"]
+  },
+  "traceId": "mock-6"
+}
