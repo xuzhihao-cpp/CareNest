@@ -83,7 +83,13 @@ export const mockServerPaths: MockServerPath[] = [
     method: 'GET',
     url: '/api/v1/family/bindings',
     mockFile: 'mock/phase-06/family-bindings.json',
-    responseShape: 'ApiResponse<PageResult<BindingResponse>>'
+    responseShape: 'ApiResponse<BindingResponse[]>'
+  },
+  {
+    method: 'GET',
+    url: '/api/v1/elder/bindings',
+    mockFile: 'mock/phase-06/family-bindings.json',
+    responseShape: 'ApiResponse<BindingResponse[]>'
   },
   {
     method: 'POST',

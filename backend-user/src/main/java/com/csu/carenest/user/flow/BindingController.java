@@ -1,6 +1,7 @@
 package com.csu.carenest.user.flow;
 
 import com.csu.carenest.user.common.ApiResponse;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,6 +35,13 @@ public class BindingController {
     public ApiResponse<List<BindingResponse>> familyBindings(
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         return ApiResponse.success(flowService.familyBindings(authorization));
+    }
+
+    @GetMapping("/elder/bindings")
+    public ApiResponse<List<BindingResponse>> elderBindings(
+            @Parameter(required = true)
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ApiResponse.success(flowService.elderBindings(authorization));
     }
 
     @PostMapping("/elder/bindings/{bindingId}/approve")

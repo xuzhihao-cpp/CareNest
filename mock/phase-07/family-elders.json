@@ -4,42 +4,22 @@
   "data": {
     "records": [
       {
-        "elderId": "elder-001",
-        "profileVersion": 3,
-        "name": "张奶奶",
-        "gender": "FEMALE",
-        "birthDate": "1948-05-16",
+        "elderId": "elder_001",
+        "profileVersion": 1,
+        "name": "张爷爷",
+        "gender": "MALE",
+        "birthDate": "1946-05-12",
         "careLevel": "LEVEL_2",
         "emergencyContacts": [
           {
-            "contactName": "张小敏",
-            "contactPhone": "13800001111",
-            "relationType": "DAUGHTER"
-          },
-          {
-            "contactName": "张建国",
-            "contactPhone": "13900002222",
+            "contactName": "张小明",
+            "contactPhone": "13800000002",
             "relationType": "SON"
-          }
-        ]
-      },
-      {
-        "elderId": "elder-002",
-        "profileVersion": 1,
-        "name": "李爷爷",
-        "gender": "MALE",
-        "birthDate": "1942-11-02",
-        "careLevel": "LEVEL_1",
-        "emergencyContacts": [
-          {
-            "contactName": "李芳",
-            "contactPhone": "13700003333",
-            "relationType": "DAUGHTER"
           }
         ]
       }
     ],
-    "total": 2,
+    "total": 1,
     "page": 1,
     "size": 10
   },
