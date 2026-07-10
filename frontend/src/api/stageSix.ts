@@ -4,7 +4,7 @@ import familyBindingsMock from '@/mock/phase-06/family-bindings.json';
 import { failure, isMockEnabled, readAuthSession, request, success } from '@/api/client';
 import type { ApiResponse } from '@/types/api';
 import type {
-  BindingPageResult,
+  BindingListResult,
   BindingRequest,
   BindingResponse,
   BindingScenario,
@@ -17,17 +17,8 @@ const familyScopesPath = (bindingId: string) => `/family/bindings/${bindingId}/s
 const familyRevokePath = (bindingId: string) => `/family/bindings/${bindingId}/revoke`;
 
 let bindingRecords: BindingResponse[] = [
-  ...(familyBindingsMock as ApiResponse<BindingPageResult>).data.records
+  ...(familyBindingsMock as ApiResponse<BindingListResult>).data
 ];
-
-function toPage(records: BindingResponse[]): BindingPageResult {
-  return {
-    records,
-    total: records.length,
-    page: 1,
-    size: 10
-  };
-}
 
 function requireFamily<T>(emptyData: T): ApiResponse<T> | null {
   const session = readAuthSession();
@@ -65,26 +56,24 @@ export function getStageSixBindingSnapshot(): BindingResponse[] {
   return bindingRecords;
 }
 
-export async function getFamilyBindings(scenario: BindingScenario = 'normal'): Promise<ApiResponse<BindingPageResult>> {
+export async function getFamilyBindings(scenario: BindingScenario = 'normal'): Promise<ApiResponse<BindingListResult>> {
   if (isMockEnabled()) {
-    const denied = requireFamily(toPage([]));
+    const denied = requireFamily<BindingListResult>([]);
     if (denied) {
       return denied;
     }
     if (scenario === 'empty') {
-      return familyBindingsEmptyMock as ApiResponse<BindingPageResult>;
+      return familyBindingsEmptyMock as ApiResponse<BindingListResult>;
     }
     if (scenario === 'error') {
-      return familyBindingsErrorMock as ApiResponse<BindingPageResult>;
+      return familyBindingsErrorMock as ApiResponse<BindingListResult>;
     }
-    return success(toPage(bindingRecords), 'mock-6-family-bindings');
+    return success(bindingRecords, 'mock-6-family-bindings');
   }
 
-  return request<BindingPageResult>({
+  return request<BindingListResult>({
     method: 'GET',
-    url: familyBindingsPath,
-    mock: familyBindingsMock as ApiResponse<BindingPageResult>,
-    mockFallback: true
+    url: familyBindingsPath
   });
 }
 
@@ -116,7 +105,10 @@ export async function createFamilyBinding(payload: BindingRequest): Promise<ApiR
   });
 }
 
-export async function approveElderBinding(bindingId: string): Promise<ApiResponse<BindingResponse>> {
+export async function approveElderBinding(
+  bindingId: string,
+  payload: BindingRequest
+): Promise<ApiResponse<BindingResponse>> {
   if (isMockEnabled()) {
     const denied = requireElderOrFamily({} as BindingResponse);
     if (denied) {
@@ -135,7 +127,8 @@ export async function approveElderBinding(bindingId: string): Promise<ApiRespons
 
   return request<BindingResponse>({
     method: 'POST',
-    url: elderApprovePath(bindingId)
+    url: elderApprovePath(bindingId),
+    data: payload
   });
 }
 
@@ -194,5 +187,5 @@ export async function revokeFamilyBinding(bindingId: string, source: BindingRequ
 }
 
 export function resetStageSixMockRecords() {
-  bindingRecords = [...(familyBindingsMock as ApiResponse<BindingPageResult>).data.records];
+  bindingRecords = [...(familyBindingsMock as ApiResponse<BindingListResult>).data];
 }

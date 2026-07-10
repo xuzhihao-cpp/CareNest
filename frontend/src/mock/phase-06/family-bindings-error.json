@@ -1,12 +1,6 @@
 {
   "code": 500,
-  "message": "服务异常",
-  "data": {
-    "records": [],
-    "total": 0,
-    "page": 1,
-    "size": 10
-  },
+  "message": "service error",
+  "data": [],
   "traceId": "mock-6-family-bindings-error"
 }
-

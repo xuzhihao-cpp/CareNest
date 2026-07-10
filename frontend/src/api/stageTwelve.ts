@@ -231,8 +231,7 @@ export async function dispatchAdminOrder(
     method: 'POST',
     url: dispatchPath(orderId),
     data: payload,
-    mock: dispatchResponseMock as ApiResponse<TaskActionResponse>,
-    mockFallback: true
+    mock: dispatchResponseMock as ApiResponse<TaskActionResponse>
   });
 }
 
@@ -259,8 +258,7 @@ export async function getStageTwelveNurseTasks(
     method: 'GET',
     url: '/nurse/tasks',
     data: nextQuery,
-    mock: nurseTasksMock as ApiResponse<NurseTaskPageResult>,
-    mockFallback: true
+    mock: nurseTasksMock as ApiResponse<NurseTaskPageResult>
   });
 }
 
@@ -291,8 +289,7 @@ export async function acceptNurseTask(
     method: 'POST',
     url: acceptPath(taskId),
     data: payload,
-    mock: dispatchResponseMock as ApiResponse<TaskActionResponse>,
-    mockFallback: true
+    mock: dispatchResponseMock as ApiResponse<TaskActionResponse>
   });
 }
 
@@ -325,8 +322,7 @@ export async function updateNurseTaskStatus(
     method: 'POST',
     url: statusPath(taskId),
     data: payload,
-    mock: dispatchResponseMock as ApiResponse<TaskActionResponse>,
-    mockFallback: true
+    mock: dispatchResponseMock as ApiResponse<TaskActionResponse>
   });
 }
 

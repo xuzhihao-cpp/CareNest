@@ -134,8 +134,7 @@ export async function getNurseTasks(
     method: 'GET',
     url: nurseTasksPath,
     data: nextQuery,
-    mock: nurseTasksMock as ApiResponse<StageThirteenTaskPageResult>,
-    mockFallback: true
+    mock: nurseTasksMock as ApiResponse<StageThirteenTaskPageResult>
   });
 }
 

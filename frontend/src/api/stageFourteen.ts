@@ -201,8 +201,7 @@ export async function createServiceRecord(
     method: 'POST',
     url: serviceRecordPath(orderId),
     data: payload,
-    mock: executionResponseMock as ApiResponse<CareExecutionResponse>,
-    mockFallback: true
+    mock: executionResponseMock as ApiResponse<CareExecutionResponse>
   });
 }
 
@@ -238,8 +237,7 @@ export async function createVitalSignRecord(
     method: 'POST',
     url: vitalSignPath(orderId),
     data: payload,
-    mock: executionResponseMock as ApiResponse<CareExecutionResponse>,
-    mockFallback: true
+    mock: executionResponseMock as ApiResponse<CareExecutionResponse>
   });
 }
 
@@ -266,7 +264,6 @@ export async function getOrderServiceRecords(
   return request<CareExecutionPageResult>({
     method: 'GET',
     url: orderServiceRecordsPath(orderId),
-    mock: serviceRecordsMock as ApiResponse<CareExecutionPageResult>,
-    mockFallback: true
+    mock: serviceRecordsMock as ApiResponse<CareExecutionPageResult>
   });
 }

@@ -111,8 +111,7 @@ export async function getServiceItems(
   return request<ServiceItemPageResult>({
     method: 'GET',
     url: serviceItemsPath,
-    mock: serviceItemsMock as ApiResponse<ServiceItemPageResult>,
-    mockFallback: true
+    mock: serviceItemsMock as ApiResponse<ServiceItemPageResult>
   });
 }
 

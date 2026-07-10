@@ -328,8 +328,7 @@ export async function cancelFamilyOrder(
     method: 'POST',
     url: familyCancelPath(orderId),
     data: payload,
-    mock: orderChangeMock as ApiResponse<OrderChangeResponse>,
-    mockFallback: true
+    mock: orderChangeMock as ApiResponse<OrderChangeResponse>
   });
 }
 
@@ -352,8 +351,7 @@ export async function rescheduleFamilyOrder(
     method: 'POST',
     url: familyReschedulePath(orderId),
     data: payload,
-    mock: orderChangeMock as ApiResponse<OrderChangeResponse>,
-    mockFallback: true
+    mock: orderChangeMock as ApiResponse<OrderChangeResponse>
   });
 }
 
@@ -376,7 +374,6 @@ export async function cancelAdminOrder(
     method: 'POST',
     url: adminCancelPath(orderId),
     data: payload,
-    mock: orderChangeMock as ApiResponse<OrderChangeResponse>,
-    mockFallback: true
+    mock: orderChangeMock as ApiResponse<OrderChangeResponse>
   });
 }

@@ -12,7 +12,6 @@ import type { RoleCode } from '@/types/stageOne';
 import type { AuthUser } from '@/types/stageTwo';
 import type {
   CareLevel,
-  ElderProfileDetail,
   ElderProfileRequest,
   ElderProfileResponse,
   ElderProfileScenario,
@@ -58,7 +57,7 @@ const emptyForm: ElderProfileRequest = {
   ]
 };
 
-const records = ref<ElderProfileDetail[]>([]);
+const records = ref<ElderProfileResponse[]>([]);
 const selectedElderId = ref('');
 const form = ref<ElderProfileRequest>(cloneProfile(emptyForm));
 const loading = ref(false);
@@ -71,23 +70,11 @@ const endpoints = getStageSevenEndpointSummary();
 const selectedProfile = computed(() => records.value.find((item) => item.elderId === selectedElderId.value) ?? null);
 const isFamily = computed(() => props.roleCode === 'FAMILY' && props.authUser?.roles.includes('FAMILY'));
 const isElder = computed(() => props.roleCode === 'ELDER' && props.authUser?.roles.includes('ELDER'));
-const totalContacts = computed(() => selectedProfile.value?.emergencyContacts.length ?? form.value.emergencyContacts.length);
-const currentVersion = computed(() => selectedProfile.value?.profileVersion ?? 0);
+const totalContacts = computed(() => form.value.emergencyContacts.length);
+const currentVersion = computed(() => selectedProfile.value?.profileVersion ?? '-');
 
 function cloneProfile<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function labelGender(value: Gender) {
-  return genderOptions.find((item) => item.value === value)?.label ?? value;
-}
-
-function labelCareLevel(value: CareLevel) {
-  return careLevelOptions.find((item) => item.value === value)?.label ?? value;
-}
-
-function labelRelation(value: RelationType) {
-  return relationOptions.find((item) => item.value === value)?.label ?? value;
 }
 
 function ensurePrimaryContact(payload: ElderProfileRequest) {
@@ -96,19 +83,12 @@ function ensurePrimaryContact(payload: ElderProfileRequest) {
   }
 }
 
-function applyProfile(profile: ElderProfileDetail) {
+function applyProfile(profile: ElderProfileResponse) {
   const index = records.value.findIndex((item) => item.elderId === profile.elderId);
   if (index >= 0) {
     records.value.splice(index, 1, cloneProfile(profile));
   }
   selectedElderId.value = profile.elderId;
-  form.value = {
-    name: profile.name,
-    gender: profile.gender,
-    birthDate: profile.birthDate,
-    careLevel: profile.careLevel,
-    emergencyContacts: cloneProfile(profile.emergencyContacts)
-  };
   ensurePrimaryContact(form.value);
 }
 
@@ -136,7 +116,7 @@ async function loadFamilyElders(scenario: ElderProfileScenario = 'normal') {
   lastTraceId.value = response.traceId;
   lastResponse.value = null;
   if (response.code === 0) {
-    records.value = response.data.records;
+    records.value = response.data;
     error.value = '';
     message.value =
       scenario === 'empty' ? '已切换为空档案 mock' : scenario === 'normal' ? '长辈档案列表已加载' : message.value;
@@ -242,8 +222,8 @@ onMounted(() => {
           @click="selectProfile(record.elderId)"
         >
           <view>
-            <text class="flow-label">{{ record.name }}</text>
-            <text class="flow-time">{{ record.elderId }} · {{ labelCareLevel(record.careLevel) }}</text>
+            <text class="flow-label">{{ record.elderId }}</text>
+            <text class="flow-time">profileVersion {{ record.profileVersion }}</text>
           </view>
           <text class="tag tag-teal">v{{ record.profileVersion }}</text>
         </button>
@@ -339,21 +319,8 @@ onMounted(() => {
     <view v-if="roleCode === 'ELDER' && selectedProfile" class="profile-readonly">
       <view class="profile-detail">
         <text class="section-mini">GET /api/v1/elders/{elderId}/profile</text>
-        <text class="access-title">{{ selectedProfile.name }}</text>
-        <text class="access-desc">
-          {{ selectedProfile.elderId }} · {{ labelGender(selectedProfile.gender) }} ·
-          {{ selectedProfile.birthDate }} · {{ labelCareLevel(selectedProfile.careLevel) }}
-        </text>
-      </view>
-      <view class="profile-detail">
-        <text class="section-mini">紧急联系人</text>
-        <text
-          v-for="contact in selectedProfile.emergencyContacts"
-          :key="`${contact.contactName}-${contact.contactPhone}`"
-          class="flow-label"
-        >
-          {{ contact.contactName }} · {{ contact.contactPhone }} · {{ labelRelation(contact.relationType) }}
-        </text>
+        <text class="access-title">{{ selectedProfile.elderId }}</text>
+        <text class="access-desc">profileVersion {{ selectedProfile.profileVersion }}</text>
       </view>
     </view>
 

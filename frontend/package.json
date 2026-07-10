@@ -8,6 +8,8 @@
     "dev:h5": "uni -p h5 --host 127.0.0.1 --port 5173",
     "build": "vue-tsc --noEmit && uni build -p h5",
     "build:h5": "vue-tsc --noEmit && uni build -p h5",
+    "contract:generate": "node scripts/generate-user-api-contract.mjs",
+    "contract:check": "node scripts/generate-user-api-contract.mjs --check",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview --host 127.0.0.1 --port 5173"
   },
@@ -20,6 +22,7 @@
   "devDependencies": {
     "@dcloudio/types": "^3.4.31",
     "@dcloudio/vite-plugin-uni": "3.0.0-alpha-5020120260706001",
+    "openapi-typescript": "7.13.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.2",
     "vue-tsc": "^2.0.29"

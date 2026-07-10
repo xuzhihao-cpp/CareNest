@@ -1,22 +1,9 @@
 {
   "code": 0,
   "message": "success",
-  "data": {
-    "records": [
-      {
-        "addressId": "address-001",
-        "fullAddress": "310101 人民路100号1单元201",
-        "isDefault": true
-      },
-      {
-        "addressId": "address-002",
-        "fullAddress": "310104 康复路88号3号楼502",
-        "isDefault": false
-      }
-    ],
-    "total": 2,
-    "page": 1,
-    "size": 10
-  },
+  "data": [
+    { "addressId": "address-001", "fullAddress": "310101 People's Road 100", "isDefault": true },
+    { "addressId": "address-002", "fullAddress": "310104 Recovery Road 88", "isDefault": false }
+  ],
   "traceId": "mock-9-service-addresses"
 }

@@ -11,18 +11,16 @@ import type { ApiResponse } from '@/types/api';
 import type { RoleCode } from '@/types/stageOne';
 import type { AuthUser } from '@/types/stageTwo';
 import type {
+  DemoDataStatusResponse,
+  HealthStatusResponse,
   StageEighteenFlowStep,
-  StageEighteenScenario,
-  StageEighteenStatusResponse
+  StageEighteenScenario
 } from '@/types/stageEighteen';
 
-const props = defineProps<{
-  roleCode: RoleCode;
-  authUser: AuthUser | null;
-}>();
+const props = defineProps<{ roleCode: RoleCode; authUser: AuthUser | null }>();
 
-const healthResponse = ref<ApiResponse<StageEighteenStatusResponse> | null>(null);
-const adminStatusResponse = ref<ApiResponse<StageEighteenStatusResponse> | null>(null);
+const healthResponse = ref<ApiResponse<HealthStatusResponse> | null>(null);
+const adminStatusResponse = ref<ApiResponse<DemoDataStatusResponse> | null>(null);
 const flowSteps = ref<StageEighteenFlowStep[]>(getStageEighteenFlowSteps());
 const loading = ref(false);
 const message = ref('');
@@ -31,27 +29,23 @@ const endpoints = getStageEighteenEndpointSummary();
 
 const canReadAdminStatus = computed(() => props.roleCode === 'ADMIN' && props.authUser?.roles.includes('ADMIN'));
 const readyCount = computed(() => flowSteps.value.filter((item) => item.status === 'READY').length);
-const scenarioCount = computed(() => healthResponse.value?.data.scenarioCount ?? flowSteps.value.length);
+const scenarioCount = computed(() => adminStatusResponse.value?.data.scenarioCount ?? 0);
 const modeLabel = computed(() => (isMockEnabled() ? 'contract mock' : 'real api'));
 
 function statusClass(status: StageEighteenFlowStep['status']) {
-  if (status === 'READY') {
-    return 'tag-teal';
-  }
-  if (status === 'MOCK_ONLY') {
-    return 'tag-amber';
-  }
+  if (status === 'READY') return 'tag-teal';
+  if (status === 'MOCK_ONLY') return 'tag-amber';
   return 'tag-coral';
 }
 
 function applyResponses(
-  health: ApiResponse<StageEighteenStatusResponse>,
-  adminStatus: ApiResponse<StageEighteenStatusResponse> | null
+  health: ApiResponse<HealthStatusResponse>,
+  adminStatus: ApiResponse<DemoDataStatusResponse> | null
 ) {
   healthResponse.value = health;
   adminStatusResponse.value = adminStatus;
   if (health.code === 0 && (!adminStatus || adminStatus.code === 0 || adminStatus.code === 403)) {
-    message.value = '阶段18联调状态已刷新';
+    message.value = 'Integration status refreshed';
     error.value = '';
   } else {
     message.value = '';
@@ -62,39 +56,41 @@ function applyResponses(
 async function refreshStatus(scenario: StageEighteenScenario = 'normal') {
   loading.value = true;
   const health = await getIntegrationHealth(scenario);
-  const adminStatus = canReadAdminStatus.value || props.roleCode !== 'ADMIN'
+  const adminStatus = canReadAdminStatus.value
     ? await getAdminDemoDataStatus(scenario)
     : null;
   loading.value = false;
   applyResponses(health, adminStatus);
 }
 
-onMounted(() => {
-  refreshStatus();
-});
+onMounted(() => refreshStatus());
 </script>
 
 <template>
-  <view class="stage-eighteen-panel glass-panel" aria-label="阶段18 MVP全流程联调">
+  <view class="stage-eighteen-panel glass-panel" aria-label="Stage 18 integration">
     <view class="section-title">
-      <text>⑱</text>
-      <text>MVP 全流程联调</text>
+      <text>Stage 18</text>
+      <text>MVP integration status</text>
     </view>
 
     <view class="stage-eighteen-summary">
       <view>
-        <text class="section-mini">ready / accounts / scenarios</text>
+        <text class="section-mini">health / database / version</text>
         <text class="permission-main">
-          {{ healthResponse?.data.ready ? 'ready' : 'not ready' }} /
-          {{ healthResponse?.data.accounts ?? 0 }} /
-          {{ scenarioCount }}
+          {{ healthResponse?.data.status ?? '-' }} /
+          {{ healthResponse?.data.dbConnected ? 'connected' : 'disconnected' }} /
+          {{ healthResponse?.data.version ?? '-' }}
         </text>
-        <text class="auth-meta">从登录到确认服务可连续演示，中途不改数据库</text>
+        <text class="auth-meta">{{ healthResponse?.data.appName ?? 'carenest-user' }}</text>
       </view>
       <view>
-        <text class="section-mini">mode / traceId</text>
-        <text class="permission-main">{{ modeLabel }} / {{ healthResponse?.traceId || 'mock-18' }}</text>
-        <text class="auth-meta">支线若仍走 mock，页面显式标记 contract mock</text>
+        <text class="section-mini">demo accounts / scenarios / mode</text>
+        <text class="permission-main">
+          {{ adminStatusResponse?.data.accounts.length ?? 0 }} /
+          {{ scenarioCount }} /
+          {{ modeLabel }}
+        </text>
+        <text class="auth-meta">{{ healthResponse?.traceId ?? 'mock-18-health' }}</text>
       </view>
     </view>
 
@@ -104,63 +100,43 @@ onMounted(() => {
 
     <view class="binding-actions">
       <button class="hero-action" type="button" :disabled="loading" @click="refreshStatus('normal')">
-        <text>刷新联调状态</text>
+        <text>Refresh</text>
       </button>
       <button class="ghost-action" type="button" :disabled="loading" @click="refreshStatus('empty')">
-        <text>空数据 mock</text>
+        <text>Empty mock</text>
       </button>
       <button class="ghost-action" type="button" :disabled="loading" @click="refreshStatus('error')">
-        <text>错误 mock</text>
+        <text>Error mock</text>
       </button>
     </view>
 
-    <view v-if="message" class="success-banner">
-      <text>{{ message }}</text>
-    </view>
-    <view v-if="error" class="error-banner" role="alert">
-      <text>{{ error }}</text>
-    </view>
-
-    <view class="service-report-workbench">
-      <view class="contract-response">
-        <text class="section-mini">GET /api/v1/health</text>
-        <text class="permission-main">
-          {{ healthResponse?.code ?? '-' }} /
-          {{ healthResponse?.data.ready ? 'ready' : 'not ready' }}
-        </text>
-        <text class="auth-meta">
-          accounts {{ healthResponse?.data.accounts ?? 0 }} /
-          scenarioCount {{ healthResponse?.data.scenarioCount ?? 0 }}
-        </text>
-      </view>
-
-      <view class="contract-response">
-        <text class="section-mini">GET /api/v1/admin/demo-data/status</text>
-        <text class="permission-main">
-          {{ adminStatusResponse?.code ?? (canReadAdminStatus ? '-' : '403') }} /
-          {{ adminStatusResponse?.data.ready ? 'ready' : 'protected' }}
-        </text>
-        <text class="auth-meta">
-          {{ adminStatusResponse?.traceId || (canReadAdminStatus ? '待刷新' : '非管理端按权限拒绝') }}
-        </text>
-      </view>
-    </view>
+    <view v-if="message" class="success-banner"><text>{{ message }}</text></view>
+    <view v-if="error" class="error-banner" role="alert"><text>{{ error }}</text></view>
 
     <view class="report-section">
-      <text class="section-mini">主流程连续演示节点 {{ readyCount }} / {{ flowSteps.length }}</text>
+      <text class="section-mini">Implemented stages {{ readyCount }} / {{ flowSteps.length }}</text>
       <view v-for="step in flowSteps" :key="step.stepId" class="status-log-row">
-        <text class="flow-label">{{ step.sourceStage }} · {{ step.label }}</text>
+        <text class="flow-label">Stage {{ step.sourceStage }}: {{ step.label }}</text>
         <text class="tag" :class="statusClass(step.status)">{{ step.status }}</text>
         <text class="flow-time">{{ step.ownerRole }}</text>
       </view>
     </view>
 
     <view v-if="healthResponse" class="contract-response">
-      <text class="section-mini">最近一次阶段18响应 DTO</text>
+      <text class="section-mini">GET /api/v1/health response</text>
       <text>{{ healthResponse.code }} / {{ healthResponse.message }} / {{ healthResponse.traceId }}</text>
       <text>
-        ready {{ healthResponse.data.ready }} / accounts {{ healthResponse.data.accounts }} / scenarioCount
-        {{ healthResponse.data.scenarioCount }}
+        {{ healthResponse.data.status }} / {{ healthResponse.data.dbConnected }} /
+        {{ healthResponse.data.serverTime }}
+      </text>
+    </view>
+
+    <view v-if="adminStatusResponse" class="contract-response">
+      <text class="section-mini">GET /api/v1/admin/demo-data/status response</text>
+      <text>{{ adminStatusResponse.code }} / {{ adminStatusResponse.message }} / {{ adminStatusResponse.traceId }}</text>
+      <text>
+        ready {{ adminStatusResponse.data.ready }} / accounts {{ adminStatusResponse.data.accounts.join(',') }} /
+        scenarios {{ adminStatusResponse.data.scenarioCount }}
       </text>
     </view>
   </view>

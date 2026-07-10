@@ -134,8 +134,7 @@ export async function getAdminOrders(
     method: 'GET',
     url: adminOrdersPath,
     data: nextQuery,
-    mock: adminOrdersMock as ApiResponse<AdminOrderPageResult>,
-    mockFallback: true
+    mock: adminOrdersMock as ApiResponse<AdminOrderPageResult>
   });
 }
 
