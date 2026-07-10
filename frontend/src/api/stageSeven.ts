@@ -14,7 +14,7 @@ const familyEldersPath = '/family/elders';
 const elderProfilePath = (elderId: string) => `/elders/${elderId}/profile`;
 
 let elderProfiles: ElderProfileResponse[] = [
-  ...(familyEldersMock as ApiResponse<FamilyElderListResult>).data
+  ...((familyEldersMock as unknown as ApiResponse<FamilyElderListResult>).data)
 ];
 
 function requireFamily<T>(emptyData: T): ApiResponse<T> | null {
@@ -106,13 +106,7 @@ export async function updateElderProfile(
       return failure(404, '数据不存在', {} as ElderProfileResponse, 'mock-7-profile-update-not-found');
     }
     found.profileVersion = String(Number(found.profileVersion) + 1);
-    return success(
-      {
-        elderId: found.elderId,
-        profileVersion: found.profileVersion
-      },
-      'mock-7-elder-profile-update'
-    );
+    return success(found, 'mock-7-elder-profile-update');
   }
 
   return request<ElderProfileResponse>({

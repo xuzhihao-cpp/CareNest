@@ -15,7 +15,7 @@ const props = defineProps<{
   authUser: AuthUser | null;
 }>();
 
-const orderId = ref('order-002');
+const orderId = ref('');
 const report = ref<ServiceReportResponse | null>(null);
 const loading = ref(false);
 const message = ref('');
@@ -51,6 +51,10 @@ function applyResponse(response: ApiResponse<ServiceReportResponse>, successText
 }
 
 async function handleGenerate() {
+  if (!orderId.value) {
+    error.value = '请先选择真实订单';
+    return;
+  }
   loading.value = true;
   const response = await generateServiceReport(orderId.value);
   loading.value = false;
@@ -58,7 +62,7 @@ async function handleGenerate() {
 }
 
 async function loadReport(scenario: StageFifteenScenario = 'normal') {
-  if (!canView.value) {
+  if (!canView.value || !orderId.value) {
     return;
   }
   loading.value = true;
@@ -102,10 +106,10 @@ onMounted(() => {
         <input v-model="orderId" class="input" placeholder="order-002" />
       </label>
       <view class="binding-actions">
-        <button v-if="canGenerate" class="hero-action" type="button" :disabled="loading" @click="handleGenerate">
+        <button v-if="canGenerate" class="hero-action" type="button" :disabled="loading || !orderId" @click="handleGenerate">
           <text>生成报告</text>
         </button>
-        <button class="ghost-action" type="button" :disabled="loading" @click="loadReport('normal')">
+        <button class="ghost-action" type="button" :disabled="loading || !orderId" @click="loadReport('normal')">
           <text>读取报告</text>
         </button>
         <button class="ghost-action test-action" type="button" @click="loadReport('empty')">

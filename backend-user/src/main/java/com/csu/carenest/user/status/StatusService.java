@@ -10,6 +10,7 @@ import com.csu.carenest.user.common.ForbiddenException;
 import com.csu.carenest.user.flow.ElderFamilyBinding;
 import com.csu.carenest.user.flow.ElderFamilyBindingMapper;
 import com.csu.carenest.user.flow.ElderProfileMapper;
+import com.csu.carenest.user.flow.ServiceAddress;
 import com.csu.carenest.user.flow.ServiceAddressMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -56,19 +57,43 @@ public class StatusService {
     }
 
     public HealthResponse health() {
-        boolean dbConnected = false;
+        boolean dbConnected;
         try (Connection connection = dataSource.getConnection()) {
             dbConnected = connection.isValid(2);
         } catch (Exception ignored) {
             dbConnected = false;
         }
-        return new HealthResponse(
-                "UP",
-                "CareNest",
-                version,
-                dbConnected,
-                OffsetDateTime.now(SHANGHAI)
-        );
+        return new HealthResponse("UP", "CareNest", version, dbConnected, OffsetDateTime.now(SHANGHAI));
+    }
+
+    public VersionResponse version() {
+        return new VersionResponse(version, "local", "/api/v1");
+    }
+
+    public HomeSummaryResponse userHomeSummary(String authorization, RoleCode roleCode) {
+        AuthService.CurrentUser currentUser = authService.requireCurrentUser(authorization);
+        if (!currentUser.roles().contains(roleCode)) {
+            throw new ForbiddenException();
+        }
+        if (roleCode == RoleCode.ELDER) {
+            int profileCount = elderProfileMapper.selectCount(Wrappers.emptyWrapper()).intValue();
+            return new HomeSummaryResponse(
+                    List.of(new HomeSummaryResponse.HomeCard("profile", "我的档案", String.valueOf(profileCount), "份", "已同步")),
+                    List.of(new HomeSummaryResponse.HomeQuickAction("profile", "查看档案", "/pages/elder/index", "health:view")),
+                    0);
+        }
+
+        int activeBindings = elderFamilyBindingMapper.selectCount(Wrappers.lambdaQuery(ElderFamilyBinding.class)
+                .eq(ElderFamilyBinding::getFamilyId, currentUser.userId())
+                .eq(ElderFamilyBinding::getBindingStatus, "ACTIVE")).intValue();
+        int addressCount = serviceAddressMapper.selectCount(Wrappers.lambdaQuery(ServiceAddress.class)
+                .eq(ServiceAddress::getFamilyId, currentUser.userId())).intValue();
+        return new HomeSummaryResponse(
+                List.of(
+                        new HomeSummaryResponse.HomeCard("elders", "已授权长辈", String.valueOf(activeBindings), "位", "实时"),
+                        new HomeSummaryResponse.HomeCard("addresses", "服务地址", String.valueOf(addressCount), "个", "已同步")),
+                List.of(new HomeSummaryResponse.HomeQuickAction("binding", "绑定授权", "/pages/family/index", "binding:manage")),
+                activeBindings == 0 ? 1 : 0);
     }
 
     public DemoDataStatusResponse demoDataStatus(String authorization) {
@@ -93,7 +118,6 @@ public class StatusService {
         scenarios.add(serviceAddressMapper.selectCount(Wrappers.emptyWrapper()) > 0);
 
         int scenarioCount = (int) scenarios.stream().filter(Boolean::booleanValue).count();
-        boolean ready = scenarioCount == scenarios.size();
-        return new DemoDataStatusResponse(ready, accounts, scenarioCount);
+        return new DemoDataStatusResponse(scenarioCount == scenarios.size(), accounts, scenarioCount);
     }
 }

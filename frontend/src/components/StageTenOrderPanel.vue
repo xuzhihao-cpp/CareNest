@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { getFamilyElders } from '@/api/stageSeven';
 import { getServiceItems } from '@/api/stageEight';
 import { getServiceAddresses } from '@/api/stageNine';
+import { displayLabel } from '@/utils/displayLabels';
 import {
   createFamilyOrder,
   getFamilyOrders,
@@ -27,6 +28,13 @@ const props = defineProps<{
   authUser: AuthUser | null;
 }>();
 
+function nextAppointmentTime() {
+  const date = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  date.setMinutes(0, 0, 0);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 const elders = ref<ElderProfileResponse[]>([]);
 const services = ref<ServiceItemResponse[]>([]);
 const addresses = ref<ServiceAddressResponse[]>([]);
@@ -35,7 +43,7 @@ const form = ref<FamilyOrderRequest>({
   elderId: '',
   serviceId: '',
   addressId: '',
-  scheduledStart: '2026-07-10T09:00',
+  scheduledStart: nextAppointmentTime(),
   preferredNurseId: '',
   remark: '阶段10预约下单演示'
 });
@@ -48,13 +56,27 @@ const selectedOrderDetail = ref<FamilyOrderResponse | null>(null);
 const endpoints = getStageTenEndpointSummary();
 
 const canUsePanel = computed(() => props.roleCode === 'FAMILY' && props.authUser?.roles.includes('FAMILY'));
-const selectedElder = computed(() => elders.value.find((item) => item.elderId === form.value.elderId) ?? null);
 const selectedService = computed(() => services.value.find((item) => item.serviceId === form.value.serviceId) ?? null);
 const selectedAddress = computed(() => addresses.value.find((item) => item.addressId === form.value.addressId) ?? null);
 const waitDispatchCount = computed(() => orders.value.filter((item) => item.orderStatus === 'WAIT_DISPATCH').length);
+const canSubmit = computed(() => Boolean(
+  form.value.elderId && form.value.serviceId && form.value.addressId && form.value.scheduledStart
+));
+
+function formatAppointmentTime(value: string) {
+  if (!value) {
+    return '请选择预约时间';
+  }
+  const [date, time = ''] = value.replace('T', ' ').split(' ');
+  return `${date} ${time.slice(0, 5)}`;
+}
+
+function orderServiceName(order: FamilyOrderResponse) {
+  return order.serviceName || '护理服务';
+}
 
 function setDefaultAddress() {
-  form.value.addressId = addresses.value.find((item) => item.isDefault)?.addressId ?? addresses.value[0]?.addressId ?? '';
+  form.value.addressId = addresses.value.find((item) => item.isDefault)?.addressId ?? '';
 }
 
 async function loadPrerequisites() {
@@ -119,6 +141,10 @@ async function loadOrders(scenario: OrderScenario = 'normal', keepMutationState 
 }
 
 async function submitOrder() {
+  if (!canSubmit.value) {
+    error.value = '请选择长辈、在架服务和默认服务地址，并填写预约时间';
+    return;
+  }
   const response = await createFamilyOrder(form.value);
   lastResponse.value = response;
   lastTraceId.value = response.traceId;
@@ -218,7 +244,7 @@ onMounted(async () => {
                 <text class="flow-label">{{ service.serviceName }}</text>
                 <text class="flow-time">{{ service.serviceId }} · ¥{{ service.price }} · {{ service.durationMinutes }} 分钟</text>
               </view>
-              <text class="tag tag-teal">{{ service.status }}</text>
+              <text class="tag tag-teal">{{ displayLabel(service.status) }}</text>
             </button>
           </view>
         </view>
@@ -227,7 +253,7 @@ onMounted(async () => {
           <text class="section-mini">地址 addressId</text>
           <view class="order-option-list">
             <button
-              v-for="address in addresses"
+              v-for="address in addresses.filter((item) => item.isDefault)"
               :key="address.addressId"
               class="order-option"
               :class="{ active: form.addressId === address.addressId }"
@@ -249,7 +275,7 @@ onMounted(async () => {
       <view class="order-form">
         <label class="field">
           <text>预约时间 scheduledStart</text>
-          <input v-model="form.scheduledStart" class="input" placeholder="2026-07-10T09:00" />
+          <input v-model="form.scheduledStart" class="input" type="datetime-local" />
         </label>
         <label class="field">
           <text>偏好护理员 preferredNurseId</text>
@@ -262,12 +288,13 @@ onMounted(async () => {
 
         <view class="order-preview">
           <text class="section-mini">下单预览</text>
-          <text class="permission-main">{{ selectedElder?.elderId ?? '未选长辈' }} · {{ selectedService?.serviceName ?? '未选服务' }}</text>
-          <text class="auth-meta">{{ selectedAddress?.fullAddress ?? '未选地址' }} · {{ form.scheduledStart }}</text>
+          <text class="permission-main">预约服务：{{ selectedService?.serviceName ?? '请选择服务' }}</text>
+          <text class="auth-meta">服务地址：{{ selectedAddress?.fullAddress ?? '请选择默认地址' }}</text>
+          <text class="auth-meta">预约时间：{{ formatAppointmentTime(form.scheduledStart) }}</text>
         </view>
 
         <view class="binding-actions">
-          <button class="hero-action" type="button" :disabled="loading" @click="submitOrder">
+          <button class="hero-action" type="button" :disabled="loading || !canSubmit" @click="submitOrder">
             <text>提交预约</text>
           </button>
         <button class="ghost-action test-action" type="button" @click="resetNormalMock">
@@ -301,16 +328,36 @@ onMounted(async () => {
     <view v-else class="order-list">
       <view v-for="order in orders" :key="order.orderId" class="order-row">
         <view>
-          <text class="flow-label">{{ order.orderNo }}</text>
-          <text class="flow-time">{{ order.orderId }}</text>
+          <text class="flow-label">{{ orderServiceName(order) }}</text>
+          <text class="flow-time">预约时间：{{ formatAppointmentTime(order.scheduledStart || '') }}</text>
         </view>
         <view class="order-row-side">
-          <text class="tag tag-amber">{{ order.orderStatus }}</text>
+          <text class="tag tag-amber">{{ displayLabel(order.orderStatus) }}</text>
           <button class="ghost-action" type="button" @click="viewOrderDetail(order.orderId)">
-            <text>读取详情</text>
+            <text>查看服务安排</text>
           </button>
         </view>
       </view>
+    </view>
+
+    <view v-if="selectedOrderDetail" class="order-detail-panel">
+      <view class="order-detail-heading">
+        <text class="section-mini">服务安排</text>
+        <view class="order-detail-title-row">
+          <text class="permission-main">{{ orderServiceName(selectedOrderDetail) }}</text>
+          <text class="tag tag-amber">{{ displayLabel(selectedOrderDetail.orderStatus) }}</text>
+        </view>
+      </view>
+      <view class="order-detail-grid">
+        <text>预约时间：{{ formatAppointmentTime(selectedOrderDetail.scheduledStart) }}</text>
+        <text v-if="selectedOrderDetail.scheduledEnd">预计结束：{{ formatAppointmentTime(selectedOrderDetail.scheduledEnd) }}</text>
+        <text v-if="selectedOrderDetail.serviceAddress">服务地址：{{ selectedOrderDetail.serviceAddress }}</text>
+        <text v-if="selectedOrderDetail.contactName">联系人：{{ selectedOrderDetail.contactName }}</text>
+        <text v-if="selectedOrderDetail.contactPhone">联系电话：{{ selectedOrderDetail.contactPhone }}</text>
+      </view>
+      <button class="ghost-action" type="button" @click="selectedOrderDetail = null">
+        <text>收起详情</text>
+      </button>
     </view>
 
     <view v-if="lastResponse" class="contract-response">
@@ -321,9 +368,5 @@ onMounted(async () => {
       </text>
     </view>
 
-    <view v-if="selectedOrderDetail" class="contract-response">
-      <text class="section-mini">GET /api/v1/orders/{orderId}</text>
-      <text>{{ selectedOrderDetail.orderId }} · {{ selectedOrderDetail.orderNo }} · {{ selectedOrderDetail.orderStatus }}</text>
-    </view>
   </view>
 </template>

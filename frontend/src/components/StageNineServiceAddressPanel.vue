@@ -19,6 +19,13 @@ import type {
   ServiceAddressScenario
 } from '@/types/stageNine';
 
+type AddressDisplay = ServiceAddressResponse & {
+  contactName?: string;
+  contactPhone?: string;
+  regionCode?: string;
+  detailAddress?: string;
+};
+
 const props = defineProps<{
   roleCode: RoleCode;
   authUser: AuthUser | null;
@@ -34,7 +41,7 @@ const emptyForm: ServiceAddressRequest = {
 
 const elders = ref<ElderProfileResponse[]>([]);
 const selectedElderId = ref('');
-const records = ref<ServiceAddressResponse[]>([]);
+const records = ref<AddressDisplay[]>([]);
 const selectedAddressId = ref('');
 const bookingAddressId = ref('');
 const form = ref<ServiceAddressRequest>({ ...emptyForm });
@@ -44,6 +51,46 @@ const error = ref('');
 const lastTraceId = ref('');
 const lastResponse = ref<ApiResponse<ServiceAddressResponse> | null>(null);
 const endpoints = getStageNineEndpointSummary();
+
+function updatePhone(event: InputEvent & { detail?: { value?: string } }) {
+  const rawValue = event.detail?.value ?? (event.target as HTMLInputElement | null)?.value ?? '';
+  const phone = rawValue.replace(/\D/g, '').slice(0, 11);
+  form.value.contactPhone = phone;
+}
+
+function normalizeRegionCode() {
+  form.value.regionCode = form.value.regionCode.replace(/\D/g, '').slice(0, 6);
+}
+
+function displayAddress(record: AddressDisplay) {
+  if (record.detailAddress) {
+    return record.detailAddress;
+  }
+  const prefix = record.regionCode ? `${record.regionCode} ` : '';
+  return prefix && record.fullAddress.startsWith(prefix)
+    ? record.fullAddress.slice(prefix.length)
+    : record.fullAddress;
+}
+
+function validAddressForm() {
+  if (!form.value.contactName.trim() || form.value.contactName.trim().length > 32) {
+    error.value = '请输入 1 至 32 个字符的联系人姓名';
+    return false;
+  }
+  if (!/^1\d{10}$/.test(form.value.contactPhone)) {
+    error.value = '请输入 11 位手机号码';
+    return false;
+  }
+  if (!/^\d{6}$/.test(form.value.regionCode)) {
+    error.value = '区县编码应为 6 位数字';
+    return false;
+  }
+  if (!form.value.detailAddress.trim() || form.value.detailAddress.trim().length > 120) {
+    error.value = '请输入 1 至 120 个字符的详细地址';
+    return false;
+  }
+  return true;
+}
 
 const canUsePanel = computed(() => props.roleCode === 'FAMILY' && props.authUser?.roles.includes('FAMILY'));
 const defaultAddress = computed(() => records.value.find((item) => item.isDefault) ?? null);
@@ -65,12 +112,14 @@ function resetForm() {
   selectedAddressId.value = '';
 }
 
-function applyAddress(record: ServiceAddressResponse) {
+function applyAddress(record: AddressDisplay) {
   selectedAddressId.value = record.addressId;
-  const parsed = parseFullAddress(record.fullAddress);
+  const parsed = record.regionCode && record.detailAddress
+    ? { regionCode: record.regionCode, detailAddress: record.detailAddress }
+    : parseFullAddress(record.fullAddress);
   form.value = {
-    contactName: form.value.contactName || emptyForm.contactName,
-    contactPhone: form.value.contactPhone || emptyForm.contactPhone,
+    contactName: record.contactName || emptyForm.contactName,
+    contactPhone: record.contactPhone || emptyForm.contactPhone,
     regionCode: parsed.regionCode,
     detailAddress: parsed.detailAddress,
     isDefault: record.isDefault
@@ -147,6 +196,9 @@ async function createAddress() {
     error.value = '请先选择长辈';
     return;
   }
+  if (!validAddressForm()) {
+    return;
+  }
   const response = await createServiceAddress(selectedElderId.value, form.value);
   applyResponse(response, '服务地址已新增');
   if (response.code === 0) {
@@ -161,6 +213,9 @@ async function saveAddress() {
     error.value = '请先选择一个地址';
     return;
   }
+  if (!validAddressForm()) {
+    return;
+  }
   const response = await updateServiceAddress(selectedAddressId.value, form.value);
   applyResponse(response, '服务地址已保存');
   if (response.code === 0) {
@@ -170,11 +225,13 @@ async function saveAddress() {
   }
 }
 
-async function setDefaultAddress(record: ServiceAddressResponse) {
-  const parsed = parseFullAddress(record.fullAddress);
+async function setDefaultAddress(record: AddressDisplay) {
+  const parsed = record.regionCode && record.detailAddress
+    ? { regionCode: record.regionCode, detailAddress: record.detailAddress }
+    : parseFullAddress(record.fullAddress);
   const response = await updateServiceAddress(record.addressId, {
-    contactName: form.value.contactName || emptyForm.contactName,
-    contactPhone: form.value.contactPhone || emptyForm.contactPhone,
+    contactName: record.contactName || emptyForm.contactName,
+    contactPhone: record.contactPhone || emptyForm.contactPhone,
     regionCode: parsed.regionCode,
     detailAddress: parsed.detailAddress,
     isDefault: true
@@ -186,7 +243,7 @@ async function setDefaultAddress(record: ServiceAddressResponse) {
   }
 }
 
-async function removeAddress(record: ServiceAddressResponse) {
+async function removeAddress(record: AddressDisplay) {
   const response = await deleteServiceAddress(record.addressId);
   applyResponse(response, '服务地址已删除');
   if (response.code === 0) {
@@ -251,24 +308,38 @@ onMounted(async () => {
           </view>
         </view>
 
-        <button
+        <view
           v-for="record in records"
           :key="record.addressId"
           class="address-row"
           :class="{ active: selectedAddressId === record.addressId }"
-          type="button"
           @click="applyAddress(record)"
         >
           <view>
-            <text class="flow-label">{{ record.fullAddress }}</text>
-            <text class="flow-time">{{ record.addressId }}</text>
+            <text class="flow-label">{{ displayAddress(record) }}</text>
+            <text v-if="record.regionCode" class="address-code">区县编码：{{ record.regionCode }}</text>
           </view>
-          <text class="tag" :class="record.isDefault ? 'tag-teal' : 'tag-blue'">
-            {{ record.isDefault ? '默认地址' : '备用地址' }}
-          </text>
-        </button>
+          <view class="address-row-side">
+            <text class="tag" :class="record.isDefault ? 'tag-teal' : 'tag-blue'">
+              {{ record.isDefault ? '默认地址' : '备用地址' }}
+            </text>
+            <view class="address-row-actions">
+            <button
+              v-if="!record.isDefault"
+              class="ghost-action"
+              type="button"
+              @click.stop="setDefaultAddress(record)"
+            >
+              <text>设为默认</text>
+            </button>
+            <button class="ghost-action danger-lite" type="button" @click.stop="removeAddress(record)">
+              <text>删除地址</text>
+            </button>
+            </view>
+          </view>
+        </view>
 
-        <view class="booking-preview">
+        <view v-if="false" class="booking-preview">
           <text class="section-mini">预约页地址选择预览</text>
           <text class="permission-main">{{ bookingAddress?.fullAddress ?? '暂无可选地址' }}</text>
           <view class="segmented-row">
@@ -280,6 +351,7 @@ onMounted(async () => {
               type="button"
               @click="bookingAddressId = record.addressId"
             >
+              <text class="booking-choice-label">{{ record.isDefault ? '当前默认地址' : '选择此地址' }}</text>
               <text>{{ record.isDefault ? '默认' : '选择' }} {{ record.addressId }}</text>
             </button>
           </view>
@@ -290,27 +362,31 @@ onMounted(async () => {
         <view class="contact-grid">
           <label class="field">
             <text>联系人 contactName</text>
-            <input v-model="form.contactName" class="input" placeholder="联系人姓名" />
+            <input v-model="form.contactName" class="input" maxlength="32" placeholder="联系人姓名" />
           </label>
           <label class="field">
             <text>联系电话 contactPhone</text>
-            <input v-model="form.contactPhone" class="input" placeholder="手机号" />
+            <input v-model="form.contactPhone" class="input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="11" placeholder="11 位手机号码" @input="updatePhone" />
           </label>
         </view>
 
         <label class="field">
           <text>区县编码 regionCode</text>
-          <input v-model="form.regionCode" class="input" placeholder="310101" />
+          <input v-model="form.regionCode" class="input" inputmode="numeric" maxlength="6" placeholder="6 位区县编码，例如 310101" @input="normalizeRegionCode" />
         </label>
 
         <label class="field">
           <text>详细地址 detailAddress</text>
-          <input v-model="form.detailAddress" class="input" placeholder="人民路100号1单元201" />
+          <input v-model="form.detailAddress" class="input" maxlength="120" placeholder="街道、门牌号、楼栋和房间号" />
         </label>
 
         <view class="binding-options">
           <text class="section-mini">默认地址 isDefault</text>
-          <view class="segmented-row">
+          <label class="default-address-toggle">
+            <checkbox :checked="form.isDefault" @click="form.isDefault = !form.isDefault" />
+            <text>设为默认地址</text>
+          </label>
+          <view class="segmented-row legacy-default-toggle">
             <button class="choice-button" :class="{ active: form.isDefault }" type="button" @click="form.isDefault = true">
               <text>设为默认</text>
             </button>
@@ -340,13 +416,13 @@ onMounted(async () => {
       </view>
     </view>
 
-    <view v-if="records.length > 0" class="binding-actions">
+    <view v-if="false" class="binding-actions">
       <button
         v-for="record in records"
         :key="`${record.addressId}-default`"
+        v-show="!record.isDefault"
         class="ghost-action"
         type="button"
-        :disabled="record.isDefault"
         @click="setDefaultAddress(record)"
       >
         <text>{{ record.addressId }} 设为默认</text>
@@ -373,7 +449,7 @@ onMounted(async () => {
       <text class="empty-icon">∅</text>
       <view>
         <text class="empty-title">暂无服务地址</text>
-        <text class="empty-desc">空数据 mock 已返回 records: []，新增地址后可作为预约默认地址。</text>
+        <text class="empty-desc">请先新增服务地址，新增后可设为默认地址用于预约。</text>
       </view>
     </view>
 

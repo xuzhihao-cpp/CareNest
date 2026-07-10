@@ -2,17 +2,21 @@
 import { computed, onMounted, ref } from 'vue';
 import { getCurrentUser, logout } from '@/api/stageTwo';
 import { generateServiceReport } from '@/api/stageFifteen';
-import { createServiceRecord } from '@/api/stageFourteen';
+import { createServiceRecord, getOrderServiceRecords } from '@/api/stageFourteen';
 import { getNurseTasks } from '@/api/stageThirteen';
 import { acceptNurseTask, updateNurseTaskStatus } from '@/api/stageTwelve';
 import type { AuthUser } from '@/types/stageTwo';
 import type { NurseTaskDetailRecord } from '@/types/stageThirteen';
 import type { NurseTaskStatus } from '@/types/stageTwelve';
+import type { CareExecutionRecord } from '@/types/stageFourteen';
 
 const user = ref<AuthUser | null>(null);
 const tasks = ref<NurseTaskDetailRecord[]>([]);
+const serviceRecords = ref<CareExecutionRecord[]>([]);
+const recordsLoading = ref(false);
 const selectedTaskId = ref('');
 const activeTab = ref<'tasks' | 'records'>('tasks');
+const isEditingRecord = ref(false);
 const loading = ref(false);
 const notice = ref('');
 const error = ref('');
@@ -28,6 +32,34 @@ const selectedTask = computed(() => tasks.value.find((task) => task.taskId === s
 const pendingCount = computed(() => tasks.value.filter((task) => task.taskStatus === 'DISPATCHED').length);
 const activeCount = computed(() => tasks.value.filter((task) => ['ACCEPTED', 'ON_THE_WAY', 'SERVING'].includes(task.taskStatus)).length);
 const completedCount = computed(() => tasks.value.filter((task) => ['WAIT_REPORT', 'WAIT_CONFIRM', 'COMPLETED'].includes(task.orderStatus)).length);
+const recordableTask = computed(() => selectedTask.value?.taskStatus === 'SERVING' ? selectedTask.value : null);
+const workTasks = computed(() => tasks.value.filter((task) => !['WAIT_CONFIRM', 'COMPLETED'].includes(task.orderStatus)));
+
+type RecordTimeField = 'startTime' | 'endTime';
+
+function padTime(value: number) {
+  return String(value).padStart(2, '0');
+}
+
+function localDate(value = new Date()) {
+  return `${value.getFullYear()}-${padTime(value.getMonth() + 1)}-${padTime(value.getDate())}`;
+}
+
+function recordDate(value: string) {
+  return value.slice(0, 10) || localDate();
+}
+
+function recordTime(value: string) {
+  return value.slice(11, 16) || '09:00';
+}
+
+function selectRecordDate(field: RecordTimeField, event: { detail: { value: string } }) {
+  recordForm.value[field] = `${event.detail.value}T${recordTime(recordForm.value[field])}`;
+}
+
+function selectRecordTime(field: RecordTimeField, event: { detail: { value: string } }) {
+  recordForm.value[field] = `${recordDate(recordForm.value[field])}T${event.detail.value}`;
+}
 
 const statusText: Record<string, string> = {
   DISPATCHED: '待接单',
@@ -65,8 +97,38 @@ async function loadTasks() {
   }
   tasks.value = taskResponse.data.records;
   if (!selectedTaskId.value || !tasks.value.some((task) => task.taskId === selectedTaskId.value)) {
-    selectedTaskId.value = tasks.value[0]?.taskId ?? '';
+    selectedTaskId.value = tasks.value.find((task) => task.taskStatus === 'SERVING')?.taskId ?? workTasks.value[0]?.taskId ?? '';
   }
+  await loadServiceRecords();
+}
+
+async function loadServiceRecords() {
+  recordsLoading.value = true;
+  const responses = await Promise.all(tasks.value.map((task) => getOrderServiceRecords(task.orderId)));
+  serviceRecords.value = responses.flatMap((response, index) => response.code === 0
+    ? response.data.records.map((record) => ({ ...record, taskId: tasks.value[index].taskId, nurseId: tasks.value[index].nurseId }))
+    : []);
+  recordsLoading.value = false;
+}
+
+function openRecords() {
+  activeTab.value = 'records';
+  isEditingRecord.value = false;
+}
+
+function openRecordEditor() {
+  const servingTask = tasks.value.find((task) => task.taskStatus === 'SERVING');
+  if (!servingTask) {
+    error.value = '当前没有可填写记录的服务中任务';
+    return;
+  }
+  selectedTaskId.value = servingTask.taskId;
+  activeTab.value = 'records';
+  isEditingRecord.value = true;
+}
+
+function taskForRecord(record: CareExecutionRecord) {
+  return tasks.value.find((task) => task.orderId === record.orderId);
 }
 
 async function progressTask(targetStatus: NurseTaskStatus) {
@@ -92,6 +154,10 @@ async function submitRecord() {
     error.value = '请填写本次服务记录和护理建议。';
     return;
   }
+  if (!recordForm.value.endTime || new Date(recordForm.value.endTime).getTime() <= new Date(recordForm.value.startTime).getTime()) {
+    error.value = '结束时间须晚于开始时间';
+    return;
+  }
   loading.value = true;
   error.value = '';
   const response = await createServiceRecord(selectedTask.value.orderId, recordForm.value);
@@ -101,7 +167,8 @@ async function submitRecord() {
     return;
   }
   notice.value = '服务记录已保存，已进入报告处理。';
-  activeTab.value = 'tasks';
+  activeTab.value = 'records';
+  isEditingRecord.value = false;
   await loadTasks();
 }
 
@@ -153,15 +220,15 @@ onMounted(loadTasks);
 
     <view class="tabbar">
       <button :class="{ active: activeTab === 'tasks' }" type="button" @click="activeTab = 'tasks'">我的任务</button>
-      <button :class="{ active: activeTab === 'records' }" type="button" @click="activeTab = 'records'">服务记录</button>
+      <button :class="{ active: activeTab === 'records' }" type="button" @click="openRecords">服务记录</button>
     </view>
 
     <template v-if="activeTab === 'tasks'">
-      <view v-if="tasks.length === 0 && !loading" class="empty-card">
+      <view v-if="workTasks.length === 0 && !loading" class="empty-card">
         <text class="empty-title">今日暂无任务</text>
         <text>新派发的任务会自动出现在这里。</text>
       </view>
-      <view v-for="task in tasks" :key="task.taskId" class="task-card" :class="{ selected: selectedTaskId === task.taskId }" @click="selectedTaskId = task.taskId">
+      <view v-for="task in workTasks" :key="task.taskId" class="task-card" :class="{ selected: selectedTaskId === task.taskId }" @click="selectedTaskId = task.taskId">
         <view class="task-card-top">
           <text class="task-service">{{ task.serviceId || '上门护理服务' }}</text>
           <text class="status-chip" :class="`status-${task.taskStatus.toLowerCase()}`">{{ label(task.taskStatus) }}</text>
@@ -171,31 +238,44 @@ onMounted(loadTasks);
         <text v-if="task.dispatchRemark" class="task-remark">{{ task.dispatchRemark }}</text>
       </view>
 
-      <view v-if="selectedTask" class="action-sheet">
+      <view v-if="selectedTask && workTasks.some((task) => task.taskId === selectedTask.taskId)" class="action-sheet">
         <text class="action-title">{{ selectedTask.serviceId || '当前任务' }}</text>
         <text class="action-meta">订单 {{ selectedTask.orderId }}</text>
         <view class="action-row">
           <button v-if="selectedTask.taskStatus === 'DISPATCHED'" class="primary-action" type="button" :disabled="loading" @click="progressTask('ACCEPTED')">接单</button>
           <button v-if="selectedTask.taskStatus === 'ACCEPTED'" class="primary-action" type="button" :disabled="loading" @click="progressTask('ON_THE_WAY')">开始前往</button>
           <button v-if="selectedTask.taskStatus === 'ON_THE_WAY'" class="primary-action" type="button" :disabled="loading" @click="progressTask('SERVING')">开始服务</button>
-          <button v-if="selectedTask.taskStatus === 'SERVING'" class="primary-action" type="button" :disabled="loading" @click="activeTab = 'records'">填写记录</button>
+          <button v-if="selectedTask.taskStatus === 'SERVING'" class="primary-action" type="button" :disabled="loading" @click="openRecordEditor">填写记录</button>
           <button v-if="selectedTask.orderStatus === 'WAIT_REPORT'" class="primary-action" type="button" :disabled="loading" @click="submitReport">生成报告</button>
           <text v-if="selectedTask.orderStatus === 'WAIT_CONFIRM' || selectedTask.orderStatus === 'COMPLETED'" class="done-text">该任务已完成处理</text>
         </view>
       </view>
     </template>
 
-    <view v-else class="record-panel">
-      <view v-if="!selectedTask" class="empty-card"><text class="empty-title">请选择一项任务</text></view>
-      <template v-else>
-        <view class="record-task"><text>{{ selectedTask.serviceId || '上门护理服务' }}</text><text>{{ taskTime(selectedTask.scheduledStart) }}</text></view>
-        <label class="field"><text>开始时间</text><input v-model="recordForm.startTime" class="input" /></label>
-        <label class="field"><text>结束时间</text><input v-model="recordForm.endTime" class="input" placeholder="例如 2026-07-20T10:00" /></label>
+    <view v-else-if="isEditingRecord && recordableTask" class="record-panel">
+      <view class="record-editor-heading"><view><text>填写服务记录</text><text>{{ recordableTask.serviceId || '上门护理服务' }} · {{ taskTime(recordableTask.scheduledStart) }}</text></view><button class="text-action" type="button" @click="openRecords">返回记录列表</button></view>
+      <template>
+        <view class="record-task"><text>本次服务时间</text><text>{{ taskTime(recordableTask.scheduledStart) }}</text></view>
+        <view class="field"><text>开始时间</text><view class="record-time-picker"><picker mode="date" :value="recordDate(recordForm.startTime)" @change="selectRecordDate('startTime', $event)"><view class="input">{{ recordDate(recordForm.startTime) }}</view></picker><picker mode="time" :value="recordTime(recordForm.startTime)" @change="selectRecordTime('startTime', $event)"><view class="input">{{ recordTime(recordForm.startTime) }}</view></picker></view></view>
+        <view class="field"><text>结束时间</text><view class="record-time-picker"><picker mode="date" :value="recordDate(recordForm.endTime)" @change="selectRecordDate('endTime', $event)"><view class="input">{{ recordDate(recordForm.endTime) }}</view></picker><picker mode="time" :value="recordTime(recordForm.endTime)" @change="selectRecordTime('endTime', $event)"><view class="input">{{ recordTime(recordForm.endTime) }}</view></picker></view></view>
         <label class="field"><text>服务记录</text><textarea v-model="recordForm.content" class="textarea" placeholder="记录本次护理完成情况" /></label>
         <label class="field"><text>护理建议</text><textarea v-model="recordForm.nursingAdvice" class="textarea" placeholder="填写后续观察或护理建议" /></label>
         <view class="flag-row"><text>发现异常</text><switch :checked="recordForm.abnormalFlag" color="#0f766e" @change="changeAbnormal" /></view>
         <button class="primary-action full" type="button" :disabled="loading" @click="submitRecord">保存服务记录</button>
       </template>
+    </view>
+
+    <view v-else class="record-panel">
+      <view class="record-history-heading"><text>已保存的服务记录</text><text>{{ recordsLoading ? '加载中' : `${serviceRecords.length} 条` }}</text></view>
+      <view v-if="!recordsLoading && serviceRecords.length === 0" class="record-empty">暂无服务记录</view>
+      <view v-for="record in serviceRecords" :key="record.recordId" class="saved-record">
+        <text class="saved-record-title">{{ taskForRecord(record)?.serviceId || '上门护理服务' }}</text>
+        <text>{{ taskTime(record.startTime) }} 至 {{ taskTime(record.endTime) }}</text>
+        <text>{{ record.content }}</text>
+        <text v-if="record.nursingAdvice">护理建议：{{ record.nursingAdvice }}</text>
+      </view>
+      <view v-if="tasks.some((task) => task.taskStatus === 'SERVING')" class="record-entry-callout"><view><text>当前有服务中的任务</text><text>完成护理后可填写本次服务记录。</text></view><button class="primary-action" type="button" @click="openRecordEditor">填写记录</button></view>
+      <view v-else class="record-empty">当前没有可填写记录的服务中任务。</view>
     </view>
 
     <view class="nurse-footer"><button type="button" @click="signOut">退出登录</button></view>
@@ -220,5 +300,8 @@ onMounted(loadTasks);
 .status-chip { padding: 7rpx 14rpx; border-radius: 999rpx; background: #e7efee; color: #47615d; font-size: 22rpx; }.status-dispatched { background: #fff2d9; color: #996300; }.status-serving, .status-on_the_way { background: #dff5ef; color: #087365; }.status-wait_report { background: #e4effd; color: #316aa3; }
 .action-sheet { position: sticky; bottom: 16rpx; border-color: #b8d9d4; }.action-title { display: block; font-size: 30rpx; font-weight: 700; }.action-row { margin-top: 20rpx; }.primary-action { width: auto; margin: 0; padding: 0 34rpx; border: 0; border-radius: 8rpx; background: #0f766e; color: #fff; font-size: 28rpx; }.primary-action.full { width: 100%; height: 84rpx; }.done-text { color: #468078; font-size: 26rpx; }
 .record-task { margin-bottom: 24rpx; padding-bottom: 18rpx; border-bottom: 1rpx solid #e7eeec; font-size: 27rpx; }.record-task text:last-child { color: #6d7f7c; font-size: 23rpx; }.field { display: block; margin-bottom: 20rpx; }.field > text { display: block; margin-bottom: 10rpx; font-size: 25rpx; color: #38514d; }.input, .textarea { box-sizing: border-box; width: 100%; border: 1rpx solid #d5e0de; border-radius: 8rpx; background: #fbfdfc; padding: 16rpx; font-size: 27rpx; }.textarea { min-height: 144rpx; }.flag-row { margin: 24rpx 0; font-size: 27rpx; }.nurse-footer { padding: 12rpx 0 4rpx; text-align: center; }
+.record-time-picker { display: grid; grid-template-columns: minmax(0, 1fr) 130rpx; gap: 12rpx; }.record-time-picker picker, .record-time-picker .input { width: 100%; }
+.record-history-heading, .saved-record { display: grid; gap: 10rpx; }.record-history-heading { grid-template-columns: 1fr auto; align-items: center; margin-bottom: 18rpx; font-size: 28rpx; font-weight: 700; }.record-history-heading text:last-child { color: #70817f; font-size: 23rpx; font-weight: 400; }.saved-record { margin-bottom: 14rpx; padding: 18rpx; border: 1rpx solid #dce8e5; border-radius: 8rpx; color: #5c706d; font-size: 24rpx; }.saved-record-title { color: #1b3632; font-size: 27rpx; font-weight: 700; }.record-empty { margin-bottom: 18rpx; padding: 18rpx; border-radius: 8rpx; background: #f1f6f5; color: #70817f; font-size: 24rpx; }
+.record-editor-heading, .record-entry-callout { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-bottom: 22rpx; }.record-editor-heading > view, .record-entry-callout > view { display: grid; gap: 8rpx; }.record-editor-heading text:first-child, .record-entry-callout text:first-child { color: #1b3632; font-size: 30rpx; font-weight: 700; }.record-editor-heading text:last-child, .record-entry-callout text:last-child { color: #70817f; font-size: 23rpx; }.record-entry-callout { padding: 18rpx; border: 1rpx solid #b8d9d4; border-radius: 8rpx; background: #f1faf7; }.text-action { width: auto; margin: 0; padding: 0; border: 0; background: transparent; color: #0f766e; font-size: 24rpx; }
 @media (min-width: 768px) { .nurse-app { width: 440px; margin: 0 auto; box-shadow: 0 0 0 1px #dde7e5, 0 16px 48px rgba(15, 49, 44, .1); } }
 </style>

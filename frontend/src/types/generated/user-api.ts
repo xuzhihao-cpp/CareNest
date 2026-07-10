@@ -439,7 +439,12 @@ export interface components {
             name: string;
         };
         ElderProfileResponse: {
+            birthDate: string;
+            careLevel: string;
             elderId: string;
+            emergencyContacts: components["schemas"]["EmergencyContactRequest"][];
+            gender: string;
+            name: string;
             profileVersion: string;
         };
         EmergencyContactRequest: {

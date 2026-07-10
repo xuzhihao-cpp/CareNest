@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import {
   approveElderBinding,
   createFamilyBinding,
@@ -10,6 +10,7 @@ import {
   updateFamilyBindingScopes
 } from '@/api/stageSix';
 import { isMockEnabled } from '@/api/client';
+import { displayScopeLabel } from '@/utils/displayLabels';
 import type { ApiResponse } from '@/types/api';
 import type { RoleCode } from '@/types/stageOne';
 import type { AuthUser } from '@/types/stageTwo';
@@ -21,6 +22,11 @@ import type {
   BindingStatus,
   RelationType
 } from '@/types/stageSix';
+
+type BindingDisplay = BindingResponse & {
+  pendingScopeCodes?: string[];
+  scopeUpdatePending?: boolean;
+};
 
 const props = defineProps<{
   roleCode: RoleCode;
@@ -56,7 +62,7 @@ const form = ref<BindingRequest>({
   relationType: 'DAUGHTER',
   scopeCodes: ['HEALTH_VIEW', 'REPORT_VIEW']
 });
-const records = ref<BindingResponse[]>([]);
+const records = ref<BindingDisplay[]>([]);
 const loading = ref(false);
 const message = ref('');
 const error = ref('');
@@ -69,13 +75,31 @@ const activeCount = computed(() => records.value.filter((item) => item.bindingSt
 const pendingCount = computed(() => records.value.filter((item) => item.bindingStatus === 'PENDING').length);
 const canFamilyOperate = computed(() => props.authUser?.roles.includes('FAMILY') && props.roleCode === 'FAMILY');
 const canElderApprove = computed(() => props.authUser?.roles.includes('ELDER') && props.roleCode === 'ELDER');
+const currentBinding = computed(() => {
+  const sameElder = records.value.filter((record) => record.elderId === form.value.elderInviteCode);
+  return sameElder.find((record) => record.bindingStatus === 'PENDING')
+    ?? sameElder.find((record) => record.bindingStatus === 'ACTIVE')
+    ?? null;
+});
+const submitBindingLabel = computed(() => currentBinding.value ? '更新绑定' : '提交绑定');
+
+function syncFormFromCurrentBinding() {
+  const binding = currentBinding.value;
+  if (!binding) {
+    return;
+  }
+  form.value.relationType = binding.relationType;
+  form.value.scopeCodes = [
+    ...(binding.scopeUpdatePending ? binding.pendingScopeCodes ?? binding.scopeCodes : binding.scopeCodes)
+  ] as BindingScopeCode[];
+}
 
 function labelRelation(value: string) {
   return relationOptions.find((item) => item.value === value)?.label ?? value;
 }
 
 function labelScope(value: string) {
-  return scopeOptions.find((item) => item.value === value)?.label ?? value;
+  return scopeOptions.find((item) => item.value === value)?.label ?? displayScopeLabel(value);
 }
 
 function statusClass(value: string) {
@@ -118,7 +142,7 @@ async function loadBindings(scenario: BindingScenario = 'normal') {
   loading.value = false;
   lastTraceId.value = response.traceId;
   if (response.code === 0) {
-    records.value = response.data;
+    records.value = response.data.filter((record) => record.bindingStatus !== 'REVOKED');
     error.value = '';
     message.value =
       scenario === 'empty' ? '已切换为空数据 mock' : scenario === 'normal' ? '绑定列表已加载' : message.value;
@@ -130,35 +154,30 @@ async function loadBindings(scenario: BindingScenario = 'normal') {
 }
 
 async function submitBinding() {
+  if (currentBinding.value) {
+    const response = await updateFamilyBindingScopes(currentBinding.value.bindingId, form.value);
+    applyResponse(response, currentBinding.value.bindingStatus === 'PENDING'
+      ? '待确认绑定已更新'
+      : '已提交绑定变更，等待长辈确认');
+    await loadBindings();
+    return;
+  }
   const response = await createFamilyBinding(form.value);
   applyResponse(response, '已提交绑定申请，等待长辈确认');
   await loadBindings();
 }
 
-async function updateScopes(record: BindingResponse) {
-  const nextScopes = record.scopeCodes.includes('ARCHIVE_EDIT')
-    ? record.scopeCodes.filter((item) => item !== 'ARCHIVE_EDIT')
-    : [...record.scopeCodes, 'ARCHIVE_EDIT'];
-  const response = await updateFamilyBindingScopes(record.bindingId, {
-    elderInviteCode: form.value.elderInviteCode,
-    relationType: record.relationType,
-    scopeCodes: nextScopes
-  });
-  applyResponse(response, '授权范围已更新');
-  await loadBindings();
-}
-
-async function revokeBinding(record: BindingResponse) {
+async function revokeBinding(record: BindingDisplay) {
   const response = await revokeFamilyBinding(record.bindingId, {
     elderInviteCode: form.value.elderInviteCode,
     relationType: record.relationType,
     scopeCodes: record.scopeCodes
   });
-  applyResponse(response, '绑定授权已撤销');
+  applyResponse(response, '绑定已撤销');
   await loadBindings();
 }
 
-async function approvePending(target: BindingResponse) {
+async function approvePending(target: BindingDisplay) {
   const response = await approveElderBinding(target.bindingId, {
     elderInviteCode: target.elderId,
     relationType: target.relationType,
@@ -171,10 +190,18 @@ async function approvePending(target: BindingResponse) {
 onMounted(() => {
   loadBindings();
 });
+
+watch(() => form.value.elderInviteCode, () => {
+  syncFormFromCurrentBinding();
+});
+
+watch(records, () => {
+  syncFormFromCurrentBinding();
+}, { deep: true });
 </script>
 
 <template>
-  <view class="stage-six-panel glass-panel" aria-label="阶段6长辈家属绑定授权">
+  <view class="stage-six-panel glass-panel" aria-label="阶段6长辈家属绑定管理">
     <view class="section-title">
       <text>⑥</text>
       <text>长辈/家属多对多绑定 MVP</text>
@@ -220,7 +247,7 @@ onMounted(() => {
       </view>
 
       <view class="binding-options">
-        <text class="section-mini">授权范围 scopeCodes</text>
+        <text class="section-mini">绑定范围 scopeCodes</text>
         <view class="segmented-row">
           <button
             v-for="item in scopeOptions"
@@ -236,11 +263,11 @@ onMounted(() => {
       </view>
 
       <view class="binding-actions">
-        <button class="hero-action" type="button" :disabled="loading" @click="submitBinding">
-          <text>提交绑定</text>
+        <button class="hero-action" type="button" :disabled="loading || form.scopeCodes.length === 0" @click="submitBinding">
+          <text>{{ submitBindingLabel }}</text>
         </button>
         <button class="ghost-action" type="button" @click="loadBindings('normal')">
-          <text>刷新列表</text>
+          <text>刷新绑定</text>
         </button>
         <button v-if="mockEnabled" class="ghost-action" type="button" @click="loadBindings('empty')">
           <text>空数据 mock</text>
@@ -271,15 +298,21 @@ onMounted(() => {
         <view class="binding-row-main">
           <text class="flow-label">{{ record.elderName }}</text>
           <text class="flow-time">
-            {{ record.bindingId }} · {{ record.elderId }} · {{ labelRelation(record.relationType) }}
+            关系：{{ labelRelation(record.relationType) }}
           </text>
           <view class="permission-tags">
-            <text v-for="scope in record.scopeCodes" :key="scope" class="tag tag-blue">{{ scope }}</text>
+            <text v-for="scope in record.scopeCodes" :key="scope" class="tag tag-blue">{{ labelScope(scope) }}</text>
+          </view>
+          <view v-if="record.scopeUpdatePending" class="permission-tags pending-scope-tags">
+            <text class="tag tag-amber">待长辈确认的绑定变更</text>
+            <text v-for="scope in record.pendingScopeCodes ?? []" :key="`pending-${scope}`" class="tag tag-amber">
+              {{ labelScope(scope) }}
+            </text>
           </view>
         </view>
         <view class="binding-row-side">
           <text class="tag" :class="statusClass(record.bindingStatus)">
-            {{ record.bindingStatus }} · {{ statusLabels[record.bindingStatus] }}
+            {{ statusLabels[record.bindingStatus] ?? record.bindingStatus }}
           </text>
           <button
             v-if="roleCode === 'ELDER' && record.bindingStatus === 'PENDING'"
@@ -290,12 +323,12 @@ onMounted(() => {
             <text>确认绑定</text>
           </button>
           <button
-            v-if="roleCode === 'FAMILY' && record.bindingStatus === 'ACTIVE'"
-            class="ghost-action"
+            v-if="roleCode === 'ELDER' && record.scopeUpdatePending"
+            class="hero-action"
             type="button"
-            @click="updateScopes(record)"
+            @click="approvePending(record)"
           >
-            <text>更新授权</text>
+            <text>确认绑定变更</text>
           </button>
           <button
             v-if="roleCode === 'FAMILY' && record.bindingStatus !== 'REVOKED'"
@@ -303,7 +336,7 @@ onMounted(() => {
             type="button"
             @click="revokeBinding(record)"
           >
-            <text>撤销授权</text>
+            <text>撤销绑定</text>
           </button>
         </view>
       </view>

@@ -1,27 +1,27 @@
-import healthMock from '@/mock/phase-01/health.json';
-import versionMock from '@/mock/phase-01/version.json';
-import routesMock from '@/mock/routes.json';
 import { request } from '@/api/client';
-import type { ApiResponse, HealthResponse, RouteEntry, VersionResponse } from '@/types/stageOne';
+import type { HealthResponse, RouteEntry, VersionResponse } from '@/types/stageOne';
+
+const routes: RouteEntry[] = [
+  { roleCode: 'ELDER', routePath: '/pages/elder/index', appTitle: '长辈端', entryLabel: '进入长辈端', emptyStateTitle: '暂无待办', emptyStateDescription: '健康档案和服务提醒会显示在这里。' },
+  { roleCode: 'FAMILY', routePath: '/pages/family/index', appTitle: '家属端', entryLabel: '进入家属端', emptyStateTitle: '暂无待办', emptyStateDescription: '绑定、预约和服务报告会显示在这里。' },
+  { roleCode: 'NURSE', routePath: '/pages/nurse/index', appTitle: '护理端', entryLabel: '进入护理端', emptyStateTitle: '暂无任务', emptyStateDescription: '派发的护理任务会显示在这里。' },
+  { roleCode: 'ADMIN', routePath: '/pages/admin/index', appTitle: '管理端', entryLabel: '进入管理端', emptyStateTitle: '暂无待处理事项', emptyStateDescription: '订单和平台运营数据会显示在这里。' }
+];
 
 export function getHealth() {
   return request<HealthResponse>({
     method: 'GET',
-    url: '/health',
-    mock: healthMock as ApiResponse<HealthResponse>,
-    mockFallback: true
+    url: '/health'
   });
 }
 
 export function getVersion() {
   return request<VersionResponse>({
     method: 'GET',
-    url: '/version',
-    mock: versionMock as ApiResponse<VersionResponse>,
-    mockFallback: true
+    url: '/version'
   });
 }
 
 export function getRoutes(): RouteEntry[] {
-  return (routesMock as { records: RouteEntry[] }).records;
+  return routes;
 }

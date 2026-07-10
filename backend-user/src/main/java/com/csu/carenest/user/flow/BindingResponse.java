@@ -8,6 +8,8 @@ public record BindingResponse(
         String elderName,
         String relationType,
         String bindingStatus,
-        List<String> scopeCodes
+        List<String> scopeCodes,
+        List<String> pendingScopeCodes,
+        boolean scopeUpdatePending
 ) {
 }

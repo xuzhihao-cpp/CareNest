@@ -47,7 +47,9 @@ function toResponse(record: FamilyOrderDetail): FamilyOrderResponse {
   return {
     orderId: record.orderId,
     orderNo: record.orderNo,
-    orderStatus: record.orderStatus
+    orderStatus: record.orderStatus,
+    elderId: record.elderId,
+    scheduledStart: record.scheduledStart
   };
 }
 

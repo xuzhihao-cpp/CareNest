@@ -29,6 +29,7 @@ public class ReportAckService {
     private static final String ACCEPTED = "ACCEPTED";
     private static final String REJECTED = "REJECTED";
     private static final String REPORT_CONFIRM = "REPORT_CONFIRM";
+    private static final String ARCHIVE_EDIT = "ARCHIVE_EDIT";
 
     private final AuthService authService;
     private final ServiceReportMapper reportMapper;
@@ -87,7 +88,7 @@ public class ReportAckService {
             ReportAckRequest request) {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
         ReportContext context = requireContext(reportId);
-        requireFamilyReportConfirm(currentUser, context.order());
+        requireFamilyScopes(currentUser, context.order(), REPORT_CONFIRM, ARCHIVE_EDIT);
 
         List<HealthInfoReviewTask> tasks = reviewTaskMapper.selectList(
                 Wrappers.<HealthInfoReviewTask>query().eq("report_id", reportId));
@@ -188,12 +189,18 @@ public class ReportAckService {
     }
 
     private void requireFamilyReportConfirm(AuthService.CurrentUser currentUser, NursingOrder order) {
-        ElderFamilyBinding binding = bindingMapper.selectOne(
-                Wrappers.<ElderFamilyBinding>query()
-                        .eq("family_id", currentUser.userId())
-                        .eq("elder_id", order.getElderId())
-                        .eq("binding_status", "ACTIVE"));
-        if (binding == null || !readScopes(binding.getScopeCodes()).contains(REPORT_CONFIRM)) {
+        requireFamilyScopes(currentUser, order, REPORT_CONFIRM);
+    }
+
+    private void requireFamilyScopes(AuthService.CurrentUser currentUser, NursingOrder order, String... requiredScopes) {
+        boolean authorized = bindingMapper.selectList(
+                        Wrappers.<ElderFamilyBinding>query()
+                                .eq("family_id", currentUser.userId())
+                                .eq("elder_id", order.getElderId())
+                                .eq("binding_status", "ACTIVE"))
+                .stream()
+                .anyMatch(binding -> readScopes(binding.getScopeCodes()).containsAll(List.of(requiredScopes)));
+        if (!authorized) {
             throw new ForbiddenException();
         }
     }

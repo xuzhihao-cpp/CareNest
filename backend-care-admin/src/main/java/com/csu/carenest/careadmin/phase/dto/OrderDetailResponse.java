@@ -12,6 +12,7 @@ public record OrderDetailResponse(
         String serviceId,
         String serviceName,
         String addressId,
+        String serviceAddress,
         String scheduledStart,
         String scheduledEnd,
         Integer servicePrice,

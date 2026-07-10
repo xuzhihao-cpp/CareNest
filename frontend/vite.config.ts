@@ -19,6 +19,9 @@ export default defineConfig({
       '/api/v1/family/reports': { target: 'http://127.0.0.1:8081', changeOrigin: true },
       '/api/v1/admin/roles': { target: 'http://127.0.0.1:8081', changeOrigin: true },
       '/api/v1/health': { target: 'http://127.0.0.1:8081', changeOrigin: true },
+      '/api/v1/version': { target: 'http://127.0.0.1:8081', changeOrigin: true },
+      '/api/v1/elder/home-summary': { target: 'http://127.0.0.1:8081', changeOrigin: true },
+      '/api/v1/family/home-summary': { target: 'http://127.0.0.1:8081', changeOrigin: true },
       '/api/v1': {
         target: 'http://127.0.0.1:8082',
         changeOrigin: true

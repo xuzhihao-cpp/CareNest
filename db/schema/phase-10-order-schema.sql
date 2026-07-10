@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS nursing_order (
   elder_id VARCHAR(32) NOT NULL COMMENT '长辈ID',
   family_id VARCHAR(32) NOT NULL COMMENT '家属ID',
   service_id VARCHAR(32) NOT NULL COMMENT '服务项目ID',
-  address_id VARCHAR(32) NOT NULL COMMENT '服务地址ID',
+  address_id VARCHAR(32) DEFAULT NULL COMMENT '下单时的地址来源ID，可在地址删除后置空',
+  service_address_snapshot VARCHAR(300) NOT NULL COMMENT '下单时的服务地址快照',
   order_status VARCHAR(32) NOT NULL COMMENT '订单状态',
   scheduled_start_at DATETIME NOT NULL COMMENT '预约开始时间',
   scheduled_end_at DATETIME DEFAULT NULL COMMENT '预约结束时间',
@@ -25,7 +26,7 @@ CREATE TABLE IF NOT EXISTS nursing_order (
   KEY idx_nursing_order_scheduled_start (scheduled_start_at),
   CONSTRAINT fk_nursing_order_elder FOREIGN KEY (elder_id) REFERENCES elder_profile (elder_id),
   CONSTRAINT fk_nursing_order_service FOREIGN KEY (service_id) REFERENCES service_item (service_id),
-  CONSTRAINT fk_nursing_order_address FOREIGN KEY (address_id) REFERENCES service_address (address_id),
+  CONSTRAINT fk_nursing_order_address FOREIGN KEY (address_id) REFERENCES service_address (address_id) ON DELETE SET NULL,
   CONSTRAINT ck_nursing_order_status CHECK (order_status IN (
     'WAIT_DISPATCH','DISPATCHED','ACCEPTED','ON_THE_WAY','SERVING',
     'WAIT_REPORT','WAIT_CONFIRM','COMPLETED','CANCELED'

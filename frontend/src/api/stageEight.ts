@@ -108,8 +108,7 @@ export async function getServiceItems(
     return success(toPage(records), 'mock-8-service-items');
   }
 
-  type BackendServiceItem = Omit<ServiceItemResponse, 'category'> & { category?: string };
-  const response = await request<Array<BackendServiceItem> | ServiceItemPageResult>({
+  const response = await request<Array<ServiceItemResponse> | ServiceItemPageResult>({
     method: 'GET',
     url: serviceItemsPath,
     mock: serviceItemsMock as ApiResponse<ServiceItemPageResult>
@@ -119,7 +118,7 @@ export async function getServiceItems(
   }
   const records = Array.isArray(response.data) ? response.data : response.data.records;
   return success(
-    toPage(records.map((item) => ({ ...item, category: item.category ?? '' }))),
+    toPage(records),
     response.traceId
   );
 }

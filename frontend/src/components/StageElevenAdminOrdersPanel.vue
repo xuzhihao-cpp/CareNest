@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { displayLabel } from '@/utils/displayLabels';
 import {
   getAdminOrderDetail,
   getAdminOrders,
@@ -229,9 +230,9 @@ onMounted(() => {
       <view class="admin-order-table">
         <view v-for="record in records" :key="record.orderId" class="admin-order-row">
           <view>
-            <text class="flow-label">{{ record.orderNo }}</text>
+            <text class="flow-label">{{ record.serviceName || '护理服务' }}</text>
             <text class="flow-time">
-              {{ record.orderId }} · {{ record.elderId }} · {{ record.serviceId }} · {{ record.scheduledStart }}
+              预约时间：{{ record.scheduledStart }}{{ record.contactName ? ` · 联系人：${record.contactName}` : '' }}
             </text>
           </view>
           <view class="order-row-side">
@@ -247,16 +248,16 @@ onMounted(() => {
         <view class="contract-response">
           <text class="section-mini">GET /api/v1/admin/orders/{orderId}</text>
           <text v-if="selectedDetail" class="permission-main">
-            {{ selectedDetail.orderNo }} · {{ selectedDetail.orderStatus }}
+            {{ selectedDetail.serviceName || '护理服务' }} · {{ displayLabel(selectedDetail.orderStatus) }}
           </text>
           <text v-if="selectedDetail" class="auth-meta">
-            {{ selectedDetail.elderId }} · {{ selectedDetail.addressId }} · {{ selectedDetail.scheduledStart }}
+            预约时间：{{ selectedDetail.scheduledStart }}{{ selectedDetail.contactName ? ` · 联系人：${selectedDetail.contactName}` : '' }}
           </text>
           <text v-else class="auth-meta">请选择订单查看详情</text>
         </view>
         <view v-if="selectedDetail" class="status-log-list">
           <view v-for="log in selectedDetail.statusLogs" :key="log.statusLogId" class="status-log-row">
-            <text class="flow-label">{{ log.fromStatus || 'INIT' }} → {{ log.toStatus }}</text>
+            <text class="flow-label">{{ displayLabel(log.fromStatus || 'INIT') }} → {{ displayLabel(log.toStatus) }}</text>
             <text class="flow-time">{{ log.statusLogId }} · {{ log.changedBy }} · {{ log.changeReason }}</text>
           </view>
         </view>

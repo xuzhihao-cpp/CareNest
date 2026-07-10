@@ -49,14 +49,44 @@ public class CareAdminPhaseService {
         this.objectMapper = objectMapper;
     }
 
-    public List<ServiceItemResponse> serviceItems() {
-        return jdbcTemplate.query("""
-                SELECT service_id, service_name, price_cent, duration_minutes, service_status
+    public HomeSummaryResponse nurseWorkbenchSummary(CurrentUser currentUser) {
+        int pending = count("SELECT COUNT(*) FROM nurse_task WHERE nurse_id = ? AND task_status IN ('DISPATCHED', 'ACCEPTED')",
+                currentUser.userId());
+        int serving = count("SELECT COUNT(*) FROM nurse_task WHERE nurse_id = ? AND task_status IN ('ON_THE_WAY', 'SERVING')",
+                currentUser.userId());
+        int report = count("SELECT COUNT(*) FROM nursing_order o JOIN nurse_task nt ON nt.order_id = o.order_id "
+                + "WHERE nt.nurse_id = ? AND o.order_status = 'WAIT_REPORT'", currentUser.userId());
+        return new HomeSummaryResponse(
+                List.of(
+                        new HomeSummaryResponse.HomeCard("pending", "待处理任务", String.valueOf(pending), "项", "实时"),
+                        new HomeSummaryResponse.HomeCard("serving", "进行中服务", String.valueOf(serving), "项", "实时"),
+                        new HomeSummaryResponse.HomeCard("report", "待提交报告", String.valueOf(report), "项", "需处理")),
+                List.of(new HomeSummaryResponse.HomeQuickAction("tasks", "查看护理任务", "/pages/nurse/index", "nurse:task:view")),
+                pending + report);
+    }
+
+    public HomeSummaryResponse adminDashboardOverview() {
+        int waitingDispatch = count("SELECT COUNT(*) FROM nursing_order WHERE order_status = 'WAIT_DISPATCH'");
+        int active = count("SELECT COUNT(*) FROM nursing_order WHERE order_status IN ('DISPATCHED', 'ACCEPTED', 'ON_THE_WAY', 'SERVING')");
+        int waitingConfirm = count("SELECT COUNT(*) FROM nursing_order WHERE order_status = 'WAIT_CONFIRM'");
+        return new HomeSummaryResponse(
+                List.of(
+                        new HomeSummaryResponse.HomeCard("dispatch", "待派单订单", String.valueOf(waitingDispatch), "单", "需处理"),
+                        new HomeSummaryResponse.HomeCard("active", "服务中订单", String.valueOf(active), "单", "实时"),
+                        new HomeSummaryResponse.HomeCard("confirm", "待确认报告", String.valueOf(waitingConfirm), "单", "待跟进")),
+                List.of(new HomeSummaryResponse.HomeQuickAction("orders", "订单管理", "/pages/admin/index", "order:manage")),
+                waitingDispatch + waitingConfirm);
+    }
+
+    public List<ServiceItemResponse> serviceItems(boolean includeOffShelf) {
+        String sql = """
+                SELECT service_id, service_name, service_desc, price_cent, duration_minutes, service_status
                 FROM service_item
-                ORDER BY sort, service_id
-                """, (rs, rowNum) -> new ServiceItemResponse(
+                """ + (includeOffShelf ? "" : " WHERE service_status = 'ON_SHELF' ") + " ORDER BY sort, service_id";
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new ServiceItemResponse(
                 rs.getString("service_id"),
                 rs.getString("service_name"),
+                rs.getString("service_desc"),
                 rs.getInt("price_cent"),
                 rs.getInt("duration_minutes"),
                 rs.getString("service_status")
@@ -65,12 +95,13 @@ public class CareAdminPhaseService {
 
     public ServiceItemResponse serviceItem(String serviceId) {
         return queryOne("""
-                SELECT service_id, service_name, price_cent, duration_minutes, service_status
+                SELECT service_id, service_name, service_desc, price_cent, duration_minutes, service_status
                 FROM service_item
                 WHERE service_id = ?
                 """, row -> new ServiceItemResponse(
                 string(row, "service_id"),
                 string(row, "service_name"),
+                string(row, "service_desc"),
                 integer(row, "price_cent"),
                 integer(row, "duration_minutes"),
                 string(row, "service_status")
@@ -146,6 +177,44 @@ public class CareAdminPhaseService {
             args.add(parseDateTime(dateTo));
         }
         return orderPage(where.toString(), args, page, size);
+    }
+
+    public PageData<OrderDetailResponse> familyOrders(CurrentUser currentUser, int page, int size) {
+        return orderPage("WHERE o.family_id = ?", List.of(currentUser.userId()), page, size);
+    }
+
+    @Transactional
+    public OrderDetailResponse createFamilyOrder(CurrentUser currentUser, FamilyOrderRequest request) {
+        if (!hasActiveScope(currentUser.userId(), request.elderId(), "ORDER_CREATE")) {
+            throw new ForbiddenException();
+        }
+        Map<String, Object> address = requireRow("""
+                SELECT * FROM service_address
+                WHERE address_id = ? AND elder_id = ? AND family_id = ? AND is_default = 1
+                """, request.addressId(), request.elderId(), currentUser.userId());
+        Map<String, Object> service = requireRow("""
+                SELECT * FROM service_item
+                WHERE service_id = ? AND service_status = 'ON_SHELF'
+                """, request.serviceId());
+        LocalDateTime scheduledStart = parseDateTime(request.scheduledStart());
+        if (!scheduledStart.isAfter(LocalDateTime.now())) {
+            throw new BusinessRuleException();
+        }
+        String orderId = nextId("order");
+        int duration = integer(service, "duration_minutes");
+        String addressSnapshot = string(address, "region_code") + " " + string(address, "detail_address");
+        jdbcTemplate.update("""
+                INSERT INTO nursing_order
+                  (order_id, elder_id, family_id, service_id, address_id, service_address_snapshot, order_status,
+                   scheduled_start_at, scheduled_end_at, service_price_cent, contact_name,
+                   contact_phone, remark, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, orderId, request.elderId(), currentUser.userId(), request.serviceId(), request.addressId(), addressSnapshot,
+                WAIT_DISPATCH, scheduledStart, scheduledStart.plusMinutes(duration), integer(service, "price_cent"),
+                string(address, "contact_name"), string(address, "contact_phone"), request.remark(), currentUser.userId());
+        saveStatusLog(orderId, null, WAIT_DISPATCH, currentUser.userId(), "CREATE_FAMILY_ORDER");
+        saveOperationLog(currentUser, "CREATE_FAMILY_ORDER", "NURSING_ORDER", orderId, null, request);
+        return mapOrderDetail(requireRow(orderDetailSql() + " WHERE o.order_id = ?", orderId));
     }
 
     @Transactional
@@ -279,7 +348,8 @@ public class CareAdminPhaseService {
     }
 
     public List<Map<String, Object>> serviceRecords(CurrentUser currentUser, String orderId) {
-        orderDetail(currentUser, orderId);
+        OrderDetailResponse detail = orderDetail(currentUser, orderId);
+        requireFamilyScope(currentUser, detail, "REPORT_VIEW");
         return jdbcTemplate.queryForList("""
                 SELECT record_id AS recordId, order_id AS orderId, start_time AS startTime,
                        end_time AS endTime, content, nursing_advice AS nursingAdvice,
@@ -310,7 +380,13 @@ public class CareAdminPhaseService {
         return report(orderId);
     }
 
-    public ReportResponse report(String orderId) {
+    public ReportResponse report(CurrentUser currentUser, String orderId) {
+        OrderDetailResponse detail = orderDetail(currentUser, orderId);
+        requireFamilyScope(currentUser, detail, "REPORT_VIEW");
+        return report(orderId);
+    }
+
+    private ReportResponse report(String orderId) {
         Map<String, Object> report = requireRow("SELECT * FROM service_report WHERE order_id = ?", orderId);
         List<String> serviceRecords = jdbcTemplate.query("""
                 SELECT item_content FROM service_report_item
@@ -335,9 +411,8 @@ public class CareAdminPhaseService {
     @Transactional
     public OrderChangeResponse cancelFamilyOrder(CurrentUser currentUser, String orderId, OrderChangeRequest request) {
         Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
-        if (!currentUser.userId().equals(string(order, "family_id"))) {
-            throw new ForbiddenException();
-        }
+        requireFamilyOrderChangeAccess(currentUser, order);
+        requireText(request.reason());
         changeOrderStatus(currentUser.userId(), order, CANCELED, request.reason());
         return new OrderChangeResponse(orderId, CANCELED, toText(order.get("scheduled_start_at")));
     }
@@ -345,9 +420,8 @@ public class CareAdminPhaseService {
     @Transactional
     public OrderChangeResponse rescheduleFamilyOrder(CurrentUser currentUser, String orderId, OrderChangeRequest request) {
         Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
-        if (!currentUser.userId().equals(string(order, "family_id"))) {
-            throw new ForbiddenException();
-        }
+        requireFamilyOrderChangeAccess(currentUser, order);
+        requireText(request.reason());
         LocalDateTime scheduledStart = parseDateTime(request.newScheduledStart());
         jdbcTemplate.update("UPDATE nursing_order SET scheduled_start_at = ? WHERE order_id = ?", scheduledStart, orderId);
         saveStatusLog(orderId, string(order, "order_status"), string(order, "order_status"), currentUser.userId(), request.reason());
@@ -392,6 +466,7 @@ public class CareAdminPhaseService {
                         rs.getString("service_id"),
                         rs.getString("service_name"),
                         rs.getString("address_id"),
+                        rs.getString("service_address"),
                         toText(rs.getObject("scheduled_start_at")),
                         toText(rs.getObject("scheduled_end_at")),
                         rs.getInt("service_price_cent"),
@@ -405,7 +480,9 @@ public class CareAdminPhaseService {
     private String orderDetailSql() {
         return """
                 SELECT o.order_id, o.order_status, o.elder_id, o.family_id, o.service_id,
-                       si.service_name, o.address_id, o.scheduled_start_at, o.scheduled_end_at,
+                       si.service_name, o.address_id,
+                       COALESCE(o.service_address_snapshot, CONCAT(sa.region_code, ' ', sa.detail_address)) AS service_address,
+                       o.scheduled_start_at, o.scheduled_end_at,
                        o.service_price_cent, o.contact_name, o.contact_phone, o.remark
                 """ + orderFromSql();
     }
@@ -415,6 +492,7 @@ public class CareAdminPhaseService {
                 FROM nursing_order o
                 JOIN service_item si ON si.service_id = o.service_id
                 JOIN elder_profile e ON e.elder_id = o.elder_id
+                LEFT JOIN service_address sa ON sa.address_id = o.address_id
                 """;
     }
 
@@ -428,6 +506,7 @@ public class CareAdminPhaseService {
                 string(row, "service_id"),
                 string(row, "service_name"),
                 string(row, "address_id"),
+                string(row, "service_address"),
                 toText(row.get("scheduled_start_at")),
                 toText(row.get("scheduled_end_at")),
                 integer(row, "service_price_cent"),
@@ -451,6 +530,38 @@ public class CareAdminPhaseService {
                 SELECT COUNT(*) FROM nurse_task WHERE order_id = ? AND nurse_id = ?
                 """, Integer.class, orderId, nurseId);
         return count != null && count > 0;
+    }
+
+    private boolean hasActiveScope(String familyId, String elderId, String scopeCode) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM elder_family_binding
+                WHERE family_id = ? AND elder_id = ? AND binding_status = 'ACTIVE'
+                  AND JSON_CONTAINS(scope_codes, JSON_QUOTE(?))
+                """, Integer.class, familyId, elderId, scopeCode);
+        return count != null && count > 0;
+    }
+
+    private void requireFamilyScope(CurrentUser currentUser, OrderDetailResponse detail, String scopeCode) {
+        if (currentUser.hasRole(RoleCode.FAMILY)
+                && !hasActiveScope(currentUser.userId(), detail.elderId(), scopeCode)) {
+            throw new ForbiddenException();
+        }
+    }
+
+    private void requireFamilyOrderChangeAccess(CurrentUser currentUser, Map<String, Object> order) {
+        if (!currentUser.userId().equals(string(order, "family_id"))
+                || !hasActiveScope(currentUser.userId(), string(order, "elder_id"), "ORDER_CREATE")) {
+            throw new ForbiddenException();
+        }
+        if (!List.of(WAIT_DISPATCH, DISPATCHED, ACCEPTED, ON_THE_WAY).contains(string(order, "order_status"))) {
+            throw new ConflictException();
+        }
+    }
+
+    private void requireText(String value) {
+        if (!hasText(value)) {
+            throw new BusinessRuleException();
+        }
     }
 
     private void requireRoleUser(String userId, String roleCode) {
@@ -618,6 +729,11 @@ public class CareAdminPhaseService {
 
     private int count(String sql) {
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class);
+        return count == null ? 0 : count;
+    }
+
+    private int count(String sql, Object... args) {
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, args);
         return count == null ? 0 : count;
     }
 

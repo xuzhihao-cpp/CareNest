@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { displayLabel } from '@/utils/displayLabels';
 import {
   getNurseTaskDetail,
   getNurseTasks,
@@ -199,7 +200,7 @@ onMounted(() => {
             <text class="flow-time">
               {{ task.nurseName }} · {{ task.elderId }} · {{ task.serviceId }} · {{ task.scheduledStart }}
             </text>
-            <text class="flow-time">order {{ task.orderStatus }} / task {{ task.taskStatus }}</text>
+            <text class="flow-time">订单：{{ displayLabel(task.orderStatus) }} · 任务：{{ displayLabel(task.taskStatus) }}</text>
           </view>
           <view class="order-row-side">
             <text class="tag" :class="statusClass(task.taskStatus)">{{ statusLabel(task.taskStatus) }}</text>
@@ -217,10 +218,10 @@ onMounted(() => {
         <view class="contract-response">
           <text class="section-mini">GET /api/v1/nurse/tasks/{taskId}</text>
           <text v-if="selectedDetail" class="permission-main">
-            {{ selectedDetail.taskId }} · {{ selectedDetail.taskStatus }}
+            {{ selectedDetail.taskId }} · {{ displayLabel(selectedDetail.taskStatus) }}
           </text>
           <text v-if="selectedDetail" class="auth-meta">
-            订单 {{ selectedDetail.orderId }} · {{ selectedDetail.orderSnapshotStatus }}
+            订单 {{ selectedDetail.orderId }} · {{ displayLabel(selectedDetail.orderSnapshotStatus) }}
           </text>
           <text v-else class="auth-meta">请选择任务查看详情</text>
         </view>
@@ -229,11 +230,11 @@ onMounted(() => {
           <view class="status-log-row">
             <text class="flow-label">一致性校验</text>
             <text class="flow-time">
-              taskStatus {{ selectedDetail.taskStatus }} / orderStatus {{ selectedDetail.orderSnapshotStatus }}
+              任务：{{ displayLabel(selectedDetail.taskStatus) }} · 订单：{{ displayLabel(selectedDetail.orderSnapshotStatus) }}
             </text>
           </view>
           <view v-for="item in selectedDetail.statusTimeline" :key="`${item.status}-${item.at}`" class="status-log-row">
-            <text class="flow-label">{{ item.status }} · {{ item.label }}</text>
+            <text class="flow-label">{{ displayLabel(item.status) }} · {{ item.label }}</text>
             <text class="flow-time">{{ item.at }}</text>
           </view>
         </view>

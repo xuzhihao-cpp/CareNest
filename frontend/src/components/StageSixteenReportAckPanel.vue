@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { getFamilyBindings } from '@/api/stageSix';
+import { displayLabel } from '@/utils/displayLabels';
 import {
   ackElderReport,
   ackFamilyReport,
@@ -18,13 +20,14 @@ import type {
   ReportAckResponse,
   StageSixteenScenario
 } from '@/types/stageSixteen';
+import type { BindingResponse } from '@/types/stageSix';
 
 const props = defineProps<{
   roleCode: RoleCode;
   authUser: AuthUser | null;
 }>();
 
-const reportId = ref('report-001');
+const reportId = ref('');
 const satisfaction = ref(5);
 const remark = ref('报告已查看，同意本次服务记录与护理建议。');
 const acceptedSuggestionIds = ref('suggestion-bp,suggestion-sleep');
@@ -36,9 +39,22 @@ const lastResponse = ref<ApiResponse<ReportAckResponse> | null>(null);
 const latestAck = ref<ReportAckRecord | null>(getLatestReportAck(reportId.value));
 const reviewTasks = ref<HealthInfoReviewTaskRecord[]>(getHealthInfoReviewTasks(reportId.value));
 const endpoints = getStageSixteenEndpointSummary();
+const familyBindings = ref<BindingResponse[]>([]);
 
 const canElderAck = computed(() => props.roleCode === 'ELDER' && props.authUser?.roles.includes('ELDER'));
-const canFamilyAck = computed(() => props.roleCode === 'FAMILY' && props.authUser?.roles.includes('FAMILY'));
+const familyScopes = computed(() => new Set(
+  familyBindings.value
+    .filter((binding) => binding.bindingStatus === 'ACTIVE')
+    .flatMap((binding) => binding.scopeCodes)
+));
+const canFamilyAck = computed(() =>
+  props.roleCode === 'FAMILY'
+  && props.authUser?.roles.includes('FAMILY')
+  && familyScopes.value.has('REPORT_CONFIRM')
+);
+const canFamilyArchiveDecision = computed(() =>
+  canFamilyAck.value && familyScopes.value.has('ARCHIVE_EDIT')
+);
 const canObserve = computed(() => ['ADMIN', 'NURSE'].includes(props.roleCode));
 
 function payload(ackResult: ReportAckRequest['ackResult']): ReportAckRequest {
@@ -104,6 +120,14 @@ async function loadScenario(scenario: StageSixteenScenario) {
 function handleReportIdBlur() {
   refreshDerivedState();
 }
+
+onMounted(async () => {
+  if (props.roleCode !== 'FAMILY') {
+    return;
+  }
+  const response = await getFamilyBindings();
+  familyBindings.value = response.code === 0 ? response.data : [];
+});
 </script>
 
 <template>
@@ -121,7 +145,7 @@ function handleReportIdBlur() {
       </view>
       <view>
         <text class="section-mini">reportStatus / orderStatus</text>
-        <text class="permission-main">{{ latestAck?.reportStatus ?? 'WAIT_CONFIRM' }} / {{ latestAck?.orderStatus ?? 'WAIT_CONFIRM' }}</text>
+        <text class="permission-main">{{ displayLabel(latestAck?.reportStatus ?? 'WAIT_CONFIRM') }} / {{ displayLabel(latestAck?.orderStatus ?? 'WAIT_CONFIRM') }}</text>
         <text class="auth-meta">{{ lastTraceId || 'mock-16' }}</text>
       </view>
     </view>
@@ -150,21 +174,23 @@ function handleReportIdBlur() {
     </view>
 
     <view class="binding-actions">
-      <button v-if="canElderAck" class="hero-action" type="button" :disabled="loading" @click="submitElderAck('ACCEPTED')">
+      <button v-if="canElderAck" class="hero-action" type="button" :disabled="loading || !reportId" @click="submitElderAck('ACCEPTED')">
         <text>长辈确认报告</text>
       </button>
-      <button v-if="canElderAck" class="ghost-action" type="button" :disabled="loading" @click="submitElderAck('REJECTED')">
+      <button v-if="canElderAck" class="ghost-action" type="button" :disabled="loading || !reportId" @click="submitElderAck('REJECTED')">
         <text>长辈提出异议</text>
       </button>
-      <button v-if="canFamilyAck" class="hero-action" type="button" :disabled="loading" @click="submitFamilyAck('ACCEPTED')">
+      <button v-if="canFamilyAck" class="hero-action" type="button" :disabled="loading || !reportId" @click="submitFamilyAck('ACCEPTED')">
         <text>家属确认报告</text>
       </button>
-      <button v-if="canFamilyAck" class="ghost-action" type="button" :disabled="loading" @click="submitFamilyAck('REJECTED')">
+      <button v-if="canFamilyAck" class="ghost-action" type="button" :disabled="loading || !reportId" @click="submitFamilyAck('REJECTED')">
         <text>家属提出异议</text>
       </button>
-      <button v-if="canFamilyAck" class="ghost-action" type="button" :disabled="loading" @click="submitArchiveDecision">
+      <button v-if="canFamilyArchiveDecision" class="ghost-action" type="button" :disabled="loading || !reportId" @click="submitArchiveDecision">
         <text>档案建议确认</text>
       </button>
+      <text v-if="props.roleCode === 'FAMILY' && !canFamilyAck" class="field-error">当前授权不包含“确认服务报告”</text>
+      <text v-else-if="props.roleCode === 'FAMILY' && !canFamilyArchiveDecision" class="field-error">确认档案建议还需要“编辑健康归档”授权</text>
       <button class="ghost-action test-action" type="button" :disabled="loading" @click="loadScenario('empty')">
         <text>空数据 mock</text>
       </button>
@@ -191,14 +217,14 @@ function handleReportIdBlur() {
     <view v-if="latestAck" class="service-report-workbench">
       <view class="contract-response">
         <text class="section-mini">care_report_ack</text>
-        <text class="permission-main">{{ latestAck.ackResult }} / 满意度 {{ latestAck.satisfaction }}</text>
+        <text class="permission-main">{{ displayLabel(latestAck.ackResult) }} / 满意度 {{ latestAck.satisfaction }}</text>
         <text class="auth-meta">{{ latestAck.operatorRole }} {{ latestAck.operatorId }} · {{ latestAck.createdAt }}</text>
         <text>{{ latestAck.remark }}</text>
       </view>
 
       <view class="contract-response">
         <text class="section-mini">订单状态同步</text>
-        <text>{{ latestAck.orderId }} · {{ latestAck.reportStatus }} → {{ latestAck.orderStatus }}</text>
+        <text>{{ latestAck.orderId }} · {{ displayLabel(latestAck.reportStatus) }} → {{ displayLabel(latestAck.orderStatus) }}</text>
       </view>
     </view>
 
@@ -208,7 +234,7 @@ function handleReportIdBlur() {
         <text class="flow-label">暂无档案建议待审核任务</text>
       </view>
       <view v-for="item in reviewTasks" :key="item.taskId" class="status-log-row">
-        <text class="flow-label">{{ item.taskId }} / {{ item.suggestionId }} / {{ item.status }}</text>
+        <text class="flow-label">{{ item.taskId }} / {{ item.suggestionId }} / {{ displayLabel(item.status) }}</text>
         <text class="flow-time">{{ item.fieldName }}：{{ item.newValue }}</text>
       </view>
     </view>

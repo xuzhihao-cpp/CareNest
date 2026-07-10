@@ -12,6 +12,8 @@ public class ElderFamilyBinding {
     private String familyId;
     private String bindingStatus;
     private String scopeCodes;
+    private String pendingScopeCodes;
+    private String scopeUpdateStatus;
     private String relationType;
     private String inviterUserId;
     private String approverUserId;
@@ -56,6 +58,11 @@ public class ElderFamilyBinding {
     public void setScopeCodes(String scopeCodes) {
         this.scopeCodes = scopeCodes;
     }
+
+    public String getPendingScopeCodes() { return pendingScopeCodes; }
+    public void setPendingScopeCodes(String pendingScopeCodes) { this.pendingScopeCodes = pendingScopeCodes; }
+    public String getScopeUpdateStatus() { return scopeUpdateStatus; }
+    public void setScopeUpdateStatus(String scopeUpdateStatus) { this.scopeUpdateStatus = scopeUpdateStatus; }
 
     public String getRelationType() {
         return relationType;
