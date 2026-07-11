@@ -145,6 +145,8 @@ CREATE TABLE elder_family_binding (
   family_id VARCHAR(32) NOT NULL,
   binding_status VARCHAR(32) NOT NULL,
   scope_codes VARCHAR(4000) NOT NULL,
+  pending_scope_codes VARCHAR(4000),
+  scope_update_status VARCHAR(32),
   relation_type VARCHAR(32),
   inviter_user_id VARCHAR(32),
   approver_user_id VARCHAR(32),
