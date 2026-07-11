@@ -29,6 +29,7 @@ public class ReportAckService {
     private static final String ACCEPTED = "ACCEPTED";
     private static final String REJECTED = "REJECTED";
     private static final String REPORT_CONFIRM = "REPORT_CONFIRM";
+    private static final String ARCHIVE_EDIT = "ARCHIVE_EDIT";
 
     private final AuthService authService;
     private final ServiceReportMapper reportMapper;
@@ -72,6 +73,35 @@ public class ReportAckService {
         return acknowledge(currentUser, RoleCode.ELDER.name(), context, request);
     }
 
+    public List<PendingReportResponse> pendingReports(String authorization, RoleCode role) {
+        return reports(authorization, role, true);
+    }
+
+    public List<PendingReportResponse> reports(String authorization, RoleCode role, boolean pendingOnly) {
+        AuthService.CurrentUser currentUser = requireRole(authorization, role);
+        var query = Wrappers.<ServiceReport>query();
+        if (pendingOnly) {
+            query.eq("report_status", "WAIT_CONFIRM");
+        }
+        return reportMapper.selectList(query.orderByDesc("generated_at"))
+                .stream()
+                .map(report -> {
+                    NursingOrder order = orderMapper.selectById(report.getOrderId());
+                    if (order == null) return null;
+                    try {
+                        if (role == RoleCode.ELDER) requireElderSelf(currentUser, order);
+                        else requireFamilyReportConfirm(currentUser, order);
+                    } catch (ForbiddenException ignored) {
+                        return null;
+                    }
+                    ElderProfile elder = elderProfileMapper.selectById(order.getElderId());
+                    return new PendingReportResponse(report.getReportId(), order.getOrderId(),
+                            elder == null ? "长辈" : elder.getElderName());
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
     @Transactional
     public ReportAckResponse familyAck(String authorization, String reportId, ReportAckRequest request) {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
@@ -87,7 +117,7 @@ public class ReportAckService {
             ReportAckRequest request) {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
         ReportContext context = requireContext(reportId);
-        requireFamilyReportConfirm(currentUser, context.order());
+        requireFamilyScopes(currentUser, context.order(), REPORT_CONFIRM, ARCHIVE_EDIT);
 
         List<HealthInfoReviewTask> tasks = reviewTaskMapper.selectList(
                 Wrappers.<HealthInfoReviewTask>query().eq("report_id", reportId));
@@ -188,12 +218,18 @@ public class ReportAckService {
     }
 
     private void requireFamilyReportConfirm(AuthService.CurrentUser currentUser, NursingOrder order) {
-        ElderFamilyBinding binding = bindingMapper.selectOne(
-                Wrappers.<ElderFamilyBinding>query()
-                        .eq("family_id", currentUser.userId())
-                        .eq("elder_id", order.getElderId())
-                        .eq("binding_status", "ACTIVE"));
-        if (binding == null || !readScopes(binding.getScopeCodes()).contains(REPORT_CONFIRM)) {
+        requireFamilyScopes(currentUser, order, REPORT_CONFIRM);
+    }
+
+    private void requireFamilyScopes(AuthService.CurrentUser currentUser, NursingOrder order, String... requiredScopes) {
+        boolean authorized = bindingMapper.selectList(
+                        Wrappers.<ElderFamilyBinding>query()
+                                .eq("family_id", currentUser.userId())
+                                .eq("elder_id", order.getElderId())
+                                .eq("binding_status", "ACTIVE"))
+                .stream()
+                .anyMatch(binding -> readScopes(binding.getScopeCodes()).containsAll(List.of(requiredScopes)));
+        if (!authorized) {
             throw new ForbiddenException();
         }
     }

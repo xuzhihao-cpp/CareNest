@@ -1,26 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { getAdminOrders } from '@/api/stageEleven';
-import {
-  acceptNurseTask,
-  dispatchAdminOrder,
-  getStageTwelveEndpointSummary,
-  getStageTwelveNurseTasks,
-  resetStageTwelveMockRecords,
-  updateNurseTaskStatus
-} from '@/api/stageTwelve';
-import type { ApiResponse } from '@/types/api';
+import { dispatchAdminOrder, getStageTwelveNurseTasks } from '@/api/stageTwelve';
 import type { RoleCode } from '@/types/stageOne';
 import type { AuthUser } from '@/types/stageTwo';
-import type { AdminOrderPageResult, AdminOrderRecord } from '@/types/stageEleven';
-import type {
-  DispatchRequest,
-  NurseTaskPageResult,
-  NurseTaskRecord,
-  NurseTaskStatus,
-  StageTwelveScenario,
-  TaskActionResponse
-} from '@/types/stageTwelve';
+import type { AdminOrderRecord } from '@/types/stageEleven';
+import type { DispatchRequest, NurseTaskRecord, NurseTaskStatus } from '@/types/stageTwelve';
 
 const props = defineProps<{
   roleCode: RoleCode;
@@ -34,31 +19,25 @@ const nurseOptions = [
 ];
 
 const dispatchForm = ref<DispatchRequest>({
-  nurseId: 'nurse-001',
-  dispatchRemark: '阶段12管理端派单',
+  nurseId: nurseOptions[0].nurseId,
+  dispatchRemark: '',
   targetStatus: 'DISPATCHED'
 });
-const taskQuery = ref({
-  status: '' as NurseTaskStatus | '',
-  page: 1,
-  size: 10
-});
-const orders = ref<AdminOrderRecord[]>([]);
-const selectedOrderId = ref('');
+const pendingOrders = ref<AdminOrderRecord[]>([]);
+const taskOrders = ref<AdminOrderRecord[]>([]);
 const tasks = ref<NurseTaskRecord[]>([]);
+const selectedOrderId = ref('');
 const loading = ref(false);
 const message = ref('');
 const error = ref('');
-const lastTraceId = ref('');
-const lastActionResponse = ref<ApiResponse<TaskActionResponse> | null>(null);
-const lastTaskResponse = ref<ApiResponse<NurseTaskPageResult> | null>(null);
-const lastOrderResponse = ref<ApiResponse<AdminOrderPageResult> | null>(null);
-const endpoints = getStageTwelveEndpointSummary();
 
 const canAdminDispatch = computed(() => props.roleCode === 'ADMIN' && props.authUser?.roles.includes('ADMIN'));
-const canNurseOperate = computed(() => props.roleCode === 'NURSE' && props.authUser?.roles.includes('NURSE'));
-const dispatchedCount = computed(() => tasks.value.filter((item) => item.taskStatus === 'DISPATCHED').length);
-const activeTask = computed(() => tasks.value[0] ?? null);
+const selectedOrder = computed(() => pendingOrders.value.find((order) => order.orderId === selectedOrderId.value) ?? null);
+const orderById = computed(() => new Map(taskOrders.value.map((order) => [order.orderId, order])));
+
+function formatTime(value: string) {
+  return value ? value.replace('T', ' ').slice(0, 16) : '时间待确认';
+}
 
 function statusLabel(value: NurseTaskStatus) {
   const labels: Record<NurseTaskStatus, string> = {
@@ -66,323 +45,140 @@ function statusLabel(value: NurseTaskStatus) {
     ACCEPTED: '已接单',
     ON_THE_WAY: '前往中',
     SERVING: '服务中',
-    WAIT_REPORT: '待报告',
-    WAIT_CONFIRM: '待确认',
+    WAIT_REPORT: '待填写记录',
+    WAIT_CONFIRM: '等待确认',
     COMPLETED: '已完成'
   };
   return labels[value] ?? value;
 }
 
 function statusClass(value: NurseTaskStatus) {
-  if (value === 'DISPATCHED') {
-    return 'tag-amber';
-  }
-  if (value === 'SERVING') {
-    return 'tag-teal';
-  }
+  if (value === 'DISPATCHED') return 'tag-amber';
+  if (value === 'SERVING' || value === 'ON_THE_WAY') return 'tag-teal';
   return 'tag-blue';
 }
 
-function applyActionResponse(response: ApiResponse<TaskActionResponse>, successText: string) {
-  lastActionResponse.value = response;
-  lastTraceId.value = response.traceId;
-  if (response.code === 0) {
-    message.value = successText;
-    error.value = '';
-  } else {
-    message.value = '';
-    error.value = `${response.code} ${response.message}`;
-  }
+function taskOrder(task: NurseTaskRecord) {
+  return orderById.value.get(task.orderId);
 }
 
-async function loadDispatchOrders() {
-  if (!canAdminDispatch.value) {
+function taskService(task: NurseTaskRecord) {
+  return taskOrder(task)?.serviceName || task.serviceName || '上门护理服务';
+}
+
+function taskElder(task: NurseTaskRecord) {
+  return task.elderName || taskOrder(task)?.contactName || '服务对象信息待同步';
+}
+
+function taskNurse(task: NurseTaskRecord) {
+  return task.nurseName || nurseOptions.find((item) => item.nurseId === task.nurseId)?.nurseName || '护理员';
+}
+
+async function refresh() {
+  if (!canAdminDispatch.value) return;
+  loading.value = true;
+  error.value = '';
+  const [pendingResponse, orderResponse, taskResponse] = await Promise.all([
+    getAdminOrders({ page: 1, size: 50, orderStatus: 'WAIT_DISPATCH' }),
+    getAdminOrders({ page: 1, size: 100, orderStatus: '' }),
+    getStageTwelveNurseTasks({ page: 1, size: 50, status: '' })
+  ]);
+  loading.value = false;
+
+  if (pendingResponse.code !== 0 || orderResponse.code !== 0 || taskResponse.code !== 0) {
+    error.value = '订单或任务加载失败，请刷新后重试。';
     return;
   }
-  const response = await getAdminOrders({ page: 1, size: 10, orderStatus: 'WAIT_DISPATCH' }, 'normal');
-  lastOrderResponse.value = response;
-  lastTraceId.value = response.traceId;
-  if (response.code === 0) {
-    orders.value = response.data.records;
-    selectedOrderId.value = response.data.records[0]?.orderId ?? '';
-    error.value = '';
-  } else {
-    orders.value = [];
-    selectedOrderId.value = '';
-    error.value = `${response.code} ${response.message}`;
-  }
-}
 
-async function loadTasks(scenario: StageTwelveScenario = 'normal') {
-  const response = await getStageTwelveNurseTasks(taskQuery.value, scenario);
-  lastTaskResponse.value = response;
-  lastTraceId.value = response.traceId;
-  if (response.code === 0) {
-    tasks.value = response.data.records;
-    error.value = '';
-    message.value = scenario === 'empty' ? '已切换为空任务 mock' : '护理任务视图已同步';
-  } else {
-    tasks.value = [];
-    message.value = '';
-    error.value = `${response.code} ${response.message}`;
+  pendingOrders.value = pendingResponse.data.records;
+  taskOrders.value = orderResponse.data.records;
+  tasks.value = taskResponse.data.records;
+  if (!pendingOrders.value.some((order) => order.orderId === selectedOrderId.value)) {
+    selectedOrderId.value = pendingOrders.value[0]?.orderId ?? '';
   }
 }
 
 async function handleDispatch() {
-  if (!selectedOrderId.value) {
-    error.value = '请选择待派单订单';
+  if (!selectedOrder.value) {
+    error.value = '请先选择一笔待派订单。';
     return;
   }
   loading.value = true;
-  const response = await dispatchAdminOrder(selectedOrderId.value, dispatchForm.value);
-  loading.value = false;
-  applyActionResponse(response, '派单成功，护理端任务已生成');
-  await Promise.all([loadDispatchOrders(), loadTasks()]);
-}
-
-async function handleAccept(task: NurseTaskRecord) {
-  loading.value = true;
-  const response = await acceptNurseTask(task.taskId, {
-    nurseId: task.nurseId,
-    dispatchRemark: '护理端接单',
-    targetStatus: 'ACCEPTED'
-  });
-  loading.value = false;
-  applyActionResponse(response, '护理端接单成功，订单状态已同步');
-  await loadTasks();
-}
-
-async function handleStatus(task: NurseTaskRecord, targetStatus: NurseTaskStatus) {
-  loading.value = true;
-  const response = await updateNurseTaskStatus(task.taskId, {
-    nurseId: task.nurseId,
-    dispatchRemark: statusLabel(targetStatus),
-    targetStatus
-  });
-  loading.value = false;
-  applyActionResponse(response, `任务状态已更新为${statusLabel(targetStatus)}`);
-  await loadTasks();
-}
-
-function setTaskStatus(value: NurseTaskStatus | '') {
-  taskQuery.value.status = value;
-  loadTasks();
-}
-
-async function resetMock() {
-  resetStageTwelveMockRecords();
-  message.value = '阶段12 mock 已重置';
   error.value = '';
-  await Promise.all([loadDispatchOrders(), loadTasks()]);
+  const response = await dispatchAdminOrder(selectedOrder.value.orderId, dispatchForm.value);
+  loading.value = false;
+  if (response.code !== 0) {
+    error.value = response.code === 409 ? '该订单状态已变化，请刷新订单列表。' : response.message;
+    return;
+  }
+  message.value = `已将“${selectedOrder.value.serviceName || '上门护理服务'}”安排给${nurseOptions.find((item) => item.nurseId === dispatchForm.value.nurseId)?.nurseName || '护理员'}。`;
+  dispatchForm.value.dispatchRemark = '';
+  await refresh();
 }
 
-onMounted(() => {
-  if (canAdminDispatch.value) {
-    loadDispatchOrders();
-    loadTasks();
-  }
-  if (canNurseOperate.value) {
-    loadTasks();
-  }
-});
+onMounted(refresh);
 </script>
 
 <template>
-  <view class="stage-twelve-panel glass-panel" aria-label="阶段12派单与护理任务">
-    <view class="section-title">
-      <text>⑫</text>
-      <text>派单与任务状态 MVP</text>
+  <view v-if="canAdminDispatch" class="stage-twelve-panel glass-panel" aria-label="订单派单">
+    <view class="dispatch-heading">
+      <view><text class="section-title">派单安排</text><text class="dispatch-subtitle">选择待派订单和护理员，确认后将任务发送至护理端。</text></view>
+      <button class="ghost-action" type="button" :disabled="loading" @click="refresh">刷新</button>
     </view>
 
-    <view class="stage-twelve-summary">
-      <view>
-        <text class="section-mini">tasks / DISPATCHED / role</text>
-        <text class="permission-main">{{ tasks.length }} / {{ dispatchedCount }} / {{ props.roleCode }}</text>
-        <text class="auth-meta">派单后护理端可见任务</text>
-      </view>
-      <view>
-        <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || 'mock-12' }}</text>
-        <text class="auth-meta">订单状态和 nurse_task 同步</text>
-      </view>
-    </view>
+    <view v-if="message" class="success-banner">{{ message }}</view>
+    <view v-if="error" class="error-banner" role="alert">{{ error }}</view>
 
-    <view class="stage-twelve-endpoints">
-      <text v-for="item in endpoints" :key="item" class="tag tag-blue">{{ item }}</text>
-    </view>
-
-    <view v-if="canAdminDispatch" class="dispatch-workbench">
+    <view class="dispatch-workbench dispatch-clean-workbench">
       <view class="dispatch-order-list">
-        <view class="contract-response">
-          <text class="section-mini">待派单订单 WAIT_DISPATCH</text>
-          <text class="permission-main">{{ orders.length }} 单</text>
-          <text class="auth-meta">阶段12只派单，不做取消和改期</text>
-        </view>
+        <view class="dispatch-list-heading"><text>待派订单</text><text>{{ pendingOrders.length }} 笔</text></view>
+        <view v-if="!loading && pendingOrders.length === 0" class="empty-state compact-empty">当前没有需要派单的订单。</view>
         <button
-          v-for="record in orders"
-          :key="record.orderId"
-          class="admin-order-row"
-          :class="{ active: selectedOrderId === record.orderId }"
+          v-for="order in pendingOrders"
+          :key="order.orderId"
+          class="admin-order-row dispatch-order-card"
+          :class="{ active: selectedOrderId === order.orderId }"
           type="button"
-          @click="selectedOrderId = record.orderId"
+          @click="selectedOrderId = order.orderId"
         >
-          <view>
-            <text class="flow-label">{{ record.orderNo }}</text>
-            <text class="flow-time">
-              {{ record.orderId }} · {{ record.elderId }} · {{ record.serviceId }} · {{ record.scheduledStart }}
-            </text>
-          </view>
+          <view><text class="flow-label">{{ order.serviceName || '上门护理服务' }}</text><text class="flow-time">服务对象：{{ order.contactName || '长辈' }}</text><text class="flow-time">预约时间：{{ formatTime(order.scheduledStart) }}</text></view>
           <text class="tag tag-amber">待派单</text>
         </button>
       </view>
 
-      <view class="dispatch-form">
-        <view class="contract-response">
-          <text class="section-mini">POST /api/v1/admin/orders/{orderId}/dispatch</text>
-          <text class="permission-main">{{ selectedOrderId || '请选择订单' }}</text>
-          <text class="auth-meta">targetStatus 固定为 DISPATCHED</text>
-        </view>
+      <view class="dispatch-form dispatch-clean-form">
+        <view class="dispatch-list-heading"><text>安排护理员</text><text v-if="selectedOrder">已选订单</text></view>
+        <view v-if="selectedOrder" class="selected-order-summary"><text>{{ selectedOrder.serviceName || '上门护理服务' }}</text><text>服务对象：{{ selectedOrder.contactName || '长辈' }}</text><text v-if="selectedOrder.contactPhone">联系电话：{{ selectedOrder.contactPhone }}</text><text v-if="selectedOrder.serviceAddress">服务地址：{{ selectedOrder.serviceAddress }}</text><text>预约时间：{{ formatTime(selectedOrder.scheduledStart) }}</text><text v-if="selectedOrder.remark">服务备注：{{ selectedOrder.remark }}</text></view>
+        <view v-else class="empty-state compact-empty">请从左侧选择一笔待派订单。</view>
 
-        <view class="binding-options">
-          <text class="section-mini">护理员 nurseId</text>
-          <view class="segmented-row">
-            <button
-              v-for="item in nurseOptions"
-              :key="item.nurseId"
-              class="choice-button"
-              :class="{ active: dispatchForm.nurseId === item.nurseId }"
-              type="button"
-              @click="dispatchForm.nurseId = item.nurseId"
-            >
-              <text>{{ item.nurseName }}</text>
-            </button>
+        <view class="field">
+          <text>选择护理员</text>
+          <view class="nurse-choice-grid">
+            <button v-for="nurse in nurseOptions" :key="nurse.nurseId" class="choice-button" :class="{ active: dispatchForm.nurseId === nurse.nurseId }" type="button" @click="dispatchForm.nurseId = nurse.nurseId">{{ nurse.nurseName }}</button>
           </view>
         </view>
-
-        <label class="field">
-          <text>派单备注 dispatchRemark</text>
-          <input v-model="dispatchForm.dispatchRemark" class="input" placeholder="阶段12管理端派单" />
-        </label>
-
-        <view class="binding-actions">
-          <button class="hero-action" type="button" :disabled="loading || !selectedOrderId" @click="handleDispatch">
-            <text>确认派单</text>
-          </button>
-          <button class="ghost-action" type="button" @click="resetMock">
-            <text>重置 mock</text>
-          </button>
-        </view>
+        <label class="field"><text>派单备注</text><input v-model.trim="dispatchForm.dispatchRemark" class="input" maxlength="100" placeholder="可填写服务提醒或交接事项" /></label>
+        <button class="hero-action dispatch-submit" type="button" :disabled="loading || !selectedOrder" @click="handleDispatch">确认派单</button>
       </view>
     </view>
 
-    <view v-if="canNurseOperate" class="nurse-task-toolbar">
-      <view class="binding-options">
-        <text class="section-mini">任务状态 status</text>
-        <view class="segmented-row">
-          <button class="choice-button" :class="{ active: taskQuery.status === '' }" type="button" @click="setTaskStatus('')">
-            <text>全部</text>
-          </button>
-          <button
-            v-for="item in ['DISPATCHED', 'ACCEPTED', 'ON_THE_WAY', 'SERVING']"
-            :key="item"
-            class="choice-button"
-            :class="{ active: taskQuery.status === item }"
-            type="button"
-            @click="setTaskStatus(item as NurseTaskStatus)"
-          >
-            <text>{{ statusLabel(item as NurseTaskStatus) }}</text>
-          </button>
-        </view>
+    <view class="task-overview">
+      <view class="dispatch-list-heading"><text>已派护理任务</text><text>{{ tasks.length }} 项</text></view>
+      <view v-if="!loading && tasks.length === 0" class="empty-state compact-empty">暂时没有已派出的护理任务。</view>
+      <view v-for="task in tasks" :key="task.taskId" class="nurse-task-row task-overview-row">
+        <view><text class="flow-label">{{ taskService(task) }}</text><text class="flow-time">服务对象：{{ taskElder(task) }}</text><text class="flow-time">护理员：{{ taskNurse(task) }}　预约时间：{{ formatTime(task.scheduledStart) }}</text><text v-if="task.dispatchRemark" class="flow-time">备注：{{ task.dispatchRemark }}</text></view>
+        <text class="tag" :class="statusClass(task.taskStatus)">{{ statusLabel(task.taskStatus) }}</text>
       </view>
-      <view class="binding-actions">
-        <button class="ghost-action" type="button" @click="loadTasks('normal')">
-          <text>刷新任务</text>
-        </button>
-        <button class="ghost-action" type="button" @click="loadTasks('empty')">
-          <text>空数据 mock</text>
-        </button>
-        <button class="ghost-action" type="button" @click="loadTasks('error')">
-          <text>错误 mock</text>
-        </button>
-      </view>
-    </view>
-
-    <view v-if="message" class="success-banner">
-      <text>{{ message }}</text>
-    </view>
-    <view v-if="error" class="error-banner" role="alert">
-      <text>{{ error }}</text>
-    </view>
-
-    <view v-if="tasks.length === 0 && !error" class="empty-state">
-      <text class="empty-icon">∅</text>
-      <view>
-        <text class="empty-title">暂无护理任务</text>
-        <text class="empty-desc">管理端完成派单后，这里会显示同一笔订单生成的 nurse_task。</text>
-      </view>
-    </view>
-
-    <view v-else class="nurse-task-list">
-      <view v-for="task in tasks" :key="task.taskId" class="nurse-task-row">
-        <view>
-          <text class="flow-label">{{ task.orderNo }} · {{ task.taskId }}</text>
-          <text class="flow-time">
-            {{ task.nurseName }} · {{ task.elderId }} · {{ task.serviceId }} · {{ task.scheduledStart }}
-          </text>
-          <text class="flow-time">{{ task.dispatchRemark }}</text>
-        </view>
-        <view class="order-row-side">
-          <text class="tag" :class="statusClass(task.taskStatus)">{{ statusLabel(task.taskStatus) }}</text>
-          <button
-            v-if="canNurseOperate && task.taskStatus === 'DISPATCHED'"
-            class="ghost-action"
-            type="button"
-            @click="handleAccept(task)"
-          >
-            <text>接单</text>
-          </button>
-          <button
-            v-if="canNurseOperate && task.taskStatus === 'ACCEPTED'"
-            class="ghost-action"
-            type="button"
-            @click="handleStatus(task, 'ON_THE_WAY')"
-          >
-            <text>出发</text>
-          </button>
-          <button
-            v-if="canNurseOperate && task.taskStatus === 'ON_THE_WAY'"
-            class="ghost-action"
-            type="button"
-            @click="handleStatus(task, 'SERVING')"
-          >
-            <text>开始服务</text>
-          </button>
-        </view>
-      </view>
-    </view>
-
-    <view class="contract-response">
-      <text class="section-mini">最近一次阶段12响应 DTO</text>
-      <text v-if="lastActionResponse">
-        {{ lastActionResponse.code }} / {{ lastActionResponse.message }} / {{ lastActionResponse.traceId }}
-      </text>
-      <text v-if="lastActionResponse && lastActionResponse.code === 0">
-        {{ lastActionResponse.data.orderId }} · {{ lastActionResponse.data.orderStatus }} ·
-        {{ lastActionResponse.data.taskId }}
-      </text>
-      <text v-else-if="lastTaskResponse">
-        {{ lastTaskResponse.code }} / {{ lastTaskResponse.message }} / {{ lastTaskResponse.traceId }}
-      </text>
-      <text v-if="lastTaskResponse && lastTaskResponse.code === 0">
-        records {{ lastTaskResponse.data.records.length }} · total {{ lastTaskResponse.data.total }} · page
-        {{ lastTaskResponse.data.page }}
-      </text>
-      <text v-if="lastOrderResponse && canAdminDispatch" class="auth-meta">
-        admin orders {{ lastOrderResponse.data.records.length }} · {{ lastOrderResponse.traceId }}
-      </text>
-      <text v-if="activeTask" class="auth-meta">
-        当前任务：{{ activeTask.orderId }} / {{ activeTask.orderStatus }}
-      </text>
     </view>
   </view>
 </template>
+
+<style scoped>
+.stage-twelve-panel { gap: 20px; padding: 24px; border-radius: 8px; }
+.dispatch-heading, .dispatch-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.section-title { display: block; color: #18312d; font-size: 20px; font-weight: 700; }.dispatch-subtitle { display: block; margin-top: 6px; color: #6c7e79; font-size: 13px; }
+.dispatch-clean-workbench { grid-template-columns: minmax(420px, 1.1fr) minmax(360px, .9fr); align-items: start; }.dispatch-order-list, .dispatch-clean-form, .task-overview { min-width: 0; gap: 12px; }.dispatch-list-heading { color: #254740; font-size: 16px; font-weight: 700; }.dispatch-list-heading text:last-child { color: #72837f; font-size: 13px; font-weight: 400; }
+.dispatch-order-card { min-height: 100px; border-radius: 8px; }.dispatch-order-card .flow-time, .task-overview-row .flow-time { margin-top: 5px; }.selected-order-summary { display: grid; gap: 6px; padding: 14px; border: 1px solid #c8dfda; border-radius: 8px; background: #f3faf8; color: #56716b; font-size: 13px; }.selected-order-summary text:first-child { color: #1e4841; font-size: 16px; font-weight: 700; }
+.field { display: grid; gap: 8px; }.field > text { color: #405a55; font-size: 14px; font-weight: 700; }.nurse-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }.nurse-choice-grid .choice-button { width: 100%; min-height: 42px; }.dispatch-submit { width: 100%; min-height: 44px; border-radius: 6px; }.task-overview { display: grid; gap: 10px; padding-top: 4px; }.task-overview-row { min-height: 96px; border-radius: 8px; }.compact-empty { display: block; box-sizing: border-box; width: 100%; min-height: 72px; padding: 18px; border-radius: 8px; line-height: 1.6; }.success-banner, .error-banner { border-radius: 6px; }
+@media (max-width: 900px) { .dispatch-clean-workbench { grid-template-columns: 1fr; }.nurse-choice-grid { grid-template-columns: 1fr; } }
+</style>

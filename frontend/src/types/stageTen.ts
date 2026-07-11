@@ -18,6 +18,15 @@ export interface FamilyOrderResponse {
   orderId: string;
   orderNo: string;
   orderStatus: OrderStatus;
+  elderId: string;
+  serviceName?: string;
+  serviceAddress?: string;
+  scheduledStart: string;
+  scheduledEnd?: string;
+  servicePrice?: number;
+  contactName?: string;
+  contactPhone?: string;
+  remark: string;
 }
 
 export interface FamilyOrderDetail extends FamilyOrderRequest, FamilyOrderResponse {}

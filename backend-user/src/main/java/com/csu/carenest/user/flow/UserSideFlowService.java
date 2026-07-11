@@ -5,6 +5,7 @@ import com.csu.carenest.user.auth.AuthService;
 import com.csu.carenest.user.auth.OperationLog;
 import com.csu.carenest.user.auth.OperationLogMapper;
 import com.csu.carenest.user.auth.RoleCode;
+import com.csu.carenest.user.common.ApiException;
 import com.csu.carenest.user.common.ForbiddenException;
 import com.csu.carenest.user.common.NotFoundException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -12,10 +13,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -24,6 +28,7 @@ public class UserSideFlowService {
     private static final String ACTIVE = "ACTIVE";
     private static final String PENDING = "PENDING";
     private static final String REVOKED = "REVOKED";
+    private static final String SCOPE_UPDATE_PENDING = "PENDING";
 
     private final AuthService authService;
     private final ElderFamilyBindingMapper bindingMapper;
@@ -34,6 +39,7 @@ public class UserSideFlowService {
     private final ServiceAddressMapper serviceAddressMapper;
     private final OperationLogMapper operationLogMapper;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
 
     public UserSideFlowService(
             AuthService authService,
@@ -44,7 +50,8 @@ public class UserSideFlowService {
             HealthArchiveChangeLogMapper healthArchiveChangeLogMapper,
             ServiceAddressMapper serviceAddressMapper,
             OperationLogMapper operationLogMapper,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            JdbcTemplate jdbcTemplate) {
         this.authService = authService;
         this.bindingMapper = bindingMapper;
         this.authorizationScopeMapper = authorizationScopeMapper;
@@ -54,6 +61,7 @@ public class UserSideFlowService {
         this.serviceAddressMapper = serviceAddressMapper;
         this.operationLogMapper = operationLogMapper;
         this.objectMapper = objectMapper;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
@@ -61,6 +69,13 @@ public class UserSideFlowService {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
         ElderProfile elder = findElderByInviteCode(request.elderInviteCode());
         validateScopes(request.scopeCodes());
+        boolean alreadyBound = bindingMapper.exists(Wrappers.<ElderFamilyBinding>lambdaQuery()
+                .eq(ElderFamilyBinding::getElderId, elder.getElderId())
+                .eq(ElderFamilyBinding::getFamilyId, currentUser.userId())
+                .in(ElderFamilyBinding::getBindingStatus, PENDING, ACTIVE));
+        if (alreadyBound) {
+            throw new ApiException(409, "A pending or active binding already exists");
+        }
 
         ElderFamilyBinding binding = new ElderFamilyBinding();
         binding.setBindingId(nextId("binding"));
@@ -78,7 +93,8 @@ public class UserSideFlowService {
     public List<BindingResponse> familyBindings(String authorization) {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
         return bindingMapper.selectList(Wrappers.<ElderFamilyBinding>lambdaQuery()
-                        .eq(ElderFamilyBinding::getFamilyId, currentUser.userId()))
+                        .eq(ElderFamilyBinding::getFamilyId, currentUser.userId())
+                        .ne(ElderFamilyBinding::getBindingStatus, REVOKED))
                 .stream()
                 .map(binding -> toBindingResponse(binding, requireElder(binding.getElderId())))
                 .toList();
@@ -93,7 +109,8 @@ public class UserSideFlowService {
         }
         List<String> elderIds = elders.stream().map(ElderProfile::getElderId).toList();
         return bindingMapper.selectList(Wrappers.<ElderFamilyBinding>lambdaQuery()
-                        .in(ElderFamilyBinding::getElderId, elderIds))
+                        .in(ElderFamilyBinding::getElderId, elderIds)
+                        .ne(ElderFamilyBinding::getBindingStatus, REVOKED))
                 .stream()
                 .map(binding -> toBindingResponse(
                         binding,
@@ -112,13 +129,28 @@ public class UserSideFlowService {
         if (!isElderSelf(currentUser, elder)) {
             throw new ForbiddenException();
         }
-        if (!request.scopeCodes().isEmpty()) {
+        if (PENDING.equals(binding.getBindingStatus()) && !request.scopeCodes().isEmpty()) {
             validateScopes(request.scopeCodes());
             binding.setScopeCodes(writeJson(request.scopeCodes()));
         }
-        binding.setBindingStatus(ACTIVE);
+        boolean approvingScopeUpdate = ACTIVE.equals(binding.getBindingStatus())
+                && SCOPE_UPDATE_PENDING.equals(binding.getScopeUpdateStatus());
+        if (approvingScopeUpdate) {
+            binding.setScopeCodes(binding.getPendingScopeCodes());
+            binding.setPendingScopeCodes(null);
+            binding.setScopeUpdateStatus(null);
+        } else {
+            binding.setBindingStatus(ACTIVE);
+        }
         binding.setApproverUserId(currentUser.userId());
         bindingMapper.updateById(binding);
+        if (approvingScopeUpdate) {
+            // MyBatis-Plus ignores null fields on updateById, so clear the pending proposal explicitly.
+            bindingMapper.update(null, Wrappers.<ElderFamilyBinding>lambdaUpdate()
+                    .eq(ElderFamilyBinding::getBindingId, binding.getBindingId())
+                    .set(ElderFamilyBinding::getPendingScopeCodes, null)
+                    .set(ElderFamilyBinding::getScopeUpdateStatus, null));
+        }
         saveOperationLog(currentUser, "APPROVE_BINDING", "ELDER_FAMILY_BINDING", binding.getBindingId(), binding);
         return toBindingResponse(binding, elder);
     }
@@ -127,11 +159,21 @@ public class UserSideFlowService {
     public BindingResponse updateBindingScopes(String authorization, String bindingId, BindingRequest request) {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
         ElderFamilyBinding binding = requireFamilyBinding(currentUser.userId(), bindingId);
-        if (!ACTIVE.equals(binding.getBindingStatus())) {
+        if (!ACTIVE.equals(binding.getBindingStatus()) && !PENDING.equals(binding.getBindingStatus())) {
             throw new ForbiddenException();
         }
         validateScopes(request.scopeCodes());
-        binding.setScopeCodes(writeJson(request.scopeCodes()));
+        if (PENDING.equals(binding.getBindingStatus())) {
+            binding.setRelationType(request.relationType());
+            binding.setScopeCodes(writeJson(request.scopeCodes()));
+            binding.setPendingScopeCodes(null);
+            binding.setScopeUpdateStatus(null);
+            bindingMapper.updateById(binding);
+            saveOperationLog(currentUser, "UPDATE_PENDING_BINDING", "ELDER_FAMILY_BINDING", binding.getBindingId(), binding);
+            return toBindingResponse(binding, requireElder(binding.getElderId()));
+        }
+        binding.setPendingScopeCodes(writeJson(request.scopeCodes()));
+        binding.setScopeUpdateStatus(SCOPE_UPDATE_PENDING);
         bindingMapper.updateById(binding);
         saveOperationLog(currentUser, "UPDATE_BINDING_SCOPES", "ELDER_FAMILY_BINDING", binding.getBindingId(), binding);
         return toBindingResponse(binding, requireElder(binding.getElderId()));
@@ -149,10 +191,12 @@ public class UserSideFlowService {
 
     public List<ElderProfileResponse> familyElders(String authorization) {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
+        Set<String> elderIds = new LinkedHashSet<>();
         return bindingMapper.selectList(Wrappers.<ElderFamilyBinding>lambdaQuery()
                         .eq(ElderFamilyBinding::getFamilyId, currentUser.userId())
                         .eq(ElderFamilyBinding::getBindingStatus, ACTIVE))
                 .stream()
+                .filter(binding -> elderIds.add(binding.getElderId()))
                 .map(binding -> toProfileResponse(requireElder(binding.getElderId())))
                 .toList();
     }
@@ -203,8 +247,11 @@ public class UserSideFlowService {
             ServiceAddressRequest request) {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
         requireActiveBinding(currentUser.userId(), elderId);
-        if (Boolean.TRUE.equals(request.isDefault())) {
+        if (Boolean.TRUE.equals(request.isDefault()) || serviceAddressMapper.selectCount(Wrappers.<ServiceAddress>lambdaQuery()
+                .eq(ServiceAddress::getElderId, elderId)
+                .eq(ServiceAddress::getFamilyId, currentUser.userId())) == 0) {
             clearDefaultAddress(elderId, currentUser.userId());
+            request = new ServiceAddressRequest(request.contactName(), request.contactPhone(), request.regionCode(), request.detailAddress(), true);
         }
         ServiceAddress address = new ServiceAddress();
         address.setAddressId(nextId("address"));
@@ -223,12 +270,14 @@ public class UserSideFlowService {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
         ServiceAddress address = requireAddress(addressId);
         requireAddressOwner(currentUser.userId(), address);
+        requireActiveBinding(currentUser.userId(), address.getElderId());
         if (Boolean.TRUE.equals(request.isDefault())) {
             clearDefaultAddress(address.getElderId(), currentUser.userId());
         }
         applyAddressRequest(address, request);
         serviceAddressMapper.updateById(address);
-        return toAddressResponse(address);
+        ensureDefaultAddress(address.getElderId(), currentUser.userId());
+        return toAddressResponse(requireAddress(addressId));
     }
 
     @Transactional
@@ -236,6 +285,19 @@ public class UserSideFlowService {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
         ServiceAddress address = requireAddress(addressId);
         requireAddressOwner(currentUser.userId(), address);
+        requireActiveBinding(currentUser.userId(), address.getElderId());
+        if (Boolean.TRUE.equals(address.getIsDefault())) {
+            ServiceAddress replacement = serviceAddressMapper.selectOne(Wrappers.<ServiceAddress>lambdaQuery()
+                    .eq(ServiceAddress::getElderId, address.getElderId())
+                    .eq(ServiceAddress::getFamilyId, currentUser.userId())
+                    .ne(ServiceAddress::getAddressId, addressId)
+                    .orderByAsc(ServiceAddress::getAddressId)
+                    .last("LIMIT 1"));
+            if (replacement != null) {
+                replacement.setIsDefault(true);
+                serviceAddressMapper.updateById(replacement);
+            }
+        }
         serviceAddressMapper.deleteById(addressId);
         return toAddressResponse(address);
     }
@@ -398,6 +460,25 @@ public class UserSideFlowService {
                 .eq(ServiceAddress::getIsDefault, true));
     }
 
+    private void ensureDefaultAddress(String elderId, String familyId) {
+        boolean hasDefault = serviceAddressMapper.exists(Wrappers.<ServiceAddress>lambdaQuery()
+                .eq(ServiceAddress::getElderId, elderId)
+                .eq(ServiceAddress::getFamilyId, familyId)
+                .eq(ServiceAddress::getIsDefault, true));
+        if (hasDefault) {
+            return;
+        }
+        ServiceAddress fallback = serviceAddressMapper.selectOne(Wrappers.<ServiceAddress>lambdaQuery()
+                .eq(ServiceAddress::getElderId, elderId)
+                .eq(ServiceAddress::getFamilyId, familyId)
+                .orderByAsc(ServiceAddress::getAddressId)
+                .last("LIMIT 1"));
+        if (fallback != null) {
+            fallback.setIsDefault(true);
+            serviceAddressMapper.updateById(fallback);
+        }
+    }
+
     private void applyAddressRequest(ServiceAddress address, ServiceAddressRequest request) {
         address.setContactName(request.contactName());
         address.setContactPhone(request.contactPhone());
@@ -415,19 +496,40 @@ public class UserSideFlowService {
                 elder.getElderName(),
                 binding.getRelationType(),
                 binding.getBindingStatus(),
-                readScopes(binding.getScopeCodes())
+                readScopes(binding.getScopeCodes()),
+                binding.getPendingScopeCodes() == null ? List.of() : readScopes(binding.getPendingScopeCodes()),
+                SCOPE_UPDATE_PENDING.equals(binding.getScopeUpdateStatus())
         );
     }
 
     private ElderProfileResponse toProfileResponse(ElderProfile elder) {
-        return new ElderProfileResponse(elder.getElderId(), profileVersion(elder));
+        ElderContact primaryContact = elderContactMapper.selectOne(Wrappers.<ElderContact>lambdaQuery()
+                .eq(ElderContact::getElderId, elder.getElderId())
+                .eq(ElderContact::getIsPrimary, true));
+        EmergencyContactRequest contact = primaryContact == null
+                ? new EmergencyContactRequest(
+                        elder.getEmergencyContactName(), elder.getEmergencyContactPhone(), "OTHER")
+                : new EmergencyContactRequest(
+                        primaryContact.getContactName(), primaryContact.getContactPhone(), primaryContact.getRelationType());
+        return new ElderProfileResponse(
+                elder.getElderId(),
+                profileVersion(elder),
+                elder.getElderName(),
+                elder.getGender(),
+                elder.getBirthDate() == null ? "" : elder.getBirthDate().toString(),
+                elder.getCareLevel(),
+                List.of(contact));
     }
 
     private ServiceAddressResponse toAddressResponse(ServiceAddress address) {
         return new ServiceAddressResponse(
                 address.getAddressId(),
-                address.getProvinceCode() + address.getCityCode() + address.getRegionCode() + address.getDetailAddress(),
-                address.getIsDefault()
+                address.getRegionCode() + " " + address.getDetailAddress(),
+                address.getIsDefault(),
+                address.getContactName(),
+                address.getContactPhone(),
+                address.getRegionCode(),
+                address.getDetailAddress()
         );
     }
 

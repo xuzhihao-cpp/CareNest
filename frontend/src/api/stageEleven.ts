@@ -25,6 +25,17 @@ const defaultQuery: AdminOrderQuery = {
   dateTo: ''
 };
 
+type BackendOrder = Omit<AdminOrderRecord, 'statusLogs'>;
+type BackendOrderPage = { records: BackendOrder[]; total: number; page: number; size: number };
+
+function fromBackendOrder(record: BackendOrder): AdminOrderRecord {
+  return { ...record, statusLogs: [] };
+}
+
+function fromBackendPage(page: BackendOrderPage): AdminOrderPageResult {
+  return { ...page, records: page.records.map(fromBackendOrder) };
+}
+
 function seedRecords(): AdminOrderRecord[] {
   return [...(adminOrdersMock as ApiResponse<AdminOrderPageResult>).data.records];
 }
@@ -130,12 +141,15 @@ export async function getAdminOrders(
     return success(toPage(readRecords().filter((item) => matchQuery(item, nextQuery)), nextQuery), 'mock-11-admin-orders');
   }
 
-  return request<AdminOrderPageResult>({
+  const response = await request<BackendOrderPage>({
     method: 'GET',
     url: adminOrdersPath,
     data: nextQuery,
     mock: adminOrdersMock as ApiResponse<AdminOrderPageResult>
   });
+  return response.code === 0
+    ? success(fromBackendPage(response.data), response.traceId)
+    : (response as unknown as ApiResponse<AdminOrderPageResult>);
 }
 
 export async function getAdminOrderDetail(orderId: string): Promise<ApiResponse<AdminOrderPageResult>> {
@@ -151,8 +165,11 @@ export async function getAdminOrderDetail(orderId: string): Promise<ApiResponse<
     return success(toPage([found], defaultQuery), 'mock-11-admin-order-detail');
   }
 
-  return request<AdminOrderPageResult>({
+  const response = await request<BackendOrder>({
     method: 'GET',
     url: adminOrderDetailPath(orderId)
   });
+  return response.code === 0
+    ? success(toPage([fromBackendOrder(response.data)], defaultQuery), response.traceId)
+    : (response as unknown as ApiResponse<AdminOrderPageResult>);
 }

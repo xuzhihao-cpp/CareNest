@@ -320,10 +320,10 @@ onMounted(() => {
       <button class="ghost-action" type="button" @click="loadRecords('normal')">
         <text>读取记录</text>
       </button>
-      <button class="ghost-action" type="button" @click="loadRecords('empty')">
+      <button class="ghost-action test-action" type="button" @click="loadRecords('empty')">
         <text>空数据 mock</text>
       </button>
-      <button class="ghost-action" type="button" @click="loadRecords('error')">
+      <button class="ghost-action test-action" type="button" @click="loadRecords('error')">
         <text>错误 mock</text>
       </button>
     </view>

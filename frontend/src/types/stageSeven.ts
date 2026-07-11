@@ -13,4 +13,4 @@ export type ElderProfileScenario = 'normal' | 'empty' | 'error';
 export type EmergencyContact = Schemas['EmergencyContactRequest'];
 export type ElderProfileRequest = Schemas['ElderProfileRequest'];
 export type ElderProfileResponse = Schemas['ElderProfileResponse'];
-export type FamilyElderListResult = Schemas['ElderProfileResponse'][];
+export type FamilyElderListResult = ElderProfileResponse[];

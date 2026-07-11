@@ -102,10 +102,10 @@ onMounted(() => refreshStatus());
       <button class="hero-action" type="button" :disabled="loading" @click="refreshStatus('normal')">
         <text>Refresh</text>
       </button>
-      <button class="ghost-action" type="button" :disabled="loading" @click="refreshStatus('empty')">
+      <button class="ghost-action test-action" type="button" :disabled="loading" @click="refreshStatus('empty')">
         <text>Empty mock</text>
       </button>
-      <button class="ghost-action" type="button" :disabled="loading" @click="refreshStatus('error')">
+      <button class="ghost-action test-action" type="button" :disabled="loading" @click="refreshStatus('error')">
         <text>Error mock</text>
       </button>
     </view>

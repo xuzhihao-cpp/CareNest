@@ -37,8 +37,13 @@ export interface AdminOrderRecord {
   orderStatus: AdminOrderStatus;
   elderId: string;
   serviceId: string;
+  serviceName?: string;
   addressId: string;
+  serviceAddress?: string;
   scheduledStart: string;
+  contactName?: string;
+  contactPhone?: string;
+  remark?: string;
   statusLogs: OrderStatusLogRecord[];
 }
 

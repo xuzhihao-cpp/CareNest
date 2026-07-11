@@ -6,6 +6,7 @@ package com.csu.carenest.careadmin.phase.dto;
 public record ServiceItemResponse(
         String serviceId,
         String serviceName,
+        String category,
         Integer price,
         Integer durationMinutes,
         String status

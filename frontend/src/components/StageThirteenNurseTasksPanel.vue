@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { displayLabel } from '@/utils/displayLabels';
 import {
   getNurseTaskDetail,
   getNurseTasks,
@@ -53,10 +54,26 @@ const canUsePanel = computed(
 const consistentCount = computed(() => records.value.filter((item) => item.statusConsistent).length);
 
 function statusLabel(value: string) {
+  const orderLabels: Record<string, string> = { COMPLETED: '已完成', CANCELED: '已取消' };
+  if (orderLabels[value]) return orderLabels[value];
   return statusOptions.find((item) => item.value === value)?.label ?? value;
 }
 
+function displayTaskStatus(task: NurseTaskDetailRecord) {
+  if (task.orderStatus === 'CANCELED') return 'CANCELED';
+  if (task.orderStatus === 'WAIT_REPORT') return 'WAIT_REPORT';
+  if (task.orderStatus === 'WAIT_CONFIRM') return 'WAIT_CONFIRM';
+  if (task.orderStatus === 'COMPLETED') return 'COMPLETED';
+  return task.taskStatus;
+}
+
 function statusClass(value: string) {
+  if (value === 'COMPLETED') {
+    return 'tag-teal';
+  }
+  if (value === 'CANCELED') {
+    return 'tag-coral';
+  }
   if (value === 'DISPATCHED') {
     return 'tag-amber';
   }
@@ -167,10 +184,10 @@ onMounted(() => {
         <button class="hero-action" type="button" :disabled="loading" @click="loadTasks('normal')">
           <text>读取任务</text>
         </button>
-        <button class="ghost-action" type="button" @click="loadTasks('empty')">
+        <button class="ghost-action test-action" type="button" @click="loadTasks('empty')">
           <text>空数据 mock</text>
         </button>
-        <button class="ghost-action" type="button" @click="loadTasks('error')">
+        <button class="ghost-action test-action" type="button" @click="loadTasks('error')">
           <text>错误 mock</text>
         </button>
       </view>
@@ -199,10 +216,10 @@ onMounted(() => {
             <text class="flow-time">
               {{ task.nurseName }} · {{ task.elderId }} · {{ task.serviceId }} · {{ task.scheduledStart }}
             </text>
-            <text class="flow-time">order {{ task.orderStatus }} / task {{ task.taskStatus }}</text>
+            <text class="flow-time">当前状态：{{ statusLabel(displayTaskStatus(task)) }}</text>
           </view>
           <view class="order-row-side">
-            <text class="tag" :class="statusClass(task.taskStatus)">{{ statusLabel(task.taskStatus) }}</text>
+            <text class="tag" :class="statusClass(displayTaskStatus(task))">{{ statusLabel(displayTaskStatus(task)) }}</text>
             <text class="tag" :class="task.statusConsistent ? 'tag-teal' : 'tag-coral'">
               {{ task.statusConsistent ? '状态一致' : '状态不一致' }}
             </text>
@@ -217,10 +234,10 @@ onMounted(() => {
         <view class="contract-response">
           <text class="section-mini">GET /api/v1/nurse/tasks/{taskId}</text>
           <text v-if="selectedDetail" class="permission-main">
-            {{ selectedDetail.taskId }} · {{ selectedDetail.taskStatus }}
+            {{ selectedDetail.taskId }} · {{ displayLabel(selectedDetail.taskStatus) }}
           </text>
           <text v-if="selectedDetail" class="auth-meta">
-            订单 {{ selectedDetail.orderId }} · {{ selectedDetail.orderSnapshotStatus }}
+            订单 {{ selectedDetail.orderId }} · {{ displayLabel(selectedDetail.orderSnapshotStatus) }}
           </text>
           <text v-else class="auth-meta">请选择任务查看详情</text>
         </view>
@@ -229,11 +246,11 @@ onMounted(() => {
           <view class="status-log-row">
             <text class="flow-label">一致性校验</text>
             <text class="flow-time">
-              taskStatus {{ selectedDetail.taskStatus }} / orderStatus {{ selectedDetail.orderSnapshotStatus }}
+              任务：{{ displayLabel(selectedDetail.taskStatus) }} · 订单：{{ displayLabel(selectedDetail.orderSnapshotStatus) }}
             </text>
           </view>
           <view v-for="item in selectedDetail.statusTimeline" :key="`${item.status}-${item.at}`" class="status-log-row">
-            <text class="flow-label">{{ item.status }} · {{ item.label }}</text>
+            <text class="flow-label">{{ displayLabel(item.status) }} · {{ item.label }}</text>
             <text class="flow-time">{{ item.at }}</text>
           </view>
         </view>

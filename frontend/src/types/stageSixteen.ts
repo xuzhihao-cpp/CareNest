@@ -17,6 +17,12 @@ export interface ReportAckResponse {
   reportStatus: ServiceReportStatus;
 }
 
+export interface PendingReportRecord {
+  reportId: string;
+  orderId: string;
+  elderName: string;
+}
+
 export interface ReportAckRecord extends ReportAckResponse {
   reportId: string;
   orderId: string;

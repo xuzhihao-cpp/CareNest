@@ -17,6 +17,7 @@ import type {
   ReportAckRecord,
   ReportAckRequest,
   ReportAckResponse,
+  PendingReportRecord,
   ServiceReportStatus,
   StageSixteenScenario
 } from '@/types/stageSixteen';
@@ -24,6 +25,24 @@ import type {
 const elderAckPath = (reportId: string) => `/elder/reports/${reportId}/ack`;
 const familyAckPath = (reportId: string) => `/family/reports/${reportId}/ack`;
 const archiveDecisionPath = (reportId: string) => `/family/reports/${reportId}/archive-suggestions/decision`;
+const elderPendingReportsPath = '/elder/reports/pending';
+const familyPendingReportsPath = '/family/reports/pending';
+const elderReportsPath = '/elder/reports';
+const familyReportsPath = '/family/reports';
+
+export async function getPendingReports(role: 'ELDER' | 'FAMILY'): Promise<ApiResponse<PendingReportRecord[]>> {
+  return request<PendingReportRecord[]>({
+    method: 'GET',
+    url: role === 'ELDER' ? elderPendingReportsPath : familyPendingReportsPath
+  });
+}
+
+export async function getUserReports(role: 'ELDER' | 'FAMILY'): Promise<ApiResponse<PendingReportRecord[]>> {
+  return request<PendingReportRecord[]>({
+    method: 'GET',
+    url: role === 'ELDER' ? elderReportsPath : familyReportsPath
+  });
+}
 
 export const STAGE_SIXTEEN_ACKS_STORAGE_KEY = 'carenest_stage_16_report_acks';
 export const STAGE_SIXTEEN_REVIEW_TASKS_STORAGE_KEY = 'carenest_stage_16_health_review_tasks';

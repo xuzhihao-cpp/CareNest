@@ -2,9 +2,9 @@
 import { computed, onMounted, ref } from 'vue';
 import {
   createServiceItem,
+  deleteServiceItem,
   getServiceItems,
   getStageEightEndpointSummary,
-  resetStageEightMockRecords,
   updateServiceItem
 } from '@/api/stageEight';
 import type { ApiResponse } from '@/types/api';
@@ -13,7 +13,6 @@ import type { AuthUser } from '@/types/stageTwo';
 import type {
   ServiceItemRequest,
   ServiceItemResponse,
-  ServiceItemScenario,
   ServiceStatus
 } from '@/types/stageEight';
 
@@ -71,7 +70,7 @@ function applyRecord(record: ServiceItemResponse) {
   selectedServiceId.value = record.serviceId;
   form.value = {
     serviceName: record.serviceName,
-    category: record.category,
+    category: record.category || 'CUSTOM',
     price: record.price,
     durationMinutes: record.durationMinutes,
     status: record.status
@@ -91,19 +90,18 @@ function applyMutation(response: ApiResponse<ServiceItemResponse>, successText: 
   }
 }
 
-async function loadServices(scenario: ServiceItemScenario = 'normal') {
+async function loadServices() {
   if (!isAdmin.value && !isFamily.value) {
     return;
   }
   loading.value = true;
-  const response = await getServiceItems(scenario, isAdmin.value);
+  const response = await getServiceItems('normal', isAdmin.value);
   loading.value = false;
   lastTraceId.value = response.traceId;
   if (response.code === 0) {
     records.value = response.data.records;
     error.value = '';
-    message.value =
-      scenario === 'empty' ? '已切换为空服务 mock' : scenario === 'normal' ? '服务项目列表已加载' : message.value;
+    message.value = '服务项目列表已加载';
     if (isAdmin.value && records.value.length > 0 && !selectedServiceId.value) {
       applyRecord(records.value[0]);
     }
@@ -142,10 +140,36 @@ async function toggleServiceStatus(record: ServiceItemResponse) {
   await loadServices();
 }
 
-async function resetNormalMock() {
-  selectedServiceId.value = '';
-  resetStageEightMockRecords();
-  await loadServices('normal');
+async function deleteService(record: ServiceItemResponse) {
+  loading.value = true;
+  const response = await deleteServiceItem(record.serviceId);
+  loading.value = false;
+  lastResponse.value = response;
+  lastTraceId.value = response.traceId;
+  if (response.code !== 0) {
+    message.value = '';
+    error.value = response.code === 409 ? '该服务已有历史订单，不能删除；可先将其下架。' : response.message;
+    return;
+  }
+  if (selectedServiceId.value === record.serviceId) {
+    selectedServiceId.value = '';
+  }
+  message.value = '服务项目已删除。';
+  error.value = '';
+  await loadServices();
+}
+
+function confirmDeleteService(record: ServiceItemResponse) {
+  uni.showModal({
+    title: '删除服务项目',
+    content: `确定删除“${record.serviceName}”吗？删除后无法恢复。`,
+    confirmText: '删除',
+    success: (result) => {
+      if (result.confirm) {
+        void deleteService(record);
+      }
+    }
+  });
 }
 
 onMounted(() => {
@@ -179,22 +203,27 @@ onMounted(() => {
 
     <view v-if="roleCode === 'ADMIN'" class="service-admin-workbench">
       <view class="service-list">
-        <button
+        <view
           v-for="record in records"
           :key="record.serviceId"
           class="service-row"
           :class="{ active: selectedServiceId === record.serviceId }"
-          type="button"
           @click="applyRecord(record)"
         >
-          <view>
+          <view class="service-row-main">
             <text class="flow-label">{{ record.serviceName }}</text>
-            <text class="flow-time">
-              {{ record.serviceId }} · {{ labelCategory(record.category) }} · {{ record.durationMinutes }} 分钟
-            </text>
+            <view class="service-row-meta"><text>分类：{{ labelCategory(record.category) }}</text><text>时长：{{ record.durationMinutes }} 分钟</text><text class="service-row-price">价格：¥{{ record.price }}</text></view>
           </view>
-          <text class="tag" :class="statusClass(record.status)">{{ labelStatus(record.status) }}</text>
-        </button>
+          <view class="service-row-side">
+            <text class="tag" :class="statusClass(record.status)">{{ labelStatus(record.status) }}</text>
+            <button class="row-action" type="button" :disabled="loading" @click.stop="toggleServiceStatus(record)">
+              {{ record.status === 'ON_SHELF' ? '下架' : '上架' }}
+            </button>
+            <button class="row-action danger-action" type="button" :disabled="loading" @click.stop="confirmDeleteService(record)">
+              删除
+            </button>
+          </view>
+        </view>
       </view>
 
       <view class="service-editor">
@@ -203,7 +232,7 @@ onMounted(() => {
           <input v-model="form.serviceName" class="input" placeholder="服务项目名称" />
         </label>
 
-        <view class="binding-options">
+        <view class="binding-options service-category-options">
           <text class="section-mini">分类 category</text>
           <view class="segmented-row">
             <button
@@ -230,7 +259,7 @@ onMounted(() => {
           </label>
         </view>
 
-        <view class="binding-options">
+        <view class="binding-options service-status-options">
           <text class="section-mini">上下架 status</text>
           <view class="segmented-row">
             <button
@@ -246,21 +275,12 @@ onMounted(() => {
           </view>
         </view>
 
-        <view class="binding-actions">
+        <view class="binding-actions service-editor-actions">
           <button class="hero-action" type="button" :disabled="loading" @click="createService">
             <text>新增服务</text>
           </button>
           <button class="ghost-action" type="button" :disabled="loading || !selectedServiceId" @click="saveSelectedService">
             <text>保存所选</text>
-          </button>
-          <button class="ghost-action" type="button" @click="resetNormalMock">
-            <text>重置 mock</text>
-          </button>
-          <button class="ghost-action" type="button" @click="loadServices('empty')">
-            <text>空数据 mock</text>
-          </button>
-          <button class="ghost-action" type="button" @click="loadServices('error')">
-            <text>错误 mock</text>
           </button>
         </view>
       </view>
@@ -279,29 +299,7 @@ onMounted(() => {
           <text class="tag tag-teal">{{ labelStatus(record.status) }}</text>
         </view>
       </view>
-      <view class="binding-actions">
-        <button class="ghost-action" type="button" @click="loadServices('normal')">
-          <text>正常 mock</text>
-        </button>
-        <button class="ghost-action" type="button" @click="loadServices('empty')">
-          <text>空数据 mock</text>
-        </button>
-        <button class="ghost-action" type="button" @click="loadServices('error')">
-          <text>错误 mock</text>
-        </button>
-      </view>
-    </view>
-
-    <view v-if="roleCode === 'ADMIN' && records.length > 0" class="binding-actions">
-      <button
-        v-for="record in records"
-        :key="`${record.serviceId}-toggle`"
-        class="ghost-action"
-        type="button"
-        @click="toggleServiceStatus(record)"
-      >
-        <text>{{ record.serviceName }} {{ record.status === 'ON_SHELF' ? '下架' : '上架' }}</text>
-      </button>
+      <view class="binding-actions"><button class="ghost-action" type="button" @click="loadServices"><text>刷新服务列表</text></button></view>
     </view>
 
     <view v-if="message" class="success-banner">
@@ -324,7 +322,7 @@ onMounted(() => {
       <text>{{ lastResponse.code }} / {{ lastResponse.message }} / {{ lastResponse.traceId }}</text>
       <text v-if="lastResponse.code === 0">
         {{ lastResponse.data.serviceId }} · {{ lastResponse.data.serviceName }} · ¥{{ lastResponse.data.price }} ·
-        {{ lastResponse.data.durationMinutes }} 分钟 · {{ lastResponse.data.status }}
+        {{ lastResponse.data.durationMinutes }} 分钟 · {{ labelStatus(lastResponse.data.status) }}
       </text>
     </view>
   </view>

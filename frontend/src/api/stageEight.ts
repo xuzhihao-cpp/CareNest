@@ -108,11 +108,19 @@ export async function getServiceItems(
     return success(toPage(records), 'mock-8-service-items');
   }
 
-  return request<ServiceItemPageResult>({
+  const response = await request<Array<ServiceItemResponse> | ServiceItemPageResult>({
     method: 'GET',
     url: serviceItemsPath,
     mock: serviceItemsMock as ApiResponse<ServiceItemPageResult>
   });
+  if (response.code !== 0) {
+    return response as ApiResponse<ServiceItemPageResult>;
+  }
+  const records = Array.isArray(response.data) ? response.data : response.data.records;
+  return success(
+    toPage(records),
+    response.traceId
+  );
 }
 
 export async function getServiceItem(serviceId: string): Promise<ApiResponse<ServiceItemResponse>> {
@@ -191,6 +199,28 @@ export async function updateServiceItem(
     method: 'PUT',
     url: adminServiceItemPath(serviceId),
     data: payload
+  });
+}
+
+export async function deleteServiceItem(serviceId: string): Promise<ApiResponse<ServiceItemResponse>> {
+  if (isMockEnabled()) {
+    const denied = requireAdmin({} as ServiceItemResponse);
+    if (denied) {
+      return denied;
+    }
+    const records = readRecords();
+    const index = records.findIndex((item) => item.serviceId === serviceId);
+    if (index < 0) {
+      return failure(404, '服务项目不存在', {} as ServiceItemResponse, 'mock-8-service-delete-not-found');
+    }
+    const [deleted] = records.splice(index, 1);
+    writeRecords(records);
+    return success(deleted, 'mock-8-service-delete');
+  }
+
+  return request<ServiceItemResponse>({
+    method: 'DELETE',
+    url: adminServiceItemPath(serviceId)
   });
 }
 

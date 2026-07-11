@@ -25,6 +25,26 @@ const defaultQuery: StageThirteenTaskQuery = {
   size: 10
 };
 
+type BackendTask = Omit<NurseTaskRecord, 'orderNo' | 'nurseName' | 'elderId' | 'serviceId' | 'addressId'>;
+type BackendTaskPage = { records: BackendTask[]; total: number; page: number; size: number };
+
+function fromBackendTask(task: BackendTask): NurseTaskDetailRecord {
+  const normalized: NurseTaskRecord = {
+    ...task,
+    orderNo: task.orderId,
+    nurseName: task.nurseId,
+    elderId: '',
+    serviceId: '',
+    addressId: ''
+  };
+  return {
+    ...normalized,
+    orderSnapshotStatus: normalized.orderStatus,
+    statusConsistent: normalized.taskStatus === normalized.orderStatus,
+    statusTimeline: [{ status: normalized.taskStatus, label: normalized.dispatchRemark || 'Task status', at: normalized.scheduledStart }]
+  };
+}
+
 function seedTasks(): NurseTaskDetailRecord[] {
   return [...(nurseTasksMock as ApiResponse<StageThirteenTaskPageResult>).data.records];
 }
@@ -130,12 +150,15 @@ export async function getNurseTasks(
     );
   }
 
-  return request<StageThirteenTaskPageResult>({
+  const response = await request<BackendTaskPage>({
     method: 'GET',
     url: nurseTasksPath,
     data: nextQuery,
     mock: nurseTasksMock as ApiResponse<StageThirteenTaskPageResult>
   });
+  return response.code === 0
+    ? success({ ...response.data, records: response.data.records.map(fromBackendTask) }, response.traceId)
+    : (response as unknown as ApiResponse<StageThirteenTaskPageResult>);
 }
 
 export async function getNurseTaskDetail(taskId: string): Promise<ApiResponse<StageThirteenTaskPageResult>> {
@@ -151,8 +174,11 @@ export async function getNurseTaskDetail(taskId: string): Promise<ApiResponse<St
     return success(toPage([found], defaultQuery), 'mock-13-nurse-task-detail');
   }
 
-  return request<StageThirteenTaskPageResult>({
+  const response = await request<BackendTask>({
     method: 'GET',
     url: nurseTaskDetailPath(taskId)
   });
+  return response.code === 0
+    ? success(toPage([fromBackendTask(response.data)], defaultQuery), response.traceId)
+    : (response as unknown as ApiResponse<StageThirteenTaskPageResult>);
 }

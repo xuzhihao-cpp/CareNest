@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { displayLabel } from '@/utils/displayLabels';
 import { getApiBase, isMockEnabled } from '@/api/client';
 import { mockServerPaths } from '@/api/mockServerPaths';
 import { getHealth, getRoutes, getVersion } from '@/api/stageOne';
@@ -11,7 +12,6 @@ import type { AuthMenu, AuthUser } from '@/types/stageTwo';
 import type { HomeQuickAction, HomeSummaryResponse } from '@/types/stageFour';
 import EmptyState from './EmptyState.vue';
 import StageEightServiceItemsPanel from './StageEightServiceItemsPanel.vue';
-import StageEighteenIntegrationPanel from './StageEighteenIntegrationPanel.vue';
 import StageElevenAdminOrdersPanel from './StageElevenAdminOrdersPanel.vue';
 import StageFifteenServiceReportPanel from './StageFifteenServiceReportPanel.vue';
 import StageFourteenCareExecutionPanel from './StageFourteenCareExecutionPanel.vue';
@@ -283,13 +283,13 @@ onMounted(async () => {
     <main class="workspace">
       <view class="workspace-header">
         <view>
-          <text class="eyebrow">{{ currentRoute.roleCode }}</text>
+          <text class="eyebrow">{{ displayLabel(currentRoute.roleCode) }}</text>
           <text class="title">{{ currentRoute.appTitle }}</text>
           <text class="subtitle">{{ visualProfile.subtitle }}</text>
         </view>
         <view class="status-strip" aria-label="接口状态">
           <text class="status-pill" :class="health?.status === 'UP' ? 'status-up' : 'status-wait'">
-            ⌁ {{ health?.status ?? 'LOADING' }}
+            ⌁ {{ health?.status === 'UP' ? '服务正常' : '连接中' }}
           </text>
         </view>
       </view>
@@ -299,7 +299,7 @@ onMounted(async () => {
           <text class="section-mini">当前用户</text>
           <text class="auth-name">{{ authUser?.displayName ?? '未登录' }}</text>
           <text class="auth-meta">
-            {{ authUser ? authUser.roles.join(' / ') : authMessage || '401 未登录' }}
+            {{ authUser ? authUser.roles.map(displayLabel).join(' / ') : authMessage || '401 未登录' }}
           </text>
         </view>
         <view class="auth-menu-list">
@@ -472,12 +472,6 @@ onMounted(async () => {
 
       <StageSeventeenOrderChangePanel
         v-if="props.roleCode === 'ADMIN' || props.roleCode === 'FAMILY'"
-        :role-code="props.roleCode"
-        :auth-user="authUser"
-      />
-
-      <StageEighteenIntegrationPanel
-        v-if="props.roleCode === 'ADMIN' || props.roleCode === 'NURSE' || props.roleCode === 'FAMILY' || props.roleCode === 'ELDER'"
         :role-code="props.roleCode"
         :auth-user="authUser"
       />
