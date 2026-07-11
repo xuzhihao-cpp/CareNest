@@ -26,6 +26,7 @@ export interface FamilyOrderResponse {
   servicePrice?: number;
   contactName?: string;
   contactPhone?: string;
+  remark: string;
 }
 
 export interface FamilyOrderDetail extends FamilyOrderRequest, FamilyOrderResponse {}

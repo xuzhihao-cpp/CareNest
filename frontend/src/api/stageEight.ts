@@ -202,6 +202,28 @@ export async function updateServiceItem(
   });
 }
 
+export async function deleteServiceItem(serviceId: string): Promise<ApiResponse<ServiceItemResponse>> {
+  if (isMockEnabled()) {
+    const denied = requireAdmin({} as ServiceItemResponse);
+    if (denied) {
+      return denied;
+    }
+    const records = readRecords();
+    const index = records.findIndex((item) => item.serviceId === serviceId);
+    if (index < 0) {
+      return failure(404, '服务项目不存在', {} as ServiceItemResponse, 'mock-8-service-delete-not-found');
+    }
+    const [deleted] = records.splice(index, 1);
+    writeRecords(records);
+    return success(deleted, 'mock-8-service-delete');
+  }
+
+  return request<ServiceItemResponse>({
+    method: 'DELETE',
+    url: adminServiceItemPath(serviceId)
+  });
+}
+
 export function resetStageEightMockRecords() {
   writeRecords(seedRecords());
 }

@@ -39,6 +39,7 @@ export interface AdminOrderRecord {
   serviceId: string;
   serviceName?: string;
   addressId: string;
+  serviceAddress?: string;
   scheduledStart: string;
   contactName?: string;
   contactPhone?: string;

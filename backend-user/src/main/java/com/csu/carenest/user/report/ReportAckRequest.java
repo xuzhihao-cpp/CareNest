@@ -9,7 +9,7 @@ import java.util.List;
 
 public record ReportAckRequest(
         @NotBlank String ackResult,
-        @NotNull @Min(1) @Max(5) Integer satisfaction,
+        @NotNull @Min(0) @Max(100) Integer satisfaction,
         @NotBlank String remark,
         @NotNull List<String> acceptedSuggestionIds
 ) {

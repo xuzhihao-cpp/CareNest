@@ -155,6 +155,9 @@ async function handleFamilyReschedule(scenario: StageSeventeenScenario = 'normal
   loading.value = false;
   applyResponse(response, '预约时间已更新');
   await refreshOrders();
+  if (response.code === 0) {
+    uni.$emit('carenest-orders-updated', response.data.orderId);
+  }
 }
 
 async function handleFamilyCancel(scenario: StageSeventeenScenario = 'normal') {
@@ -163,6 +166,9 @@ async function handleFamilyCancel(scenario: StageSeventeenScenario = 'normal') {
   loading.value = false;
   applyResponse(response, '家属端已取消订单，管理端同步显示 CANCELED');
   await refreshOrders();
+  if (response.code === 0) {
+    uni.$emit('carenest-orders-updated', response.data.orderId);
+  }
 }
 
 async function handleAdminCancel(scenario: StageSeventeenScenario = 'normal') {
@@ -171,6 +177,9 @@ async function handleAdminCancel(scenario: StageSeventeenScenario = 'normal') {
   loading.value = false;
   applyResponse(response, '管理端已取消订单，家属端同步显示 CANCELED');
   await refreshOrders();
+  if (response.code === 0) {
+    uni.$emit('carenest-orders-updated', response.data.orderId);
+  }
 }
 
 async function resetMock() {

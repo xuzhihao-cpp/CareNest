@@ -29,7 +29,11 @@ const defaultTaskQuery: NurseTaskQuery = {
   size: 10
 };
 
-type BackendTask = Omit<NurseTaskRecord, 'orderNo' | 'nurseName' | 'elderId' | 'serviceId' | 'addressId'>;
+type BackendTask = Omit<NurseTaskRecord, 'orderNo' | 'nurseName' | 'elderId' | 'elderName' | 'serviceId' | 'serviceName' | 'addressId'> & {
+  nurseName?: string;
+  elderName?: string;
+  serviceName?: string;
+};
 type BackendTaskPage = { records: BackendTask[]; total: number; page: number; size: number };
 type BackendTaskAction = Omit<TaskActionResponse, 'orderNo'>;
 
@@ -37,9 +41,11 @@ function fromBackendTask(task: BackendTask): NurseTaskRecord {
   return {
     ...task,
     orderNo: task.orderId,
-    nurseName: task.nurseId,
+    nurseName: task.nurseName || task.nurseId,
     elderId: '',
+    elderName: task.elderName || '',
     serviceId: '',
+    serviceName: task.serviceName || '',
     addressId: ''
   };
 }

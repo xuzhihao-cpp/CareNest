@@ -74,6 +74,14 @@ public class CareAdminPhaseController {
         return ApiResponse.success(phaseService.updateServiceItem(currentUser, serviceId, request));
     }
 
+    @DeleteMapping("/admin/service-items/{serviceId}")
+    public ApiResponse<ServiceItemResponse> deleteServiceItem(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable("serviceId") String serviceId) {
+        CurrentUser currentUser = authService.requireAnyRole(authorization, RoleCode.ADMIN, RoleCode.CUSTOMER_SERVICE);
+        return ApiResponse.success(phaseService.deleteServiceItem(currentUser, serviceId));
+    }
+
     @GetMapping("/orders/{orderId}")
     public ApiResponse<OrderDetailResponse> orderDetail(
             @RequestHeader("Authorization") String authorization,

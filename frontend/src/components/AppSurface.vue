@@ -12,7 +12,6 @@ import type { AuthMenu, AuthUser } from '@/types/stageTwo';
 import type { HomeQuickAction, HomeSummaryResponse } from '@/types/stageFour';
 import EmptyState from './EmptyState.vue';
 import StageEightServiceItemsPanel from './StageEightServiceItemsPanel.vue';
-import StageEighteenIntegrationPanel from './StageEighteenIntegrationPanel.vue';
 import StageElevenAdminOrdersPanel from './StageElevenAdminOrdersPanel.vue';
 import StageFifteenServiceReportPanel from './StageFifteenServiceReportPanel.vue';
 import StageFourteenCareExecutionPanel from './StageFourteenCareExecutionPanel.vue';
@@ -473,12 +472,6 @@ onMounted(async () => {
 
       <StageSeventeenOrderChangePanel
         v-if="props.roleCode === 'ADMIN' || props.roleCode === 'FAMILY'"
-        :role-code="props.roleCode"
-        :auth-user="authUser"
-      />
-
-      <StageEighteenIntegrationPanel
-        v-if="props.roleCode === 'ADMIN' || props.roleCode === 'NURSE' || props.roleCode === 'FAMILY' || props.roleCode === 'ELDER'"
         :role-code="props.roleCode"
         :auth-user="authUser"
       />

@@ -54,10 +54,26 @@ const canUsePanel = computed(
 const consistentCount = computed(() => records.value.filter((item) => item.statusConsistent).length);
 
 function statusLabel(value: string) {
+  const orderLabels: Record<string, string> = { COMPLETED: '已完成', CANCELED: '已取消' };
+  if (orderLabels[value]) return orderLabels[value];
   return statusOptions.find((item) => item.value === value)?.label ?? value;
 }
 
+function displayTaskStatus(task: NurseTaskDetailRecord) {
+  if (task.orderStatus === 'CANCELED') return 'CANCELED';
+  if (task.orderStatus === 'WAIT_REPORT') return 'WAIT_REPORT';
+  if (task.orderStatus === 'WAIT_CONFIRM') return 'WAIT_CONFIRM';
+  if (task.orderStatus === 'COMPLETED') return 'COMPLETED';
+  return task.taskStatus;
+}
+
 function statusClass(value: string) {
+  if (value === 'COMPLETED') {
+    return 'tag-teal';
+  }
+  if (value === 'CANCELED') {
+    return 'tag-coral';
+  }
   if (value === 'DISPATCHED') {
     return 'tag-amber';
   }
@@ -200,10 +216,10 @@ onMounted(() => {
             <text class="flow-time">
               {{ task.nurseName }} · {{ task.elderId }} · {{ task.serviceId }} · {{ task.scheduledStart }}
             </text>
-            <text class="flow-time">订单：{{ displayLabel(task.orderStatus) }} · 任务：{{ displayLabel(task.taskStatus) }}</text>
+            <text class="flow-time">当前状态：{{ statusLabel(displayTaskStatus(task)) }}</text>
           </view>
           <view class="order-row-side">
-            <text class="tag" :class="statusClass(task.taskStatus)">{{ statusLabel(task.taskStatus) }}</text>
+            <text class="tag" :class="statusClass(displayTaskStatus(task))">{{ statusLabel(displayTaskStatus(task)) }}</text>
             <text class="tag" :class="task.statusConsistent ? 'tag-teal' : 'tag-coral'">
               {{ task.statusConsistent ? '状态一致' : '状态不一致' }}
             </text>

@@ -49,7 +49,8 @@ function toResponse(record: FamilyOrderDetail): FamilyOrderResponse {
     orderNo: record.orderNo,
     orderStatus: record.orderStatus,
     elderId: record.elderId,
-    scheduledStart: record.scheduledStart
+    scheduledStart: record.scheduledStart,
+    remark: record.remark
   };
 }
 

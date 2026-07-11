@@ -6,6 +6,7 @@ const uni = (uniPlugin as unknown as { default?: typeof uniPlugin }).default ?? 
 export default defineConfig({
   plugins: [uni()],
   server: {
+    host: '0.0.0.0',
     port: 5173,
     strictPort: true,
     proxy: {

@@ -134,6 +134,18 @@ public class CareAdminPhaseService {
         return serviceItem(serviceId);
     }
 
+    @Transactional
+    public ServiceItemResponse deleteServiceItem(CurrentUser currentUser, String serviceId) {
+        ServiceItemResponse serviceItem = serviceItem(serviceId);
+        int orderCount = count("SELECT COUNT(*) FROM nursing_order WHERE service_id = ?", serviceId);
+        if (orderCount > 0) {
+            throw new ConflictException();
+        }
+        jdbcTemplate.update("DELETE FROM service_item WHERE service_id = ?", serviceId);
+        saveOperationLog(currentUser, "DELETE_SERVICE_ITEM", "SERVICE_ITEM", serviceId, serviceItem, null);
+        return serviceItem;
+    }
+
     public OrderDetailResponse orderDetail(CurrentUser currentUser, String orderId) {
         OrderDetailResponse detail = mapOrderDetail(requireRow(orderDetailSql() + " WHERE o.order_id = ?", orderId));
         if (currentUser.hasRole(RoleCode.ADMIN) || currentUser.hasRole(RoleCode.CUSTOMER_SERVICE)) {
@@ -142,10 +154,18 @@ public class CareAdminPhaseService {
         if (currentUser.hasRole(RoleCode.FAMILY) && currentUser.userId().equals(detail.familyId())) {
             return detail;
         }
+        if (currentUser.hasRole(RoleCode.ELDER) && elderOwnsOrder(currentUser.userId(), detail.elderId())) {
+            return detail;
+        }
         if (currentUser.hasRole(RoleCode.NURSE) && taskBelongsToNurse(orderId, currentUser.userId())) {
             return detail;
         }
         throw new ForbiddenException();
+    }
+
+    private boolean elderOwnsOrder(String userId, String elderId) {
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM elder_profile WHERE elder_id = ? AND user_id = ?", Integer.class, elderId, userId);
+        return count != null && count > 0;
     }
 
     public PageData<OrderDetailResponse> adminOrders(
@@ -190,7 +210,7 @@ public class CareAdminPhaseService {
         }
         Map<String, Object> address = requireRow("""
                 SELECT * FROM service_address
-                WHERE address_id = ? AND elder_id = ? AND family_id = ? AND is_default = 1
+                WHERE address_id = ? AND elder_id = ? AND family_id = ?
                 """, request.addressId(), request.elderId(), currentUser.userId());
         Map<String, Object> service = requireRow("""
                 SELECT * FROM service_item
@@ -253,6 +273,12 @@ public class CareAdminPhaseService {
             throw new BusinessRuleException();
         }
 
+        Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", string(task, "order_id"));
+        String currentOrderStatus = string(order, "order_status");
+        if (COMPLETED.equals(targetStatus) && CANCELED.equals(currentOrderStatus)) {
+            throw new ConflictException();
+        }
+
         String timeColumn = switch (targetStatus) {
             case SERVING -> ", started_at = CURRENT_TIMESTAMP";
             case COMPLETED -> ", completed_at = CURRENT_TIMESTAMP";
@@ -261,7 +287,11 @@ public class CareAdminPhaseService {
         jdbcTemplate.update("UPDATE nurse_task SET task_status = ?" + timeColumn + " WHERE task_id = ?",
                 targetStatus, taskId);
 
-        Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", string(task, "order_id"));
+        // Historical records can contain a serving task whose order was already finalized.
+        // Finish the task without attempting to move that finalized order backwards.
+        if (COMPLETED.equals(targetStatus) && List.of(WAIT_CONFIRM, COMPLETED).contains(currentOrderStatus)) {
+            return new DispatchResponse(string(task, "order_id"), currentOrderStatus, taskId);
+        }
         String orderTargetStatus = COMPLETED.equals(targetStatus) ? WAIT_REPORT : targetStatus;
         changeOrderStatus(currentUser.userId(), order, orderTargetStatus, "UPDATE_TASK_STATUS");
         return new DispatchResponse(string(task, "order_id"), orderTargetStatus, taskId);
@@ -288,6 +318,9 @@ public class CareAdminPhaseService {
                         rs.getString("task_id"),
                         rs.getString("order_id"),
                         rs.getString("nurse_id"),
+                        rs.getString("nurse_name"),
+                        rs.getString("elder_name"),
+                        rs.getString("service_name"),
                         rs.getString("task_status"),
                         rs.getString("order_status"),
                         rs.getString("dispatch_remark"),
@@ -306,6 +339,9 @@ public class CareAdminPhaseService {
                 string(task, "task_id"),
                 string(task, "order_id"),
                 string(task, "nurse_id"),
+                string(task, "nurse_name"),
+                string(task, "elder_name"),
+                string(task, "service_name"),
                 string(task, "task_status"),
                 string(task, "order_status"),
                 string(task, "dispatch_remark"),
@@ -316,6 +352,14 @@ public class CareAdminPhaseService {
     @Transactional
     public ServiceRecordResponse createServiceRecord(CurrentUser currentUser, String orderId, ServiceRecordRequest request) {
         Map<String, Object> task = requireTaskByOrderAndUser(orderId, currentUser);
+        if (!COMPLETED.equals(string(task, "task_status"))) {
+            throw new BusinessRuleException();
+        }
+        Integer existingRecords = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM care_service_record WHERE order_id = ?", Integer.class, orderId);
+        if (existingRecords != null && existingRecords > 0) {
+            throw new ConflictException();
+        }
         String recordId = nextId("record");
         jdbcTemplate.update("""
                 INSERT INTO care_service_record
@@ -364,16 +408,30 @@ public class CareAdminPhaseService {
     public ReportResponse generateReport(CurrentUser currentUser, String orderId) {
         orderDetail(currentUser, orderId);
         Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+        Integer recordCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM care_service_record WHERE order_id = ?", Integer.class, orderId);
+        if (recordCount == null || recordCount == 0) {
+            throw new BusinessRuleException();
+        }
         String reportId = existingReportId(orderId);
+        String summary = "本次服务已完成，服务记录和生命体征信息已整理完成。";
+        String advice = latestAdvice(orderId);
         if (reportId == null) {
             reportId = nextId("report");
-            String summary = "Service completed. Care records and vital signs are ready.";
-            String advice = latestAdvice(orderId);
             jdbcTemplate.update("""
                     INSERT INTO service_report
                       (report_id, order_id, report_status, summary, nursing_advice, generated_by)
                     VALUES (?, ?, ?, ?, ?, ?)
                     """, reportId, orderId, WAIT_CONFIRM, summary, advice, currentUser.userId());
+            insertReportItems(reportId, orderId, advice);
+        } else {
+            jdbcTemplate.update("""
+                    UPDATE service_report
+                    SET report_status = ?, summary = ?, nursing_advice = ?, generated_by = ?,
+                        generated_at = CURRENT_TIMESTAMP, confirmed_at = NULL
+                    WHERE report_id = ?
+                    """, WAIT_CONFIRM, summary, advice, currentUser.userId(), reportId);
+            jdbcTemplate.update("DELETE FROM service_report_item WHERE report_id = ?", reportId);
             insertReportItems(reportId, orderId, advice);
         }
         changeOrderStatus(currentUser.userId(), order, WAIT_CONFIRM, "GENERATE_SERVICE_REPORT");
@@ -423,7 +481,10 @@ public class CareAdminPhaseService {
         requireFamilyOrderChangeAccess(currentUser, order);
         requireText(request.reason());
         LocalDateTime scheduledStart = parseDateTime(request.newScheduledStart());
-        jdbcTemplate.update("UPDATE nursing_order SET scheduled_start_at = ? WHERE order_id = ?", scheduledStart, orderId);
+        Integer durationMinutes = jdbcTemplate.queryForObject(
+                "SELECT duration_minutes FROM service_item WHERE service_id = ?", Integer.class, string(order, "service_id"));
+        jdbcTemplate.update("UPDATE nursing_order SET scheduled_start_at = ?, scheduled_end_at = ? WHERE order_id = ?",
+                scheduledStart, scheduledStart.plusMinutes(durationMinutes == null ? 60 : durationMinutes), orderId);
         saveStatusLog(orderId, string(order, "order_status"), string(order, "order_status"), currentUser.userId(), request.reason());
         return new OrderChangeResponse(orderId, string(order, "order_status"), scheduledStart.toString());
     }
@@ -519,9 +580,15 @@ public class CareAdminPhaseService {
     private String taskSql() {
         return """
                 SELECT nt.task_id, nt.order_id, nt.nurse_id, nt.task_status, nt.dispatch_remark,
-                       o.order_status, o.scheduled_start_at
+                       o.order_status, o.scheduled_start_at, service.service_name,
+                       COALESCE(elder_user.display_name, '长辈') AS elder_name,
+                       COALESCE(nurse_user.display_name, nt.nurse_id) AS nurse_name
                 FROM nurse_task nt
                 JOIN nursing_order o ON o.order_id = nt.order_id
+                LEFT JOIN service_item service ON service.service_id = o.service_id
+                LEFT JOIN elder_profile elder ON elder.elder_id = o.elder_id
+                LEFT JOIN sys_user elder_user ON elder_user.user_id = elder.user_id
+                LEFT JOIN sys_user nurse_user ON nurse_user.user_id = nt.nurse_id
                 """;
     }
 

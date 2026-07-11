@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import {
   createServiceItem,
+  deleteServiceItem,
   getServiceItems,
   getStageEightEndpointSummary,
   updateServiceItem
@@ -139,6 +140,38 @@ async function toggleServiceStatus(record: ServiceItemResponse) {
   await loadServices();
 }
 
+async function deleteService(record: ServiceItemResponse) {
+  loading.value = true;
+  const response = await deleteServiceItem(record.serviceId);
+  loading.value = false;
+  lastResponse.value = response;
+  lastTraceId.value = response.traceId;
+  if (response.code !== 0) {
+    message.value = '';
+    error.value = response.code === 409 ? '该服务已有历史订单，不能删除；可先将其下架。' : response.message;
+    return;
+  }
+  if (selectedServiceId.value === record.serviceId) {
+    selectedServiceId.value = '';
+  }
+  message.value = '服务项目已删除。';
+  error.value = '';
+  await loadServices();
+}
+
+function confirmDeleteService(record: ServiceItemResponse) {
+  uni.showModal({
+    title: '删除服务项目',
+    content: `确定删除“${record.serviceName}”吗？删除后无法恢复。`,
+    confirmText: '删除',
+    success: (result) => {
+      if (result.confirm) {
+        void deleteService(record);
+      }
+    }
+  });
+}
+
 onMounted(() => {
   loadServices();
 });
@@ -177,16 +210,17 @@ onMounted(() => {
           :class="{ active: selectedServiceId === record.serviceId }"
           @click="applyRecord(record)"
         >
-          <view>
+          <view class="service-row-main">
             <text class="flow-label">{{ record.serviceName }}</text>
-            <text class="flow-time">
-              {{ record.serviceId }} · {{ labelCategory(record.category) }} · {{ record.durationMinutes }} 分钟
-            </text>
+            <view class="service-row-meta"><text>分类：{{ labelCategory(record.category) }}</text><text>时长：{{ record.durationMinutes }} 分钟</text><text class="service-row-price">价格：¥{{ record.price }}</text></view>
           </view>
           <view class="service-row-side">
             <text class="tag" :class="statusClass(record.status)">{{ labelStatus(record.status) }}</text>
             <button class="row-action" type="button" :disabled="loading" @click.stop="toggleServiceStatus(record)">
               {{ record.status === 'ON_SHELF' ? '下架' : '上架' }}
+            </button>
+            <button class="row-action danger-action" type="button" :disabled="loading" @click.stop="confirmDeleteService(record)">
+              删除
             </button>
           </view>
         </view>

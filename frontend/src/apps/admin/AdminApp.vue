@@ -6,16 +6,15 @@ import StageElevenAdminOrdersPanel from '@/components/StageElevenAdminOrdersPane
 import StageTwelveDispatchPanel from '@/components/StageTwelveDispatchPanel.vue';
 import StageFifteenServiceReportPanel from '@/components/StageFifteenServiceReportPanel.vue';
 import StageSeventeenOrderChangePanel from '@/components/StageSeventeenOrderChangePanel.vue';
-import StageEighteenIntegrationPanel from '@/components/StageEighteenIntegrationPanel.vue';
 import type { AuthUser } from '@/types/stageTwo';
 
-type AdminView = 'overview' | 'services' | 'orders' | 'reports' | 'system';
+type AdminView = 'overview' | 'services' | 'orders' | 'reports';
 const view = ref<AdminView>('overview');
 const user = ref<AuthUser | null>(null);
 const allowed = computed(() => user.value?.roles.includes('ADMIN'));
 const nav: Array<{ key: AdminView; label: string }> = [
   { key: 'overview', label: '运营概览' }, { key: 'services', label: '服务项目' },
-  { key: 'orders', label: '订单调度' }, { key: 'reports', label: '服务报告' }, { key: 'system', label: '系统检查' }
+  { key: 'orders', label: '订单调度' }, { key: 'reports', label: '服务报告' }
 ];
 async function loadUser() { const response = await getCurrentUser(); if (response.code === 0) user.value = response.data; }
 async function signOut() { await logout(); uni.redirectTo({ url: '/pages/login/index' }); }
@@ -40,7 +39,6 @@ onMounted(loadUser);
         <StageEightServiceItemsPanel v-if="view === 'services'" role-code="ADMIN" :auth-user="user" />
         <template v-if="view === 'orders'"><StageElevenAdminOrdersPanel role-code="ADMIN" :auth-user="user" /><StageTwelveDispatchPanel role-code="ADMIN" :auth-user="user" /><StageSeventeenOrderChangePanel role-code="ADMIN" :auth-user="user" /></template>
         <StageFifteenServiceReportPanel v-if="view === 'reports'" role-code="ADMIN" :auth-user="user" />
-        <StageEighteenIntegrationPanel v-if="view === 'system'" role-code="ADMIN" :auth-user="user" />
       </template>
     </main>
   </view>

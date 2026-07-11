@@ -40,7 +40,9 @@ export interface NurseTaskRecord {
   nurseId: string;
   nurseName: string;
   elderId: string;
+  elderName?: string;
   serviceId: string;
+  serviceName?: string;
   addressId: string;
   scheduledStart: string;
   dispatchRemark: string;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { getFamilyElders } from '@/api/stageSeven';
 import { getServiceItems } from '@/api/stageEight';
 import { getServiceAddresses } from '@/api/stageNine';
@@ -73,6 +73,12 @@ function formatAppointmentTime(value: string) {
 
 function orderServiceName(order: FamilyOrderResponse) {
   return order.serviceName || '护理服务';
+}
+
+function orderStatusClass(status: FamilyOrderResponse['orderStatus']) {
+  if (status === 'COMPLETED') return 'tag-teal';
+  if (status === 'CANCELED') return 'tag-coral';
+  return 'tag-amber';
 }
 
 function setDefaultAddress() {
@@ -159,17 +165,31 @@ async function submitOrder() {
   }
 }
 
-async function viewOrderDetail(orderId: string) {
+async function viewOrderDetail(orderId: string, silent = false) {
   const response = await getOrderDetail(orderId);
   lastTraceId.value = response.traceId;
   if (response.code === 0) {
     selectedOrderDetail.value = response.data;
-    message.value = '订单详情已读取';
+    if (!silent) {
+      message.value = '订单详情已读取';
+    }
     error.value = '';
   } else {
     error.value = `${response.code} ${response.message}`;
     message.value = '';
   }
+}
+
+async function refreshOrderPresentation() {
+  await loadOrders('normal', true);
+  const detailOrderId = selectedOrderDetail.value?.orderId ?? orders.value[0]?.orderId;
+  if (detailOrderId) {
+    await viewOrderDetail(detailOrderId, true);
+  }
+}
+
+function handleOrdersUpdated() {
+  void refreshOrderPresentation();
 }
 
 async function resetNormalMock() {
@@ -183,7 +203,12 @@ onMounted(async () => {
     return;
   }
   await loadPrerequisites();
-  await loadOrders();
+  await refreshOrderPresentation();
+  uni.$on('carenest-orders-updated', handleOrdersUpdated);
+});
+
+onUnmounted(() => {
+  uni.$off('carenest-orders-updated', handleOrdersUpdated);
 });
 </script>
 
@@ -253,7 +278,7 @@ onMounted(async () => {
           <text class="section-mini">地址 addressId</text>
           <view class="order-option-list">
             <button
-              v-for="address in addresses.filter((item) => item.isDefault)"
+              v-for="address in addresses"
               :key="address.addressId"
               class="order-option"
               :class="{ active: form.addressId === address.addressId }"
@@ -262,7 +287,7 @@ onMounted(async () => {
             >
               <view>
                 <text class="flow-label">{{ address.fullAddress }}</text>
-                <text class="flow-time">{{ address.addressId }}</text>
+                <text class="flow-time">{{ address.isDefault ? '默认服务地址' : '备用服务地址' }}</text>
               </view>
               <text class="tag" :class="address.isDefault ? 'tag-teal' : 'tag-blue'">
                 {{ address.isDefault ? '默认地址' : '备用地址' }}
@@ -332,7 +357,7 @@ onMounted(async () => {
           <text class="flow-time">预约时间：{{ formatAppointmentTime(order.scheduledStart || '') }}</text>
         </view>
         <view class="order-row-side">
-          <text class="tag tag-amber">{{ displayLabel(order.orderStatus) }}</text>
+          <text class="tag" :class="orderStatusClass(order.orderStatus)">{{ displayLabel(order.orderStatus) }}</text>
           <button class="ghost-action" type="button" @click="viewOrderDetail(order.orderId)">
             <text>查看服务安排</text>
           </button>
@@ -354,6 +379,7 @@ onMounted(async () => {
         <text v-if="selectedOrderDetail.serviceAddress">服务地址：{{ selectedOrderDetail.serviceAddress }}</text>
         <text v-if="selectedOrderDetail.contactName">联系人：{{ selectedOrderDetail.contactName }}</text>
         <text v-if="selectedOrderDetail.contactPhone">联系电话：{{ selectedOrderDetail.contactPhone }}</text>
+        <text v-if="selectedOrderDetail.remark">服务备注：{{ selectedOrderDetail.remark }}</text>
       </view>
       <button class="ghost-action" type="button" @click="selectedOrderDetail = null">
         <text>收起详情</text>

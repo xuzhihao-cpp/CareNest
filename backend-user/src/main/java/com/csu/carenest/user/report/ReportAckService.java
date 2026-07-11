@@ -73,6 +73,35 @@ public class ReportAckService {
         return acknowledge(currentUser, RoleCode.ELDER.name(), context, request);
     }
 
+    public List<PendingReportResponse> pendingReports(String authorization, RoleCode role) {
+        return reports(authorization, role, true);
+    }
+
+    public List<PendingReportResponse> reports(String authorization, RoleCode role, boolean pendingOnly) {
+        AuthService.CurrentUser currentUser = requireRole(authorization, role);
+        var query = Wrappers.<ServiceReport>query();
+        if (pendingOnly) {
+            query.eq("report_status", "WAIT_CONFIRM");
+        }
+        return reportMapper.selectList(query.orderByDesc("generated_at"))
+                .stream()
+                .map(report -> {
+                    NursingOrder order = orderMapper.selectById(report.getOrderId());
+                    if (order == null) return null;
+                    try {
+                        if (role == RoleCode.ELDER) requireElderSelf(currentUser, order);
+                        else requireFamilyReportConfirm(currentUser, order);
+                    } catch (ForbiddenException ignored) {
+                        return null;
+                    }
+                    ElderProfile elder = elderProfileMapper.selectById(order.getElderId());
+                    return new PendingReportResponse(report.getReportId(), order.getOrderId(),
+                            elder == null ? "长辈" : elder.getElderName());
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
     @Transactional
     public ReportAckResponse familyAck(String authorization, String reportId, ReportAckRequest request) {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
