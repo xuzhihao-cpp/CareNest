@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS elder_family_binding (
   family_id VARCHAR(32) NOT NULL COMMENT '家属ID',
   binding_status VARCHAR(32) NOT NULL COMMENT '绑定状态',
   scope_codes JSON NOT NULL COMMENT '授权范围编码列表',
+  pending_scope_codes JSON NULL COMMENT '待长辈确认的授权范围',
+  scope_update_status VARCHAR(32) NULL COMMENT '授权变更状态',
   relation_type VARCHAR(32) DEFAULT NULL COMMENT '亲属关系',
   inviter_user_id VARCHAR(32) DEFAULT NULL COMMENT '邀请人用户ID',
   approver_user_id VARCHAR(32) DEFAULT NULL COMMENT '确认人用户ID',
