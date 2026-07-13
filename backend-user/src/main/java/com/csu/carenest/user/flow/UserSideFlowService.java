@@ -8,6 +8,7 @@ import com.csu.carenest.user.auth.RoleCode;
 import com.csu.carenest.user.common.ApiException;
 import com.csu.carenest.user.common.ForbiddenException;
 import com.csu.carenest.user.common.NotFoundException;
+import com.csu.carenest.user.redis.HomeCacheInvalidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +41,7 @@ public class UserSideFlowService {
     private final OperationLogMapper operationLogMapper;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final HomeCacheInvalidator homeCacheInvalidator;
 
     public UserSideFlowService(
             AuthService authService,
@@ -51,7 +53,8 @@ public class UserSideFlowService {
             ServiceAddressMapper serviceAddressMapper,
             OperationLogMapper operationLogMapper,
             ObjectMapper objectMapper,
-            JdbcTemplate jdbcTemplate) {
+            JdbcTemplate jdbcTemplate,
+            HomeCacheInvalidator homeCacheInvalidator) {
         this.authService = authService;
         this.bindingMapper = bindingMapper;
         this.authorizationScopeMapper = authorizationScopeMapper;
@@ -62,6 +65,7 @@ public class UserSideFlowService {
         this.operationLogMapper = operationLogMapper;
         this.objectMapper = objectMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.homeCacheInvalidator = homeCacheInvalidator;
     }
 
     @Transactional
@@ -87,6 +91,7 @@ public class UserSideFlowService {
         binding.setInviterUserId(currentUser.userId());
         bindingMapper.insert(binding);
         saveOperationLog(currentUser, "CREATE_BINDING", "ELDER_FAMILY_BINDING", binding.getBindingId(), binding);
+        evictBindingHomesAfterCommit(currentUser.userId(), elder);
         return toBindingResponse(binding, elder);
     }
 
@@ -152,6 +157,7 @@ public class UserSideFlowService {
                     .set(ElderFamilyBinding::getScopeUpdateStatus, null));
         }
         saveOperationLog(currentUser, "APPROVE_BINDING", "ELDER_FAMILY_BINDING", binding.getBindingId(), binding);
+        evictBindingHomesAfterCommit(binding.getFamilyId(), elder);
         return toBindingResponse(binding, elder);
     }
 
@@ -170,13 +176,17 @@ public class UserSideFlowService {
             binding.setScopeUpdateStatus(null);
             bindingMapper.updateById(binding);
             saveOperationLog(currentUser, "UPDATE_PENDING_BINDING", "ELDER_FAMILY_BINDING", binding.getBindingId(), binding);
-            return toBindingResponse(binding, requireElder(binding.getElderId()));
+            ElderProfile elder = requireElder(binding.getElderId());
+            evictBindingHomesAfterCommit(binding.getFamilyId(), elder);
+            return toBindingResponse(binding, elder);
         }
         binding.setPendingScopeCodes(writeJson(request.scopeCodes()));
         binding.setScopeUpdateStatus(SCOPE_UPDATE_PENDING);
         bindingMapper.updateById(binding);
         saveOperationLog(currentUser, "UPDATE_BINDING_SCOPES", "ELDER_FAMILY_BINDING", binding.getBindingId(), binding);
-        return toBindingResponse(binding, requireElder(binding.getElderId()));
+        ElderProfile elder = requireElder(binding.getElderId());
+        evictBindingHomesAfterCommit(binding.getFamilyId(), elder);
+        return toBindingResponse(binding, elder);
     }
 
     @Transactional
@@ -186,7 +196,9 @@ public class UserSideFlowService {
         binding.setBindingStatus(REVOKED);
         bindingMapper.updateById(binding);
         saveOperationLog(currentUser, "REVOKE_BINDING", "ELDER_FAMILY_BINDING", binding.getBindingId(), binding);
-        return toBindingResponse(binding, requireElder(binding.getElderId()));
+        ElderProfile elder = requireElder(binding.getElderId());
+        evictBindingHomesAfterCommit(binding.getFamilyId(), elder);
+        return toBindingResponse(binding, elder);
     }
 
     public List<ElderProfileResponse> familyElders(String authorization) {
@@ -226,6 +238,7 @@ public class UserSideFlowService {
         elderProfileMapper.updateById(elder);
         upsertPrimaryContact(elderId, primaryContact);
         saveHealthChangeLog(currentUser, elderId, beforeValue, elder);
+        evictProfileHomesAfterCommit(elder);
         return toProfileResponse(elder);
     }
 
@@ -259,6 +272,7 @@ public class UserSideFlowService {
         address.setFamilyId(currentUser.userId());
         applyAddressRequest(address, request);
         serviceAddressMapper.insert(address);
+        evictAddressHomesAfterCommit(currentUser.userId(), elderId);
         return toAddressResponse(address);
     }
 
@@ -277,6 +291,7 @@ public class UserSideFlowService {
         applyAddressRequest(address, request);
         serviceAddressMapper.updateById(address);
         ensureDefaultAddress(address.getElderId(), currentUser.userId());
+        evictAddressHomesAfterCommit(currentUser.userId(), address.getElderId());
         return toAddressResponse(requireAddress(addressId));
     }
 
@@ -299,6 +314,7 @@ public class UserSideFlowService {
             }
         }
         serviceAddressMapper.deleteById(addressId);
+        evictAddressHomesAfterCommit(currentUser.userId(), address.getElderId());
         return toAddressResponse(address);
     }
 
@@ -571,6 +587,30 @@ public class UserSideFlowService {
         log.setAfterValue(writeJson(afterValue));
         log.setTraceId("flow-" + UUID.randomUUID().toString().replace("-", ""));
         operationLogMapper.insert(log);
+    }
+
+    private void evictBindingHomesAfterCommit(String familyId, ElderProfile elder) {
+        homeCacheInvalidator.evictAfterCommit(RoleCode.FAMILY.name(), familyId);
+        homeCacheInvalidator.evictAfterCommit(RoleCode.ELDER.name(), elder.getUserId());
+    }
+
+    private void evictProfileHomesAfterCommit(ElderProfile elder) {
+        homeCacheInvalidator.evictAfterCommit(RoleCode.ELDER.name(), elder.getUserId());
+        List<ElderFamilyBinding> bindings = bindingMapper.selectList(
+                Wrappers.<ElderFamilyBinding>lambdaQuery()
+                        .eq(ElderFamilyBinding::getElderId, elder.getElderId())
+                        .eq(ElderFamilyBinding::getBindingStatus, ACTIVE));
+        for (ElderFamilyBinding binding : bindings) {
+            homeCacheInvalidator.evictAfterCommit(RoleCode.FAMILY.name(), binding.getFamilyId());
+        }
+    }
+
+    private void evictAddressHomesAfterCommit(String familyId, String elderId) {
+        homeCacheInvalidator.evictAfterCommit(RoleCode.FAMILY.name(), familyId);
+        ElderProfile elder = elderProfileMapper.selectById(elderId);
+        if (elder != null) {
+            homeCacheInvalidator.evictAfterCommit(RoleCode.ELDER.name(), elder.getUserId());
+        }
     }
 
     private String provinceCode(String regionCode) {

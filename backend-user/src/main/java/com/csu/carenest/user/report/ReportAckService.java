@@ -12,22 +12,31 @@ import com.csu.carenest.user.flow.ElderFamilyBinding;
 import com.csu.carenest.user.flow.ElderFamilyBindingMapper;
 import com.csu.carenest.user.flow.ElderProfile;
 import com.csu.carenest.user.flow.ElderProfileMapper;
+import com.csu.carenest.user.redis.RedisKeyFactory;
+import com.csu.carenest.user.redis.RedisLockService;
+import com.csu.carenest.user.redis.HomeCacheInvalidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Service
 public class ReportAckService {
 
     private static final String ACCEPTED = "ACCEPTED";
     private static final String REJECTED = "REJECTED";
+    private static final String WAIT_CONFIRM = "WAIT_CONFIRM";
     private static final String REPORT_CONFIRM = "REPORT_CONFIRM";
     private static final String ARCHIVE_EDIT = "ARCHIVE_EDIT";
 
@@ -41,6 +50,9 @@ public class ReportAckService {
     private final ElderFamilyBindingMapper bindingMapper;
     private final ElderProfileMapper elderProfileMapper;
     private final ObjectMapper objectMapper;
+    private final RedisLockService lockService;
+    private final HomeCacheInvalidator homeCacheInvalidator;
+    private final JdbcTemplate jdbcTemplate;
 
     public ReportAckService(
             AuthService authService,
@@ -52,7 +64,10 @@ public class ReportAckService {
             OperationLogMapper operationLogMapper,
             ElderFamilyBindingMapper bindingMapper,
             ElderProfileMapper elderProfileMapper,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            RedisLockService lockService,
+            HomeCacheInvalidator homeCacheInvalidator,
+            JdbcTemplate jdbcTemplate) {
         this.authService = authService;
         this.reportMapper = reportMapper;
         this.orderMapper = orderMapper;
@@ -63,6 +78,9 @@ public class ReportAckService {
         this.bindingMapper = bindingMapper;
         this.elderProfileMapper = elderProfileMapper;
         this.objectMapper = objectMapper;
+        this.lockService = lockService;
+        this.homeCacheInvalidator = homeCacheInvalidator;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
@@ -70,7 +88,11 @@ public class ReportAckService {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.ELDER);
         ReportContext context = requireContext(reportId);
         requireElderSelf(currentUser, context.order());
-        return acknowledge(currentUser, RoleCode.ELDER.name(), context, request);
+        return withReportLock(reportId, () -> {
+            ReportContext lockedContext = requireContext(reportId);
+            requireElderSelf(currentUser, lockedContext.order());
+            return acknowledge(currentUser, RoleCode.ELDER.name(), lockedContext, request);
+        });
     }
 
     public List<PendingReportResponse> pendingReports(String authorization, RoleCode role) {
@@ -107,7 +129,11 @@ public class ReportAckService {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
         ReportContext context = requireContext(reportId);
         requireFamilyReportConfirm(currentUser, context.order());
-        return acknowledge(currentUser, RoleCode.FAMILY.name(), context, request);
+        return withReportLock(reportId, () -> {
+            ReportContext lockedContext = requireContext(reportId);
+            requireFamilyReportConfirm(currentUser, lockedContext.order());
+            return acknowledge(currentUser, RoleCode.FAMILY.name(), lockedContext, request);
+        });
     }
 
     @Transactional
@@ -118,7 +144,15 @@ public class ReportAckService {
         AuthService.CurrentUser currentUser = requireRole(authorization, RoleCode.FAMILY);
         ReportContext context = requireContext(reportId);
         requireFamilyScopes(currentUser, context.order(), REPORT_CONFIRM, ARCHIVE_EDIT);
+        return withReportLock(reportId, () -> decideArchiveSuggestionsLocked(currentUser, reportId, request));
+    }
 
+    private ReportAckResponse decideArchiveSuggestionsLocked(
+            AuthService.CurrentUser currentUser,
+            String reportId,
+            ReportAckRequest request) {
+        ReportContext context = requireContext(reportId);
+        requireFamilyScopes(currentUser, context.order(), REPORT_CONFIRM, ARCHIVE_EDIT);
         List<HealthInfoReviewTask> tasks = reviewTaskMapper.selectList(
                 Wrappers.<HealthInfoReviewTask>query().eq("report_id", reportId));
         Set<String> acceptedIds = new HashSet<>(request.acceptedSuggestionIds());
@@ -148,6 +182,10 @@ public class ReportAckService {
             String ackRole,
             ReportContext context,
             ReportAckRequest request) {
+        if (!WAIT_CONFIRM.equals(context.report().getReportStatus())
+                || !WAIT_CONFIRM.equals(context.order().getOrderStatus())) {
+            throw new ApiException(409, "state conflict");
+        }
         validateAckResult(request.ackResult());
         String reportStatus = ACCEPTED.equals(request.ackResult()) ? "CONFIRMED" : "REJECTED";
         String orderStatus = ACCEPTED.equals(request.ackResult()) ? "COMPLETED" : "WAIT_REPORT";
@@ -168,23 +206,74 @@ public class ReportAckService {
         ack.setRemark(request.remark());
         ack.setAcceptedSuggestionIds(writeJson(request.acceptedSuggestionIds()));
         if (creating) {
-            ackMapper.insert(ack);
+            try {
+                ackMapper.insert(ack);
+            } catch (DuplicateKeyException duplicate) {
+                throw new ApiException(409, "state conflict");
+            }
         } else {
             ackMapper.updateById(ack);
         }
 
         String previousOrderStatus = context.order().getOrderStatus();
-        reportMapper.update(null, Wrappers.<ServiceReport>update()
+        int reportUpdated = reportMapper.update(null, Wrappers.<ServiceReport>update()
                 .eq("report_id", context.report().getReportId())
+                .eq("report_status", WAIT_CONFIRM)
                 .set("report_status", reportStatus)
                 .set("confirmed_at", ACCEPTED.equals(request.ackResult()) ? LocalDateTime.now() : null));
-        orderMapper.update(null, Wrappers.<NursingOrder>update()
+        if (reportUpdated != 1) {
+            throw new ApiException(409, "state conflict");
+        }
+        int orderUpdated = orderMapper.update(null, Wrappers.<NursingOrder>update()
                 .eq("order_id", context.order().getOrderId())
+                .eq("order_status", WAIT_CONFIRM)
                 .set("order_status", orderStatus));
+        if (orderUpdated != 1) {
+            throw new ApiException(409, "state conflict");
+        }
         saveOrderStatusLog(currentUser, context.order().getOrderId(), previousOrderStatus, orderStatus);
         saveOperationLog(currentUser, "ACK_SERVICE_REPORT", context.report().getReportId(), request);
+        evictReportHomesAfterCommit(currentUser, ackRole, context.order());
 
         return new ReportAckResponse(ack.getAckId(), request.ackResult(), reportStatus);
+    }
+
+    private void evictReportHomesAfterCommit(
+            AuthService.CurrentUser currentUser,
+            String ackRole,
+            NursingOrder order) {
+        homeCacheInvalidator.evictAfterCommit(ackRole, currentUser.userId());
+        homeCacheInvalidator.evictAfterCommit(RoleCode.FAMILY.name(), order.getFamilyId());
+        ElderProfile elder = elderProfileMapper.selectById(order.getElderId());
+        if (elder != null) {
+            homeCacheInvalidator.evictAfterCommit(RoleCode.ELDER.name(), elder.getUserId());
+        }
+        List<String> nurseIds = jdbcTemplate.query(
+                "SELECT nurse_id FROM nurse_task WHERE order_id = ?",
+                (rs, rowNum) -> rs.getString("nurse_id"), order.getOrderId());
+        for (String nurseId : nurseIds) {
+            homeCacheInvalidator.evictAfterCommit("NURSE", nurseId);
+        }
+        List<Map<String, Object>> operators = jdbcTemplate.queryForList("""
+                SELECT ur.user_id, r.role_code
+                FROM user_role ur
+                JOIN sys_role r ON r.role_id = ur.role_id
+                WHERE r.role_code IN ('ADMIN', 'CUSTOMER_SERVICE')
+                """);
+        for (Map<String, Object> operator : operators) {
+            homeCacheInvalidator.evictAfterCommit(
+                    operator.get("role_code").toString(), operator.get("user_id").toString());
+        }
+    }
+
+    private <T> T withReportLock(String reportId, Supplier<T> action) {
+        try (RedisLockService.Acquisition lock = lockService.tryAcquire(
+                RedisKeyFactory.reportLockKey(reportId), Duration.ofSeconds(20))) {
+            if (lock.contended()) {
+                throw new ApiException(409, "state conflict");
+            }
+            return action.get();
+        }
     }
 
     private ReportContext requireContext(String reportId) {

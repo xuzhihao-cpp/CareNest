@@ -2,6 +2,7 @@ package com.csu.carenest.user.flow;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
@@ -46,6 +47,7 @@ class UserSidePhaseApiTest {
 
     @Test
     void familyCreatesElderBindingAndElderApprovesThenFamilyUpdatesScopesAndRevokes() throws Exception {
+        removeDemoBinding();
         String familyToken = loginAndReadToken("family_demo");
         String elderToken = loginAndReadToken("elder_demo");
         removeFamilyDemoBindingForElder001();
@@ -88,11 +90,13 @@ class UserSidePhaseApiTest {
                                 "elderInviteCode", "elder_001",
                                 "relationType", "DAUGHTER",
                                 "scopeCodes", List.of("HEALTH_VIEW", "HEALTH_EDIT", "REPORT_CONFIRM")
-                        ))))
+                ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.bindingStatus").value("ACTIVE"))
-                .andExpect(jsonPath("$.data.scopeUpdatePending").value(true))
-                .andExpect(jsonPath("$.data.pendingScopeCodes", hasItem("HEALTH_EDIT")));
+                .andExpect(jsonPath("$.data.scopeCodes", hasItem("HEALTH_VIEW")))
+                .andExpect(jsonPath("$.data.scopeCodes", not(hasItem("HEALTH_EDIT"))))
+                .andExpect(jsonPath("$.data.pendingScopeCodes", hasItem("HEALTH_EDIT")))
+                .andExpect(jsonPath("$.data.scopeUpdatePending").value(true));
 
         mockMvc.perform(post("/api/v1/elder/bindings/{bindingId}/approve", bindingId)
                         .header("Authorization", "Bearer " + elderToken)
@@ -121,6 +125,7 @@ class UserSidePhaseApiTest {
 
     @Test
     void elderReadsRealPendingBindingAndApprovesIt() throws Exception {
+        removeDemoBinding();
         String familyToken = loginAndReadToken("family_demo");
         String elderToken = loginAndReadToken("elder_demo");
         removeFamilyDemoBindingForElder001();
@@ -277,6 +282,7 @@ class UserSidePhaseApiTest {
 
     @Test
     void familyCannotApproveBindingThroughElderEndpoint() throws Exception {
+        removeDemoBinding();
         String familyToken = loginAndReadToken("family_demo");
         removeFamilyDemoBindingForElder001();
 
@@ -305,6 +311,25 @@ class UserSidePhaseApiTest {
                         ))))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403));
+    }
+
+    @AfterEach
+    void restoreDemoBinding() {
+        removeDemoBinding();
+        jdbcTemplate.update("""
+                INSERT INTO elder_family_binding
+                  (binding_id, elder_id, family_id, binding_status, scope_codes, relation_type,
+                   inviter_user_id, approver_user_id, remark)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, "binding_001", "elder_001", "family-001", "ACTIVE",
+                "[\"HEALTH_VIEW\",\"HEALTH_EDIT\",\"ORDER_CREATE\",\"REPORT_VIEW\",\"REPORT_CONFIRM\",\"ARCHIVE_EDIT\"]",
+                "SON", "family-001", "elder-001", "demo binding");
+    }
+
+    private void removeDemoBinding() {
+        jdbcTemplate.update(
+                "DELETE FROM elder_family_binding WHERE elder_id = ? AND family_id = ?",
+                "elder_001", "family-001");
     }
 
     @Test

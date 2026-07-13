@@ -38,8 +38,8 @@ public class CareAdminPhaseController {
     @GetMapping("/admin/dashboard/overview")
     public ApiResponse<HomeSummaryResponse> adminDashboardOverview(
             @RequestHeader("Authorization") String authorization) {
-        authService.requireAnyRole(authorization, RoleCode.ADMIN, RoleCode.CUSTOMER_SERVICE);
-        return ApiResponse.success(phaseService.adminDashboardOverview());
+        CurrentUser currentUser = authService.requireAnyRole(authorization, RoleCode.ADMIN, RoleCode.CUSTOMER_SERVICE);
+        return ApiResponse.success(phaseService.adminDashboardOverview(currentUser));
     }
 
     @GetMapping("/service-items")

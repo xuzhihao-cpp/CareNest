@@ -8,21 +8,31 @@ import com.csu.carenest.careadmin.common.ForbiddenException;
 import com.csu.carenest.careadmin.common.NotFoundException;
 import com.csu.carenest.careadmin.common.PageData;
 import com.csu.carenest.careadmin.phase.dto.*;
+import com.csu.carenest.careadmin.redis.RedisCacheService;
+import com.csu.carenest.careadmin.redis.RedisKeyFactory;
+import com.csu.carenest.careadmin.redis.RedisLockService;
+import com.csu.carenest.careadmin.redis.HomeCacheInvalidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * 成员3阶段8-18核心业务服务。
@@ -40,16 +50,38 @@ public class CareAdminPhaseService {
     private static final String WAIT_CONFIRM = "WAIT_CONFIRM";
     private static final String COMPLETED = "COMPLETED";
     private static final String CANCELED = "CANCELED";
+    private static final String REJECTED = "REJECTED";
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final RedisCacheService cacheService;
+    private final RedisLockService lockService;
+    private final HomeCacheInvalidator homeCacheInvalidator;
 
-    public CareAdminPhaseService(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    public CareAdminPhaseService(
+            JdbcTemplate jdbcTemplate,
+            ObjectMapper objectMapper,
+            RedisCacheService cacheService,
+            RedisLockService lockService,
+            HomeCacheInvalidator homeCacheInvalidator) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.cacheService = cacheService;
+        this.lockService = lockService;
+        this.homeCacheInvalidator = homeCacheInvalidator;
     }
 
     public HomeSummaryResponse nurseWorkbenchSummary(CurrentUser currentUser) {
+        String cacheKey = RedisKeyFactory.homeKey(RoleCode.NURSE.name(), currentUser.userId());
+        return cacheService.get(cacheKey, HomeSummaryResponse.class)
+                .orElseGet(() -> {
+                    HomeSummaryResponse summary = loadNurseWorkbenchSummary(currentUser);
+                    cacheService.put(cacheKey, summary, Duration.ofSeconds(30));
+                    return summary;
+                });
+    }
+
+    private HomeSummaryResponse loadNurseWorkbenchSummary(CurrentUser currentUser) {
         int pending = count("SELECT COUNT(*) FROM nurse_task WHERE nurse_id = ? AND task_status IN ('DISPATCHED', 'ACCEPTED')",
                 currentUser.userId());
         int serving = count("SELECT COUNT(*) FROM nurse_task WHERE nurse_id = ? AND task_status IN ('ON_THE_WAY', 'SERVING')",
@@ -65,7 +97,17 @@ public class CareAdminPhaseService {
                 pending + report);
     }
 
-    public HomeSummaryResponse adminDashboardOverview() {
+    public HomeSummaryResponse adminDashboardOverview(CurrentUser currentUser) {
+        String cacheKey = RedisKeyFactory.homeKey(currentUser.primaryRole(), currentUser.userId());
+        return cacheService.get(cacheKey, HomeSummaryResponse.class)
+                .orElseGet(() -> {
+                    HomeSummaryResponse summary = loadAdminDashboardOverview();
+                    cacheService.put(cacheKey, summary, Duration.ofSeconds(30));
+                    return summary;
+                });
+    }
+
+    private HomeSummaryResponse loadAdminDashboardOverview() {
         int waitingDispatch = count("SELECT COUNT(*) FROM nursing_order WHERE order_status = 'WAIT_DISPATCH'");
         int active = count("SELECT COUNT(*) FROM nursing_order WHERE order_status IN ('DISPATCHED', 'ACCEPTED', 'ON_THE_WAY', 'SERVING')");
         int waitingConfirm = count("SELECT COUNT(*) FROM nursing_order WHERE order_status = 'WAIT_CONFIRM'");
@@ -79,6 +121,20 @@ public class CareAdminPhaseService {
     }
 
     public List<ServiceItemResponse> serviceItems(boolean includeOffShelf) {
+        if (!includeOffShelf) {
+            return cacheService.get(RedisKeyFactory.onShelfServiceItemsKey(), ServiceItemResponse[].class)
+                    .map(Arrays::asList)
+                    .orElseGet(() -> {
+                        List<ServiceItemResponse> items = loadServiceItems(false);
+                        cacheService.put(RedisKeyFactory.onShelfServiceItemsKey(),
+                                items.toArray(ServiceItemResponse[]::new), Duration.ofMinutes(5));
+                        return items;
+                    });
+        }
+        return loadServiceItems(true);
+    }
+
+    private List<ServiceItemResponse> loadServiceItems(boolean includeOffShelf) {
         String sql = """
                 SELECT service_id, service_name, service_desc, price_cent, duration_minutes, service_status
                 FROM service_item
@@ -118,6 +174,7 @@ public class CareAdminPhaseService {
                 """, serviceId, request.serviceName(), request.category(), request.price(),
                 request.durationMinutes(), normalizeServiceStatus(request.status()), 99);
         saveOperationLog(currentUser, "CREATE_SERVICE_ITEM", "SERVICE_ITEM", serviceId, null, request);
+        evictOnShelfServiceItemsAfterCommit();
         return serviceItem(serviceId);
     }
 
@@ -131,6 +188,7 @@ public class CareAdminPhaseService {
                 """, request.serviceName(), request.category(), request.price(),
                 request.durationMinutes(), normalizeServiceStatus(request.status()), serviceId);
         saveOperationLog(currentUser, "UPDATE_SERVICE_ITEM", "SERVICE_ITEM", serviceId, before, request);
+        evictOnShelfServiceItemsAfterCommit();
         return serviceItem(serviceId);
     }
 
@@ -143,6 +201,7 @@ public class CareAdminPhaseService {
         }
         jdbcTemplate.update("DELETE FROM service_item WHERE service_id = ?", serviceId);
         saveOperationLog(currentUser, "DELETE_SERVICE_ITEM", "SERVICE_ITEM", serviceId, serviceItem, null);
+        evictOnShelfServiceItemsAfterCommit();
         return serviceItem;
     }
 
@@ -234,38 +293,65 @@ public class CareAdminPhaseService {
                 string(address, "contact_name"), string(address, "contact_phone"), request.remark(), currentUser.userId());
         saveStatusLog(orderId, null, WAIT_DISPATCH, currentUser.userId(), "CREATE_FAMILY_ORDER");
         saveOperationLog(currentUser, "CREATE_FAMILY_ORDER", "NURSING_ORDER", orderId, null, request);
+        Map<String, Object> createdOrder = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+        evictOrderHomesAfterCommit(currentUser, createdOrder, null);
         return mapOrderDetail(requireRow(orderDetailSql() + " WHERE o.order_id = ?", orderId));
     }
 
     @Transactional
     public DispatchResponse dispatchOrder(CurrentUser currentUser, String orderId, DispatchRequest request) {
-        Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
-        requireStatus(order, WAIT_DISPATCH);
-        requireRoleUser(request.nurseId(), "NURSE");
-        String taskId = nextId("task");
-        jdbcTemplate.update("""
-                INSERT INTO nurse_task (task_id, order_id, nurse_id, task_status, dispatch_remark)
-                VALUES (?, ?, ?, ?, ?)
-                """, taskId, orderId, request.nurseId(), DISPATCHED, request.dispatchRemark());
-        changeOrderStatus(currentUser.userId(), order, DISPATCHED, "DISPATCH_ORDER");
-        saveOperationLog(currentUser, "DISPATCH_ORDER", "NURSE_TASK", taskId, null, request);
-        return new DispatchResponse(orderId, DISPATCHED, taskId);
+        return withOrderLock(orderId, () -> {
+            Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+            requireStatus(order, WAIT_DISPATCH);
+            requireRoleUser(request.nurseId(), "NURSE");
+            String taskId = nextId("task");
+            try {
+                jdbcTemplate.update("""
+                        INSERT INTO nurse_task (task_id, order_id, nurse_id, task_status, dispatch_remark)
+                        VALUES (?, ?, ?, ?, ?)
+                        """, taskId, orderId, request.nurseId(), DISPATCHED, request.dispatchRemark());
+            } catch (DuplicateKeyException duplicate) {
+                throw new ConflictException();
+            }
+            changeOrderStatus(currentUser.userId(), order, DISPATCHED, "DISPATCH_ORDER");
+            saveOperationLog(currentUser, "DISPATCH_ORDER", "NURSE_TASK", taskId, null, request);
+            evictOrderHomesAfterCommit(currentUser, order, request.nurseId());
+            return new DispatchResponse(orderId, DISPATCHED, taskId);
+        });
     }
 
     @Transactional
     public DispatchResponse acceptTask(CurrentUser currentUser, String taskId) {
-        Map<String, Object> task = requireRow("SELECT * FROM nurse_task WHERE task_id = ?", taskId);
-        requireNurseTaskAccess(currentUser, task);
-        requireTaskStatus(task, DISPATCHED);
-        jdbcTemplate.update("UPDATE nurse_task SET task_status = ?, accepted_at = CURRENT_TIMESTAMP WHERE task_id = ?",
-                ACCEPTED, taskId);
-        Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", string(task, "order_id"));
-        changeOrderStatus(currentUser.userId(), order, ACCEPTED, "ACCEPT_TASK");
-        return new DispatchResponse(string(task, "order_id"), ACCEPTED, taskId);
+        Map<String, Object> taskSnapshot = requireRow("SELECT * FROM nurse_task WHERE task_id = ?", taskId);
+        requireNurseTaskAccess(currentUser, taskSnapshot);
+        String orderId = string(taskSnapshot, "order_id");
+        return withOrderLock(orderId, () -> {
+            Map<String, Object> task = requireRow("SELECT * FROM nurse_task WHERE task_id = ?", taskId);
+            requireNurseTaskAccess(currentUser, task);
+            requireTaskStatus(task, DISPATCHED);
+            int updated = jdbcTemplate.update("""
+                    UPDATE nurse_task SET task_status = ?, accepted_at = CURRENT_TIMESTAMP
+                    WHERE task_id = ? AND task_status = ?
+                    """, ACCEPTED, taskId, DISPATCHED);
+            if (updated != 1) {
+                throw new ConflictException();
+            }
+            Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+            changeOrderStatus(currentUser.userId(), order, ACCEPTED, "ACCEPT_TASK");
+            evictOrderHomesAfterCommit(currentUser, order, string(task, "nurse_id"));
+            return new DispatchResponse(orderId, ACCEPTED, taskId);
+        });
     }
 
     @Transactional
     public DispatchResponse updateTaskStatus(CurrentUser currentUser, String taskId, TaskStatusRequest request) {
+        Map<String, Object> taskSnapshot = requireRow("SELECT * FROM nurse_task WHERE task_id = ?", taskId);
+        requireNurseTaskAccess(currentUser, taskSnapshot);
+        String orderId = string(taskSnapshot, "order_id");
+        return withOrderLock(orderId, () -> updateTaskStatusLocked(currentUser, taskId, request));
+    }
+
+    private DispatchResponse updateTaskStatusLocked(CurrentUser currentUser, String taskId, TaskStatusRequest request) {
         Map<String, Object> task = requireRow("SELECT * FROM nurse_task WHERE task_id = ?", taskId);
         requireNurseTaskAccess(currentUser, task);
         String targetStatus = hasText(request.targetStatus()) ? request.targetStatus() : ON_THE_WAY;
@@ -273,7 +359,8 @@ public class CareAdminPhaseService {
             throw new BusinessRuleException();
         }
 
-        Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", string(task, "order_id"));
+        String orderId = string(task, "order_id");
+        Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
         String currentOrderStatus = string(order, "order_status");
         if (COMPLETED.equals(targetStatus) && CANCELED.equals(currentOrderStatus)) {
             throw new ConflictException();
@@ -284,17 +371,23 @@ public class CareAdminPhaseService {
             case COMPLETED -> ", completed_at = CURRENT_TIMESTAMP";
             default -> "";
         };
-        jdbcTemplate.update("UPDATE nurse_task SET task_status = ?" + timeColumn + " WHERE task_id = ?",
-                targetStatus, taskId);
+        int updated = jdbcTemplate.update("UPDATE nurse_task SET task_status = ?" + timeColumn
+                        + " WHERE task_id = ? AND task_status = ?",
+                targetStatus, taskId, string(task, "task_status"));
+        if (updated != 1) {
+            throw new ConflictException();
+        }
 
         // Historical records can contain a serving task whose order was already finalized.
         // Finish the task without attempting to move that finalized order backwards.
         if (COMPLETED.equals(targetStatus) && List.of(WAIT_CONFIRM, COMPLETED).contains(currentOrderStatus)) {
-            return new DispatchResponse(string(task, "order_id"), currentOrderStatus, taskId);
+            evictOrderHomesAfterCommit(currentUser, order, string(task, "nurse_id"));
+            return new DispatchResponse(orderId, currentOrderStatus, taskId);
         }
         String orderTargetStatus = COMPLETED.equals(targetStatus) ? WAIT_REPORT : targetStatus;
         changeOrderStatus(currentUser.userId(), order, orderTargetStatus, "UPDATE_TASK_STATUS");
-        return new DispatchResponse(string(task, "order_id"), orderTargetStatus, taskId);
+        evictOrderHomesAfterCommit(currentUser, order, string(task, "nurse_id"));
+        return new DispatchResponse(orderId, orderTargetStatus, taskId);
     }
 
     public PageData<TaskResponse> nurseTasks(CurrentUser currentUser, String status, int page, int size) {
@@ -351,6 +444,14 @@ public class CareAdminPhaseService {
 
     @Transactional
     public ServiceRecordResponse createServiceRecord(CurrentUser currentUser, String orderId, ServiceRecordRequest request) {
+        requireTaskByOrderAndUser(orderId, currentUser);
+        return withOrderLock(orderId, () -> createServiceRecordLocked(currentUser, orderId, request));
+    }
+
+    private ServiceRecordResponse createServiceRecordLocked(
+            CurrentUser currentUser,
+            String orderId,
+            ServiceRecordRequest request) {
         Map<String, Object> task = requireTaskByOrderAndUser(orderId, currentUser);
         if (!COMPLETED.equals(string(task, "task_status"))) {
             throw new BusinessRuleException();
@@ -361,21 +462,34 @@ public class CareAdminPhaseService {
             throw new ConflictException();
         }
         String recordId = nextId("record");
-        jdbcTemplate.update("""
-                INSERT INTO care_service_record
-                  (record_id, order_id, task_id, nurse_id, start_time, end_time, content,
-                   nursing_advice, abnormal_flag, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, recordId, orderId, string(task, "task_id"), string(task, "nurse_id"),
-                parseDateTime(request.startTime()), parseNullableDateTime(request.endTime()), request.content(),
-                request.nursingAdvice(), Boolean.TRUE.equals(request.abnormalFlag()) ? 1 : 0, currentUser.userId());
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO care_service_record
+                      (record_id, order_id, task_id, nurse_id, start_time, end_time, content,
+                       nursing_advice, abnormal_flag, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, recordId, orderId, string(task, "task_id"), string(task, "nurse_id"),
+                    parseDateTime(request.startTime()), parseNullableDateTime(request.endTime()), request.content(),
+                    request.nursingAdvice(), Boolean.TRUE.equals(request.abnormalFlag()) ? 1 : 0, currentUser.userId());
+        } catch (DuplicateKeyException duplicate) {
+            throw new ConflictException();
+        }
         Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
         changeOrderStatus(currentUser.userId(), order, WAIT_REPORT, "CREATE_SERVICE_RECORD");
+        evictOrderHomesAfterCommit(currentUser, order, string(task, "nurse_id"));
         return new ServiceRecordResponse(recordId, orderId, WAIT_REPORT);
     }
 
     @Transactional
     public ServiceRecordResponse createVitalSign(CurrentUser currentUser, String orderId, VitalSignRequest request) {
+        requireTaskByOrderAndUser(orderId, currentUser);
+        return withOrderLock(orderId, () -> createVitalSignLocked(currentUser, orderId, request));
+    }
+
+    private ServiceRecordResponse createVitalSignLocked(
+            CurrentUser currentUser,
+            String orderId,
+            VitalSignRequest request) {
         Map<String, Object> task = requireTaskByOrderAndUser(orderId, currentUser);
         String vitalId = nextId("vital");
         jdbcTemplate.update("""
@@ -388,6 +502,7 @@ public class CareAdminPhaseService {
                 request.systolicPressure(), request.diastolicPressure(), request.bloodOxygen(), request.remark());
         Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
         changeOrderStatus(currentUser.userId(), order, WAIT_REPORT, "CREATE_VITAL_SIGN");
+        evictOrderHomesAfterCommit(currentUser, order, string(task, "nurse_id"));
         return new ServiceRecordResponse(vitalId, orderId, WAIT_REPORT);
     }
 
@@ -407,7 +522,12 @@ public class CareAdminPhaseService {
     @Transactional
     public ReportResponse generateReport(CurrentUser currentUser, String orderId) {
         orderDetail(currentUser, orderId);
+        return withOrderLock(orderId, () -> generateReportLocked(currentUser, orderId));
+    }
+
+    private ReportResponse generateReportLocked(CurrentUser currentUser, String orderId) {
         Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+        requireStatus(order, WAIT_REPORT);
         Integer recordCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM care_service_record WHERE order_id = ?", Integer.class, orderId);
         if (recordCount == null || recordCount == 0) {
@@ -418,23 +538,35 @@ public class CareAdminPhaseService {
         String advice = latestAdvice(orderId);
         if (reportId == null) {
             reportId = nextId("report");
-            jdbcTemplate.update("""
-                    INSERT INTO service_report
-                      (report_id, order_id, report_status, summary, nursing_advice, generated_by)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """, reportId, orderId, WAIT_CONFIRM, summary, advice, currentUser.userId());
+            try {
+                jdbcTemplate.update("""
+                        INSERT INTO service_report
+                          (report_id, order_id, report_status, summary, nursing_advice, generated_by)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """, reportId, orderId, WAIT_CONFIRM, summary, advice, currentUser.userId());
+            } catch (DuplicateKeyException duplicate) {
+                throw new ConflictException();
+            }
             insertReportItems(reportId, orderId, advice);
         } else {
-            jdbcTemplate.update("""
-                    UPDATE service_report
-                    SET report_status = ?, summary = ?, nursing_advice = ?, generated_by = ?,
-                        generated_at = CURRENT_TIMESTAMP, confirmed_at = NULL
-                    WHERE report_id = ?
-                    """, WAIT_CONFIRM, summary, advice, currentUser.userId(), reportId);
-            jdbcTemplate.update("DELETE FROM service_report_item WHERE report_id = ?", reportId);
-            insertReportItems(reportId, orderId, advice);
+            String lockedReportId = reportId;
+            withReportLock(lockedReportId, () -> {
+                int updated = jdbcTemplate.update("""
+                        UPDATE service_report
+                        SET report_status = ?, summary = ?, nursing_advice = ?, generated_by = ?,
+                            generated_at = CURRENT_TIMESTAMP, confirmed_at = NULL
+                        WHERE report_id = ? AND report_status = ?
+                        """, WAIT_CONFIRM, summary, advice, currentUser.userId(), lockedReportId, REJECTED);
+                if (updated != 1) {
+                    throw new ConflictException();
+                }
+                jdbcTemplate.update("DELETE FROM service_report_item WHERE report_id = ?", lockedReportId);
+                insertReportItems(lockedReportId, orderId, advice);
+                return null;
+            });
         }
         changeOrderStatus(currentUser.userId(), order, WAIT_CONFIRM, "GENERATE_SERVICE_REPORT");
+        evictOrderHomesAfterCommit(currentUser, order, assignedNurseId(orderId));
         return report(orderId);
     }
 
@@ -468,32 +600,53 @@ public class CareAdminPhaseService {
 
     @Transactional
     public OrderChangeResponse cancelFamilyOrder(CurrentUser currentUser, String orderId, OrderChangeRequest request) {
-        Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
-        requireFamilyOrderChangeAccess(currentUser, order);
-        requireText(request.reason());
-        changeOrderStatus(currentUser.userId(), order, CANCELED, request.reason());
-        return new OrderChangeResponse(orderId, CANCELED, toText(order.get("scheduled_start_at")));
+        Map<String, Object> snapshot = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+        requireFamilyOrderChangeAccess(currentUser, snapshot);
+        return withOrderLock(orderId, () -> {
+            Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+            requireFamilyOrderChangeAccess(currentUser, order);
+            requireText(request.reason());
+            changeOrderStatus(currentUser.userId(), order, CANCELED, request.reason());
+            evictOrderHomesAfterCommit(currentUser, order, assignedNurseId(orderId));
+            return new OrderChangeResponse(orderId, CANCELED, toText(order.get("scheduled_start_at")));
+        });
     }
 
     @Transactional
     public OrderChangeResponse rescheduleFamilyOrder(CurrentUser currentUser, String orderId, OrderChangeRequest request) {
-        Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
-        requireFamilyOrderChangeAccess(currentUser, order);
-        requireText(request.reason());
-        LocalDateTime scheduledStart = parseDateTime(request.newScheduledStart());
-        Integer durationMinutes = jdbcTemplate.queryForObject(
-                "SELECT duration_minutes FROM service_item WHERE service_id = ?", Integer.class, string(order, "service_id"));
-        jdbcTemplate.update("UPDATE nursing_order SET scheduled_start_at = ?, scheduled_end_at = ? WHERE order_id = ?",
-                scheduledStart, scheduledStart.plusMinutes(durationMinutes == null ? 60 : durationMinutes), orderId);
-        saveStatusLog(orderId, string(order, "order_status"), string(order, "order_status"), currentUser.userId(), request.reason());
-        return new OrderChangeResponse(orderId, string(order, "order_status"), scheduledStart.toString());
+        Map<String, Object> snapshot = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+        requireFamilyOrderChangeAccess(currentUser, snapshot);
+        return withOrderLock(orderId, () -> {
+            Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+            requireFamilyOrderChangeAccess(currentUser, order);
+            requireText(request.reason());
+            LocalDateTime scheduledStart = parseDateTime(request.newScheduledStart());
+            Integer durationMinutes = jdbcTemplate.queryForObject(
+                    "SELECT duration_minutes FROM service_item WHERE service_id = ?", Integer.class, string(order, "service_id"));
+            int updated = jdbcTemplate.update("""
+                    UPDATE nursing_order SET scheduled_start_at = ?, scheduled_end_at = ?
+                    WHERE order_id = ? AND order_status = ? AND scheduled_start_at = ?
+                    """, scheduledStart, scheduledStart.plusMinutes(durationMinutes == null ? 60 : durationMinutes),
+                    orderId, string(order, "order_status"), order.get("scheduled_start_at"));
+            if (updated != 1) {
+                throw new ConflictException();
+            }
+            saveStatusLog(orderId, string(order, "order_status"), string(order, "order_status"),
+                    currentUser.userId(), request.reason());
+            evictOrderHomesAfterCommit(currentUser, order, assignedNurseId(orderId));
+            return new OrderChangeResponse(orderId, string(order, "order_status"), scheduledStart.toString());
+        });
     }
 
     @Transactional
     public OrderChangeResponse cancelAdminOrder(CurrentUser currentUser, String orderId, OrderChangeRequest request) {
-        Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
-        changeOrderStatus(currentUser.userId(), order, CANCELED, request.reason());
-        return new OrderChangeResponse(orderId, CANCELED, toText(order.get("scheduled_start_at")));
+        requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+        return withOrderLock(orderId, () -> {
+            Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
+            changeOrderStatus(currentUser.userId(), order, CANCELED, request.reason());
+            evictOrderHomesAfterCommit(currentUser, order, assignedNurseId(orderId));
+            return new OrderChangeResponse(orderId, CANCELED, toText(order.get("scheduled_start_at")));
+        });
     }
 
     public DemoDataStatusResponse demoDataStatus() {
@@ -727,8 +880,13 @@ public class CareAdminPhaseService {
             return;
         }
         validateOrderTransition(sourceStatus, targetStatus);
-        jdbcTemplate.update("UPDATE nursing_order SET order_status = ? WHERE order_id = ?",
-                targetStatus, string(order, "order_id"));
+        int updated = jdbcTemplate.update("""
+                UPDATE nursing_order SET order_status = ?
+                WHERE order_id = ? AND order_status = ?
+                """, targetStatus, string(order, "order_id"), sourceStatus);
+        if (updated != 1) {
+            throw new ConflictException();
+        }
         saveStatusLog(string(order, "order_id"), sourceStatus, targetStatus, userId, reason);
     }
 
@@ -782,6 +940,78 @@ public class CareAdminPhaseService {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, nextId("op"), currentUser.userId(), currentUser.primaryRole(), operationType, bizType, bizId,
                 writeJson(beforeValue), writeJson(afterValue), nextId("trace"));
+    }
+
+    private void evictOnShelfServiceItemsAfterCommit() {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            cacheService.evict(RedisKeyFactory.onShelfServiceItemsKey());
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                cacheService.evict(RedisKeyFactory.onShelfServiceItemsKey());
+            }
+        });
+    }
+
+    private <T> T withOrderLock(String orderId, Supplier<T> action) {
+        try (RedisLockService.Acquisition lock = lockService.tryAcquire(
+                RedisKeyFactory.orderLockKey(orderId), Duration.ofSeconds(20))) {
+            if (lock.contended()) {
+                throw new ConflictException();
+            }
+            return action.get();
+        }
+    }
+
+    private <T> T withReportLock(String reportId, Supplier<T> action) {
+        try (RedisLockService.Acquisition lock = lockService.tryAcquire(
+                RedisKeyFactory.reportLockKey(reportId), Duration.ofSeconds(20))) {
+            if (lock.contended()) {
+                throw new ConflictException();
+            }
+            return action.get();
+        }
+    }
+
+    private void evictOrderHomesAfterCommit(
+            CurrentUser operator,
+            Map<String, Object> order,
+            String nurseId) {
+        homeCacheInvalidator.evictAfterCommit(operator.primaryRole(), operator.userId());
+        String familyId = string(order, "family_id");
+        if (hasText(familyId)) {
+            homeCacheInvalidator.evictAfterCommit(RoleCode.FAMILY.name(), familyId);
+        }
+        String elderId = string(order, "elder_id");
+        if (hasText(elderId)) {
+            List<String> elderUsers = jdbcTemplate.query(
+                    "SELECT user_id FROM elder_profile WHERE elder_id = ?",
+                    (rs, rowNum) -> rs.getString("user_id"), elderId);
+            for (String elderUser : elderUsers) {
+                homeCacheInvalidator.evictAfterCommit(RoleCode.ELDER.name(), elderUser);
+            }
+        }
+        if (hasText(nurseId)) {
+            homeCacheInvalidator.evictAfterCommit(RoleCode.NURSE.name(), nurseId);
+        }
+        List<Map<String, Object>> adminUsers = jdbcTemplate.queryForList("""
+                SELECT ur.user_id, r.role_code
+                FROM user_role ur
+                JOIN sys_role r ON r.role_id = ur.role_id
+                WHERE r.role_code IN ('ADMIN', 'CUSTOMER_SERVICE')
+                """);
+        for (Map<String, Object> admin : adminUsers) {
+            homeCacheInvalidator.evictAfterCommit(string(admin, "role_code"), string(admin, "user_id"));
+        }
+    }
+
+    private String assignedNurseId(String orderId) {
+        List<String> nurseIds = jdbcTemplate.query(
+                "SELECT nurse_id FROM nurse_task WHERE order_id = ?",
+                (rs, rowNum) -> rs.getString("nurse_id"), orderId);
+        return nurseIds.isEmpty() ? null : nurseIds.get(0);
     }
 
     private String normalizeServiceStatus(String status) {

@@ -9,15 +9,19 @@ import com.csu.carenest.user.auth.SysUserMapper;
 import com.csu.carenest.user.common.ForbiddenException;
 import com.csu.carenest.user.flow.ElderFamilyBinding;
 import com.csu.carenest.user.flow.ElderFamilyBindingMapper;
+import com.csu.carenest.user.flow.ElderProfile;
 import com.csu.carenest.user.flow.ElderProfileMapper;
 import com.csu.carenest.user.flow.ServiceAddress;
 import com.csu.carenest.user.flow.ServiceAddressMapper;
+import com.csu.carenest.user.redis.RedisCacheService;
+import com.csu.carenest.user.redis.RedisKeyFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.time.OffsetDateTime;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -37,6 +41,7 @@ public class StatusService {
     private final ElderProfileMapper elderProfileMapper;
     private final ElderFamilyBindingMapper elderFamilyBindingMapper;
     private final ServiceAddressMapper serviceAddressMapper;
+    private final RedisCacheService cacheService;
     private final String version;
 
     public StatusService(
@@ -46,6 +51,7 @@ public class StatusService {
             ElderProfileMapper elderProfileMapper,
             ElderFamilyBindingMapper elderFamilyBindingMapper,
             ServiceAddressMapper serviceAddressMapper,
+            RedisCacheService cacheService,
             @Value("${carenest.app.version:0.1.0}") String version) {
         this.dataSource = dataSource;
         this.authService = authService;
@@ -53,6 +59,7 @@ public class StatusService {
         this.elderProfileMapper = elderProfileMapper;
         this.elderFamilyBindingMapper = elderFamilyBindingMapper;
         this.serviceAddressMapper = serviceAddressMapper;
+        this.cacheService = cacheService;
         this.version = version;
     }
 
@@ -75,8 +82,19 @@ public class StatusService {
         if (!currentUser.roles().contains(roleCode)) {
             throw new ForbiddenException();
         }
+        String cacheKey = RedisKeyFactory.homeKey(roleCode.name(), currentUser.userId());
+        return cacheService.get(cacheKey, HomeSummaryResponse.class)
+                .orElseGet(() -> {
+                    HomeSummaryResponse summary = loadUserHomeSummary(currentUser, roleCode);
+                    cacheService.put(cacheKey, summary, Duration.ofSeconds(30));
+                    return summary;
+                });
+    }
+
+    private HomeSummaryResponse loadUserHomeSummary(AuthService.CurrentUser currentUser, RoleCode roleCode) {
         if (roleCode == RoleCode.ELDER) {
-            int profileCount = elderProfileMapper.selectCount(Wrappers.emptyWrapper()).intValue();
+            int profileCount = elderProfileMapper.selectCount(Wrappers.<ElderProfile>lambdaQuery()
+                    .eq(ElderProfile::getUserId, currentUser.userId())).intValue();
             return new HomeSummaryResponse(
                     List.of(new HomeSummaryResponse.HomeCard("profile", "我的档案", String.valueOf(profileCount), "份", "已同步")),
                     List.of(new HomeSummaryResponse.HomeQuickAction("profile", "查看档案", "/pages/elder/index", "health:view")),
