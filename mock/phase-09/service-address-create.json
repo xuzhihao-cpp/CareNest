@@ -3,7 +3,7 @@
   "message": "success",
   "data": {
     "addressId": "address_mock_001",
-    "fullAddress": "310000310100310101人民路200号2单元301",
+    "fullAddress": "310101 人民路200号2单元301",
     "isDefault": true
   },
   "traceId": "mock-9"

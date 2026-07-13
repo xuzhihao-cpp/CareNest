@@ -3,6 +3,10 @@ INSERT INTO sys_user (user_id, username, password_hash, display_name, phone, acc
 
 INSERT INTO user_role (user_id, role_id) VALUES ('family-002', 'role_family');
 
+UPDATE elder_family_binding
+SET scope_codes = '["HEALTH_VIEW","HEALTH_EDIT","ORDER_CREATE","REPORT_VIEW","REPORT_CONFIRM","ARCHIVE_EDIT"]'
+WHERE binding_id = 'binding_001';
+
 INSERT INTO elder_family_binding (
   binding_id, elder_id, family_id, binding_status, scope_codes,
   relation_type, inviter_user_id, approver_user_id, remark

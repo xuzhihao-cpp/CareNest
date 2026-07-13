@@ -20,6 +20,7 @@ export interface ReportAckResponse {
 export interface PendingReportRecord {
   reportId: string;
   orderId: string;
+  elderId: string;
   elderName: string;
 }
 

@@ -132,7 +132,7 @@ Response:
   "message": "success",
   "data": {
     "addressId": "address_xxx",
-    "fullAddress": "310000310100310101人民路200号2单元301",
+    "fullAddress": "310101 人民路200号2单元301",
     "isDefault": true
   },
   "traceId": "mock-9"
@@ -147,7 +147,7 @@ Response:
 | PUT | `/api/v1/service-addresses/{addressId}` |
 | DELETE | `/api/v1/service-addresses/{addressId}` |
 
-规则：同一长辈同一家属仅保留一个默认地址；地址必须属于已授权长辈。
+规则：`fullAddress` 固定使用 `regionCode + 单个空格 + detailAddress`；同一长辈同一家属仅保留一个默认地址；地址必须属于已授权长辈。
 
 ## 阶段 16 报告确认与归档建议
 

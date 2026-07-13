@@ -10,7 +10,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(classes = UserSidePhaseApiTest.TestApplication.class)
 @AutoConfigureMockMvc
+@Transactional
 class UserSidePhaseApiTest {
 
     private static final String DEMO_PASSWORD = "Demo@123456";
@@ -38,10 +41,14 @@ class UserSidePhaseApiTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Test
     void familyCreatesElderBindingAndElderApprovesThenFamilyUpdatesScopesAndRevokes() throws Exception {
         String familyToken = loginAndReadToken("family_demo");
         String elderToken = loginAndReadToken("elder_demo");
+        removeFamilyDemoBindingForElder001();
 
         String createBody = mockMvc.perform(post("/api/v1/family/bindings")
                         .header("Authorization", "Bearer " + familyToken)
@@ -84,6 +91,20 @@ class UserSidePhaseApiTest {
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.bindingStatus").value("ACTIVE"))
+                .andExpect(jsonPath("$.data.scopeUpdatePending").value(true))
+                .andExpect(jsonPath("$.data.pendingScopeCodes", hasItem("HEALTH_EDIT")));
+
+        mockMvc.perform(post("/api/v1/elder/bindings/{bindingId}/approve", bindingId)
+                        .header("Authorization", "Bearer " + elderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of(
+                                "elderInviteCode", "elder_001",
+                                "relationType", "DAUGHTER",
+                                "scopeCodes", List.of("HEALTH_VIEW", "HEALTH_EDIT", "REPORT_CONFIRM")
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bindingStatus").value("ACTIVE"))
+                .andExpect(jsonPath("$.data.scopeUpdatePending").value(false))
                 .andExpect(jsonPath("$.data.scopeCodes", hasItem("HEALTH_EDIT")));
 
         mockMvc.perform(post("/api/v1/family/bindings/{bindingId}/revoke", bindingId)
@@ -102,6 +123,7 @@ class UserSidePhaseApiTest {
     void elderReadsRealPendingBindingAndApprovesIt() throws Exception {
         String familyToken = loginAndReadToken("family_demo");
         String elderToken = loginAndReadToken("elder_demo");
+        removeFamilyDemoBindingForElder001();
 
         String createBody = mockMvc.perform(post("/api/v1/family/bindings")
                         .header("Authorization", "Bearer " + familyToken)
@@ -215,7 +237,7 @@ class UserSidePhaseApiTest {
                                 "isDefault", true
                         ))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.fullAddress").value("310000310100310101人民路200号2单元301"))
+                .andExpect(jsonPath("$.data.fullAddress").value("310101 人民路200号2单元301"))
                 .andExpect(jsonPath("$.data.isDefault").value(true))
                 .andReturn()
                 .getResponse()
@@ -256,6 +278,7 @@ class UserSidePhaseApiTest {
     @Test
     void familyCannotApproveBindingThroughElderEndpoint() throws Exception {
         String familyToken = loginAndReadToken("family_demo");
+        removeFamilyDemoBindingForElder001();
 
         String createBody = mockMvc.perform(post("/api/v1/family/bindings")
                         .header("Authorization", "Bearer " + familyToken)
@@ -328,6 +351,14 @@ class UserSidePhaseApiTest {
                 .getContentAsString();
         JsonNode root = objectMapper.readTree(body);
         return root.path("data").path("token").asText();
+    }
+
+    private void removeFamilyDemoBindingForElder001() {
+        jdbcTemplate.update(
+                "DELETE FROM elder_family_binding WHERE elder_id = ? AND family_id = ?",
+                "elder_001",
+                "family-001"
+        );
     }
 
     private String json(Object value) throws Exception {

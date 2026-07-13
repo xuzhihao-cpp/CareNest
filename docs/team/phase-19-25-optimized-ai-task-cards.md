@@ -177,10 +177,10 @@ PDF 原文要求前后端 mock 与真实接口字段一致。结合阶段 01-18 
 
 | 阶段 | 方法与路径 | 请求 | 成功 `data` | 角色/规则 | 数据对象 |
 | --- | --- | --- | --- | --- | --- |
-| 06 | `POST /api/v1/family/bindings` | `{elderInviteCode,relationType,scopeCodes}` | `{bindingId,elderId,elderName,relationType,bindingStatus,scopeCodes}` | 家属发起；后续需长辈确认 | `elder_family_binding`、`authorization_scope`、`operation_log` |
+| 06 | `POST /api/v1/family/bindings` | `{elderInviteCode,relationType,scopeCodes}` | `{bindingId,elderId,elderName,relationType,bindingStatus,scopeCodes}` | 家属发起；后续需长辈确认；同一家属与长辈已有 `PENDING/ACTIVE` 绑定时返回 `409`，前端应改用更新接口 | `elder_family_binding`、`authorization_scope`、`operation_log` |
 | 06 | `GET /api/v1/family/bindings` | 无 | 绑定记录列表 | 家属本人 | 同上 |
 | 06 | `POST /api/v1/elder/bindings/{bindingId}/approve` | 无或确认信息 | 更新后的绑定记录 | 绑定对应长辈本人 | 同上 |
-| 06 | `PUT /api/v1/family/bindings/{bindingId}/scopes` | `{scopeCodes}` | 更新后的绑定或待确认绑定 | `FAMILY + ACTIVE`；范围变更须长辈确认后生效 | 同上 |
+| 06 | `PUT /api/v1/family/bindings/{bindingId}/scopes` | `{scopeCodes}` | 更新后的绑定；生效绑定返回 `scopeUpdatePending=true` 与 `pendingScopeCodes` | `FAMILY + PENDING/ACTIVE`；ACTIVE 范围变更须长辈再次确认，确认前原 `scopeCodes` 保持不变 | 同上 |
 | 06 | `POST /api/v1/family/bindings/{bindingId}/revoke` | 无或撤销说明 | 更新后的绑定记录 | 有归属的家属 | 同上 |
 | 07 | `GET /api/v1/elders/{elderId}/profile` | 无 | 基础档案与 `profileVersion` | 本人或有授权家属 | `elder_profile`、`elder_contact`、`health_archive_change_log` |
 | 07 | `PUT /api/v1/elders/{elderId}/profile` | `{name,gender,birthDate,careLevel,emergencyContacts}` | `{elderId,profileVersion}` | `FAMILY + ACTIVE + HEALTH_EDIT/ARCHIVE_EDIT` 或既定本人范围 | 同上 |
@@ -191,7 +191,7 @@ PDF 原文要求前后端 mock 与真实接口字段一致。结合阶段 01-18 
 | 08 | `PUT /api/v1/admin/service-items/{serviceId}` | 同创建请求 | 服务项目详情 | 管理/客服 + permissionCode | `service_item`、`operation_log` |
 | 08 | `DELETE /api/v1/admin/service-items/{serviceId}` | 无 | 删除结果 | 管理/客服 + permissionCode；被订单引用时返回业务冲突 | `service_item`、订单关联 |
 | 09 | `GET /api/v1/elders/{elderId}/service-addresses` | 无 | 地址列表 | 本人或授权家属 | `service_address` |
-| 09 | `POST /api/v1/elders/{elderId}/service-addresses` | `{contactName,contactPhone,regionCode,detailAddress,isDefault}` | `{addressId,fullAddress,isDefault}` | 授权家属 | `service_address` |
+| 09 | `POST /api/v1/elders/{elderId}/service-addresses` | `{contactName,contactPhone,regionCode,detailAddress,isDefault}` | `{addressId,fullAddress,isDefault}`；`fullAddress` 固定为 `regionCode + 单个空格 + detailAddress`，例如 `310101 人民路200号2单元301` | 授权家属 | `service_address` |
 | 09 | `PUT /api/v1/service-addresses/{addressId}` | 同地址请求 | 地址详情 | 地址归属校验 | `service_address` |
 | 09 | `DELETE /api/v1/service-addresses/{addressId}` | 无 | 删除结果 | 地址归属校验；历史订单引用时保护地址快照并返回业务提示 | `service_address`、订单地址快照 |
 
@@ -219,10 +219,10 @@ PDF 原文要求前后端 mock 与真实接口字段一致。结合阶段 01-18 
 | --- | --- | --- | --- | --- | --- |
 | 15 | `POST /api/v1/orders/{orderId}/service-report/generate` | `{orderId}` 或无 body | `{reportId,summary,vitalSigns,serviceRecords,nursingAdvice}` | 管理或被派护理；必须已有真实服务记录 | `service_report`、`service_report_item` |
 | 15 | `GET /api/v1/orders/{orderId}/service-report` | 无 | `{reportId,summary,vitalSigns,serviceRecords,nursingAdvice}` | 长辈本人、授权家属、关联护理、管理按资源/授权读取 | 同上 |
-| 16 | `GET /api/v1/elder/reports` | 无 | 当前长辈可读报告列表 | 长辈本人 | `service_report`、订单、长辈档案 |
-| 16 | `GET /api/v1/elder/reports/pending` | 无 | 当前长辈待确认报告列表 | 长辈本人；仅 `WAIT_CONFIRM` 报告 | 同上 |
-| 16 | `GET /api/v1/family/reports` | 无 | 当前家属可读报告列表 | `FAMILY + ACTIVE + REPORT_CONFIRM` | 报告、订单、绑定 |
-| 16 | `GET /api/v1/family/reports/pending` | 无 | 当前家属待确认报告列表 | `FAMILY + ACTIVE + REPORT_CONFIRM` | 同上 |
+| 16 | `GET /api/v1/elder/reports` | 无 | `[{reportId,orderId,elderId,elderName}]` | 长辈本人 | `service_report`、订单、长辈档案 |
+| 16 | `GET /api/v1/elder/reports/pending` | 无 | `[{reportId,orderId,elderId,elderName}]` | 长辈本人；仅 `WAIT_CONFIRM` 报告 | 同上 |
+| 16 | `GET /api/v1/family/reports` | 无 | `[{reportId,orderId,elderId,elderName}]` | `FAMILY + ACTIVE + REPORT_CONFIRM`；前端必须按每条报告的 `elderId` 匹配绑定，不得合并不同长辈的 scope | 报告、订单、绑定 |
+| 16 | `GET /api/v1/family/reports/pending` | 无 | `[{reportId,orderId,elderId,elderName}]` | `FAMILY + ACTIVE + REPORT_CONFIRM`；前端必须按每条报告的 `elderId` 匹配绑定 | 同上 |
 | 16 | `POST /api/v1/elder/reports/{reportId}/ack` | `{ackResult,satisfaction,remark,acceptedSuggestionIds}` | `{ackId,ackResult,reportStatus}` | 长辈本人 | `care_report_ack`、`health_info_review_task`、报告/订单状态 |
 | 16 | `POST /api/v1/family/reports/{reportId}/ack` | 同上 | `{ackId,ackResult,reportStatus}` | `FAMILY + ACTIVE + REPORT_CONFIRM` | 同上 |
 | 16 | `POST /api/v1/family/reports/{reportId}/archive-suggestions/decision` | 同上 | `{ackId,ackResult,reportStatus}` | `FAMILY + ACTIVE + REPORT_CONFIRM + ARCHIVE_EDIT` | 同上 |
@@ -283,6 +283,7 @@ PDF 原文要求前后端 mock 与真实接口字段一致。结合阶段 01-18 
 - 订单、报告、审核任务、档案版本等关联对象必须做一致性检查；任何流程重新提交、驳回后重试、重新生成时，明确规定每个关联状态如何回退或重置。
 - 移动端为长辈、家属、护理端；管理端为桌面网页。表单用合适控件约束数据，日期/时间用选择器，电话和数值输入限制格式。
 - 必须用真实角色数据验证至少一次：允许访问、资源不属于当前用户、绑定失效、scope 缺失、重复提交、网络失败/服务异常、刷新后数据保持一致。
+- 集成测试必须事务回滚或使用独立测试数据。若种子数据已存在相同家属与长辈的 `PENDING/ACTIVE` 绑定，创建测试应先在当前测试事务中清理该关系或改用独立账号；不得把正确的 `409` 规则改成允许重复绑定。
 
 ### 3. 建议的状态命名和字典治理
 

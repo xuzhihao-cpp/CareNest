@@ -10,6 +10,7 @@
     "build:h5": "vue-tsc --noEmit && uni build -p h5",
     "contract:generate": "node scripts/generate-user-api-contract.mjs",
     "contract:check": "node scripts/generate-user-api-contract.mjs --check",
+    "test:stage20": "node --test scripts/test-stage-twenty.mjs",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview --host 127.0.0.1 --port 5173"
   },
