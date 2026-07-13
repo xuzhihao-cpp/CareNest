@@ -95,7 +95,7 @@ public class ReportAckService {
                         return null;
                     }
                     ElderProfile elder = elderProfileMapper.selectById(order.getElderId());
-                    return new PendingReportResponse(report.getReportId(), order.getOrderId(),
+                    return new PendingReportResponse(report.getReportId(), order.getOrderId(), order.getElderId(),
                             elder == null ? "长辈" : elder.getElderName());
                 })
                 .filter(java.util.Objects::nonNull)

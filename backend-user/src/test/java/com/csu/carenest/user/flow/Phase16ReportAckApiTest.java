@@ -17,7 +17,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -58,6 +60,12 @@ class Phase16ReportAckApiTest {
     @Test
     void authorizedFamilyRejectsReportAndReturnsOrderForReportHandling() throws Exception {
         String token = loginAndReadToken("family_demo");
+
+        mockMvc.perform(get("/api/v1/family/reports/pending")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.reportId == 'report_ack_family')].elderId")
+                        .value(hasItem("elder_001")));
 
         mockMvc.perform(post("/api/v1/family/reports/report_ack_family/ack")
                         .header("Authorization", "Bearer " + token)

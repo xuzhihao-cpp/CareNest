@@ -42,20 +42,21 @@ const latestAck = ref<ReportAckRecord | null>(null);
 const reviewTasks = ref<HealthInfoReviewTaskRecord[]>([]);
 
 const canElderAck = computed(() => props.roleCode === 'ELDER' && props.authUser?.roles.includes('ELDER'));
-const familyScopes = computed(() => new Set(
-  familyBindings.value
-    .filter((binding) => binding.bindingStatus === 'ACTIVE')
-    .flatMap((binding) => binding.scopeCodes)
-));
-const canFamilyAck = computed(() =>
-  props.roleCode === 'FAMILY'
-  && props.authUser?.roles.includes('FAMILY')
-  && familyScopes.value.has('REPORT_CONFIRM')
-);
-const canFamilyArchiveDecision = computed(() => canFamilyAck.value && familyScopes.value.has('ARCHIVE_EDIT'));
 const selectedPendingReport = computed(() =>
   pendingReports.value.find((item) => item.reportId === reportId.value) ?? null
 );
+const selectedFamilyBinding = computed(() => familyBindings.value.find((binding) =>
+  binding.bindingStatus === 'ACTIVE'
+  && binding.elderId === selectedPendingReport.value?.elderId
+) ?? null);
+const familyScopes = computed(() => new Set(selectedFamilyBinding.value?.scopeCodes ?? []));
+const canFamilyAck = computed(() =>
+  props.roleCode === 'FAMILY'
+  && props.authUser?.roles.includes('FAMILY')
+  && Boolean(selectedFamilyBinding.value)
+  && familyScopes.value.has('REPORT_CONFIRM')
+);
+const canFamilyArchiveDecision = computed(() => canFamilyAck.value && familyScopes.value.has('ARCHIVE_EDIT'));
 
 function updateSatisfaction(event: { detail: { value: number } }) {
   satisfaction.value = Number(event.detail.value);
