@@ -873,6 +873,18 @@
           },
           "isDefault" : {
             "type" : "boolean"
+          },
+          "contactName" : {
+            "type" : "string"
+          },
+          "contactPhone" : {
+            "type" : "string"
+          },
+          "regionCode" : {
+            "type" : "string"
+          },
+          "detailAddress" : {
+            "type" : "string"
           }
         }
       },
@@ -935,6 +947,15 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "pendingScopeCodes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "scopeUpdatePending" : {
+            "type" : "boolean"
           }
         }
       },
@@ -1003,6 +1024,24 @@
           },
           "profileVersion" : {
             "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "gender" : {
+            "type" : "string"
+          },
+          "birthDate" : {
+            "type" : "string"
+          },
+          "careLevel" : {
+            "type" : "string"
+          },
+          "emergencyContacts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/EmergencyContactRequest"
+            }
           }
         }
       },
@@ -1014,8 +1053,8 @@
             "type" : "string"
           },
           "satisfaction" : {
-            "maximum" : 5,
-            "minimum" : 1,
+            "maximum" : 100,
+            "minimum" : 0,
             "type" : "integer",
             "format" : "int32"
           },

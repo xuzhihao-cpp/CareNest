@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS care_report_ack;
 DROP TABLE IF EXISTS health_info_review_task;
 DROP TABLE IF EXISTS order_status_log;
 DROP TABLE IF EXISTS service_report;
+DROP TABLE IF EXISTS nurse_task;
 DROP TABLE IF EXISTS nursing_order;
 DROP TABLE IF EXISTS sys_permission;
 DROP TABLE IF EXISTS login_session;
@@ -188,6 +189,13 @@ CREATE TABLE nursing_order (
   created_by VARCHAR(32),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE nurse_task (
+  task_id VARCHAR(32) NOT NULL PRIMARY KEY,
+  order_id VARCHAR(32) NOT NULL UNIQUE,
+  nurse_id VARCHAR(32) NOT NULL,
+  task_status VARCHAR(32) NOT NULL
 );
 
 CREATE TABLE service_report (

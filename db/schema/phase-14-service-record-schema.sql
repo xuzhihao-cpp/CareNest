@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS care_service_record (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (record_id),
-  KEY idx_care_service_record_order (order_id),
+  UNIQUE KEY uk_care_service_record_order (order_id),
   KEY idx_care_service_record_task (task_id),
   KEY idx_care_service_record_nurse (nurse_id),
   CONSTRAINT fk_care_service_record_order FOREIGN KEY (order_id) REFERENCES nursing_order (order_id),

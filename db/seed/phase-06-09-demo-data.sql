@@ -39,7 +39,7 @@ INSERT INTO elder_family_binding (
   relation_type, inviter_user_id, approver_user_id, remark
 ) VALUES (
   'binding_001', 'elder_001', 'family-001', 'ACTIVE',
-  JSON_ARRAY('HEALTH_VIEW','HEALTH_EDIT','ORDER_CREATE','REPORT_VIEW','REPORT_CONFIRM'),
+  JSON_ARRAY('HEALTH_VIEW','HEALTH_EDIT','ORDER_CREATE','REPORT_VIEW','REPORT_CONFIRM','ARCHIVE_EDIT'),
   'SON', 'family-001', 'elder-001', '演示绑定关系'
 ) ON DUPLICATE KEY UPDATE
   family_id = VALUES(family_id),
