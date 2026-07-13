@@ -1,5 +1,20 @@
 # CareNest 开发日志
 
+## 2026-07-11
+
+### 成员1：阶段 19-25 数据库与数据规范
+
+- 阅读最新 `need/phase-19-25-optimized-ai-task-cards (2).md`，按当前要求限定为成员1职责：数据库结构、迁移、演示数据、数据字典、Redis 数据规范和验收说明。
+- 新增阶段 19 健康档案表：`health_archive`、`chronic_disease`、`medication_plan`、`allergy_record`、`risk_tag`、`care_plan`。
+- 新增阶段 20 病历资料表：`file_asset`、`medical_file`，只保存对象存储元数据，不保存 MinIO 密钥或文件正文。
+- 新增阶段 22 长辈健康反馈表：`elder_health_feedback`、`voice_command_log`。
+- 新增阶段 23 健康档案变更建议表：`health_update_suggestion`，明确建议不直接覆盖正式健康档案。
+- 新增阶段 24 审核任务扩展脚本：为 `health_info_review_task` 补充 `suggestion_id`、`task_type`，并兼容 `NEED_MORE`、`MEDICAL_FILE`、`SUGGESTION`。
+- 新增 `db/seed/phase-19-25-demo-data.sql`，提供健康档案、病历资料、反馈、建议和待审核任务演示数据。
+- 新增 `docs/dictionary/phase-19-25-health-data-dictionary.md`，冻结字段、状态和 Redis key/TTL/敏感性规则。
+- 新增 `docs/stage-check/member1-phase-19-25.md`，记录成员1交付边界和数据库验证命令。
+- 已撤回本轮中误加的后端、前端、Redis 客户端实现改动；当前不声明成员2/3/4功能完成。
+
 ## 2026-07-08
 
 ### 成员1：数据库与数据规范负责人
