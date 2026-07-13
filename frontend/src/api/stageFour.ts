@@ -10,14 +10,16 @@ const endpointByRole: Record<RoleCode, string> = {
   ELDER: '/elder/home-summary',
   FAMILY: '/family/home-summary',
   NURSE: '/nurse/workbench-summary',
-  ADMIN: '/admin/dashboard/overview'
+  ADMIN: '/admin/dashboard/overview',
+  CUSTOMER_SERVICE: '/admin/dashboard/overview'
 };
 
 const mockByRole: Record<RoleCode, ApiResponse<HomeSummaryResponse>> = {
   ELDER: elderHomeMock as ApiResponse<HomeSummaryResponse>,
   FAMILY: familyHomeMock as ApiResponse<HomeSummaryResponse>,
   NURSE: nurseWorkbenchMock as ApiResponse<HomeSummaryResponse>,
-  ADMIN: adminOverviewMock as ApiResponse<HomeSummaryResponse>
+  ADMIN: adminOverviewMock as ApiResponse<HomeSummaryResponse>,
+  CUSTOMER_SERVICE: adminOverviewMock as ApiResponse<HomeSummaryResponse>
 };
 
 export function getHomeEndpoint(roleCode: RoleCode) {

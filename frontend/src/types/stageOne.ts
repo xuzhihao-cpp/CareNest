@@ -2,7 +2,7 @@ import type { ApiResponse } from './api';
 
 export type { ApiResponse } from './api';
 
-export type RoleCode = 'ELDER' | 'FAMILY' | 'NURSE' | 'ADMIN';
+export type RoleCode = 'ELDER' | 'FAMILY' | 'NURSE' | 'ADMIN' | 'CUSTOMER_SERVICE';
 
 export interface HealthResponse {
   status: 'UP' | 'DOWN';

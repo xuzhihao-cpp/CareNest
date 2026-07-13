@@ -7,6 +7,7 @@ import {
   resolveElderResourceId,
   updateHealthArchive
 } from '@/api/stageNineteen';
+import StageTwentyFourChangeHistory from '@/components/StageTwentyFourChangeHistory.vue';
 import type { RoleCode } from '@/types/stageOne';
 import type { AuthUser } from '@/types/stageTwo';
 import type { BindingResponse } from '@/types/stageSix';
@@ -718,6 +719,12 @@ onMounted(loadContext);
           </view>
         </view>
       </view>
+
+      <StageTwentyFourChangeHistory
+        v-if="!editing"
+        :elder-id="selectedElderId"
+        :refresh-key="archive.archiveVersion"
+      />
 
       <view v-if="successMessage" class="inline-success" role="status">{{ successMessage }}</view>
       <view v-if="error && !editing" class="inline-error" role="alert">{{ error }}</view>
