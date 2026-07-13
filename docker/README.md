@@ -1,18 +1,18 @@
-# docker
+# Docker deployment
 
-本目录用于后续维护本地联调和部署相关配置。
+CareNest 使用两层 Compose 文件：
 
-根目录 `docker-compose.yml` 已按 `need/` 开工文档固定本地依赖服务：MySQL 8.0、Redis 7、MinIO。
+- `docker-compose.yml`：MySQL、Redis、MinIO 与持久化数据卷。
+- `docker-compose.app.yml`：用户后端、护理/管理后端、前端 H5/Nginx。
 
-后续建议文件：
+各成员维护边界：
 
-- `docker-compose.dev.yml`：本地开发联调环境。
-- `env/.env.example`：Docker 环境变量样例。
-- `mysql/` 或 `postgres/`：数据库容器初始化配置。
-- `minio/`：文件存储服务配置。
-- `nginx/`：前后端反向代理配置。
+| 角色 | 主责配置 |
+| --- | --- |
+| 成员 1 数据库与规范 | `docker-compose.yml`、`docker/mysql/`、Redis 认证、MinIO 业务桶初始化、环境变量和数据卷 |
+| 成员 2 用户后端 | `docker/backend-user.Dockerfile`、8081 健康检查 |
+| 成员 3 护理/管理后端 | `docker/backend-care-admin.Dockerfile`、8082 健康检查 |
+| 成员 4 前端 | `docker/frontend.Dockerfile`、`docker/nginx/`、H5 生产构建 |
+| 组长/联调 | `docker-compose.app.yml`、路由归属、全链路验收和发布说明 |
 
-规则：
-
-- Docker 配置必须与 `.env.example`、`db/`、后端服务端口保持一致。
-- 本地联调配置优先服务 MVP 核心链路，不提前加入复杂生产部署能力。
+统一启动和验证方法见 `docs/deployment/phase-19a-docker-local.md`。成员不得单独维护另一份 Compose 或改变公共路由归属。

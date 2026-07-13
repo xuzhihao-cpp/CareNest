@@ -2,11 +2,11 @@ USE smart_nursing;
 SET NAMES utf8mb4;
 
 INSERT INTO nursing_order (
-  order_id, elder_id, family_id, service_id, address_id, order_status,
+  order_id, elder_id, family_id, service_id, address_id, service_address_snapshot, order_status,
   scheduled_start_at, scheduled_end_at, service_price_cent,
   contact_name, contact_phone, remark, created_by
 ) VALUES (
-  'order_001', 'elder_001', 'family-001', 'service_001', 'address_001', 'WAIT_DISPATCH',
+  'order_001', 'elder_001', 'family-001', 'service_001', 'address_001', '310101 人民路100号1单元201', 'WAIT_DISPATCH',
   '2026-07-10 09:00:00', '2026-07-10 10:00:00', 19900,
   '张小明', '13800000002', '阶段10预约下单演示订单', 'family-001'
 ) ON DUPLICATE KEY UPDATE
@@ -14,6 +14,7 @@ INSERT INTO nursing_order (
   family_id = VALUES(family_id),
   service_id = VALUES(service_id),
   address_id = VALUES(address_id),
+  service_address_snapshot = VALUES(service_address_snapshot),
   order_status = VALUES(order_status),
   scheduled_start_at = VALUES(scheduled_start_at),
   scheduled_end_at = VALUES(scheduled_end_at),

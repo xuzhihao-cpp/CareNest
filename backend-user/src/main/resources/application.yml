@@ -15,6 +15,8 @@ mybatis-plus:
     map-underscore-to-camel-case: true
 
 carenest:
+  app:
+    version: ${APP_VERSION:0.1.0}
   jwt:
     secret: ${JWT_SECRET:smart-nursing-local-secret}
     expire-hours: ${JWT_EXPIRE_HOURS:24}
