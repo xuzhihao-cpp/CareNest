@@ -176,6 +176,26 @@ const roleProfiles: Record<RoleCode, VisualProfile> = {
       { label: '指标豁免', time: '6 项', status: '待确认', accent: 'amber' },
       { label: '异常投诉', time: '3 项', status: '异常', accent: 'coral' }
     ]
+  },
+  CUSTOMER_SERVICE: {
+    terminal: 'admin',
+    subtitle: '电脑网页 · 资料审核 · 服务协同',
+    heroTitle: '病历审核',
+    heroMeta: '按权限处理待审核、驳回和需补充资料',
+    primaryAction: '进入审核',
+    primarySymbol: '✓',
+    primaryPermission: 'health:review',
+    highlights: [
+      { label: '待处理', value: '病历资料', meta: '实时读取', accent: 'amber' },
+      { label: '审核结果', value: '家属可见', meta: '保存后同步', accent: 'teal' },
+      { label: '档案建议', value: '后续审核', meta: '不会直接归档', accent: 'blue' }
+    ],
+    flowTitle: '审核流程',
+    flowItems: [
+      { label: '读取病历', time: '当前', status: '待审核', accent: 'amber' },
+      { label: '提交结论', time: '审核后', status: '需确认', accent: 'blue' },
+      { label: '档案归档', time: '阶段 24', status: '后续处理', accent: 'mint' }
+    ]
   }
 };
 

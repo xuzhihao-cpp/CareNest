@@ -5,6 +5,8 @@ import { generateServiceReport } from '@/api/stageFifteen';
 import { createServiceRecord, getOrderServiceRecords } from '@/api/stageFourteen';
 import { getNurseTasks } from '@/api/stageThirteen';
 import { acceptNurseTask, updateNurseTaskStatus } from '@/api/stageTwelve';
+import StageTwentyThreeSuggestionPanel from '@/components/StageTwentyThreeSuggestionPanel.vue';
+import StageTwentyFivePreServiceSummary from '@/components/StageTwentyFivePreServiceSummary.vue';
 import type { AuthUser } from '@/types/stageTwo';
 import type { NurseTaskDetailRecord } from '@/types/stageThirteen';
 import type { NurseTaskStatus } from '@/types/stageTwelve';
@@ -16,8 +18,10 @@ const serviceRecords = ref<CareExecutionRecord[]>([]);
 const recordsLoading = ref(false);
 const recentRecordId = ref('');
 const selectedTaskId = ref('');
-const activeTab = ref<'tasks' | 'records'>('tasks');
+const summaryTaskId = ref('');
+const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'health-summary'>('tasks');
 const isEditingRecord = ref(false);
+const suggestionOrderId = ref('');
 const loading = ref(false);
 const notice = ref('');
 const error = ref('');
@@ -30,6 +34,7 @@ const recordForm = ref({
 });
 
 const selectedTask = computed(() => tasks.value.find((task) => task.taskId === selectedTaskId.value) ?? tasks.value[0] ?? null);
+const summaryTask = computed(() => tasks.value.find((task) => task.taskId === summaryTaskId.value) ?? null);
 const pendingCount = computed(() => tasks.value.filter((task) => task.taskStatus === 'DISPATCHED').length);
 const activeCount = computed(() => tasks.value.filter((task) => ['ACCEPTED', 'ON_THE_WAY', 'SERVING'].includes(task.taskStatus)).length);
 const recordedOrderIds = computed(() => new Set(serviceRecords.value.map((record) => record.orderId)));
@@ -43,6 +48,7 @@ const activeTaskGroups = computed(() => [
   { status: 'ON_THE_WAY', label: '前往中', tasks: tasks.value.filter((task) => task.taskStatus === 'ON_THE_WAY') },
   { status: 'SERVING', label: '服务中', tasks: tasks.value.filter((task) => task.taskStatus === 'SERVING') }
 ]);
+const preServiceSummaryStatuses: NurseTaskStatus[] = ['DISPATCHED', 'ACCEPTED', 'ON_THE_WAY'];
 const pendingRecordTasks = computed(() => tasks.value.filter((task) =>
   task.taskStatus === 'COMPLETED'
   && task.orderStatus === 'WAIT_REPORT'
@@ -141,6 +147,10 @@ async function loadTasks() {
     return;
   }
   tasks.value = taskResponse.data.records;
+  if (summaryTaskId.value && !tasks.value.some((task) => task.taskId === summaryTaskId.value)) {
+    summaryTaskId.value = '';
+    activeTab.value = 'tasks';
+  }
   if (!selectedTaskId.value || !tasks.value.some((task) => task.taskId === selectedTaskId.value)) {
     selectedTaskId.value = activeServiceTasks.value[0]?.taskId ?? pendingRecordTasks.value[0]?.taskId ?? completedTasks.value[0]?.taskId ?? '';
   }
@@ -157,6 +167,7 @@ async function loadServiceRecords() {
 }
 
 function openRecords() {
+  summaryTaskId.value = '';
   activeTab.value = 'records';
   isEditingRecord.value = false;
 }
@@ -167,6 +178,7 @@ function openRecordEditor(task = pendingRecordTasks.value[0]) {
     return;
   }
   selectedTaskId.value = task.taskId;
+  summaryTaskId.value = '';
   resetRecordForm(task);
   error.value = '';
   activeTab.value = 'records';
@@ -175,8 +187,35 @@ function openRecordEditor(task = pendingRecordTasks.value[0]) {
 
 function openRecordsForTask(task: NurseTaskDetailRecord) {
   selectedTaskId.value = task.taskId;
+  summaryTaskId.value = '';
   activeTab.value = 'records';
   isEditingRecord.value = false;
+}
+
+function openSuggestions(task?: NurseTaskDetailRecord) {
+  summaryTaskId.value = '';
+  suggestionOrderId.value = task?.orderId ?? selectedTask.value?.orderId ?? suggestionOrderId.value;
+  activeTab.value = 'suggestions';
+  isEditingRecord.value = false;
+  error.value = '';
+}
+
+function openHealthSummary(task: NurseTaskDetailRecord) {
+  if (!preServiceSummaryStatuses.includes(task.taskStatus)) {
+    error.value = '健康摘要仅供服务开始前核对。';
+    return;
+  }
+  selectedTaskId.value = task.taskId;
+  summaryTaskId.value = task.taskId;
+  error.value = '';
+  notice.value = '';
+  isEditingRecord.value = false;
+  activeTab.value = 'health-summary';
+}
+
+function closeHealthSummary() {
+  summaryTaskId.value = '';
+  activeTab.value = 'tasks';
 }
 
 async function generateReportForTask(task: NurseTaskDetailRecord) {
@@ -231,7 +270,8 @@ async function submitRecord() {
     return;
   }
   recentRecordId.value = response.data.recordId;
-  notice.value = '服务记录已保存，已进入报告处理。';
+  suggestionOrderId.value = selectedTask.value.orderId;
+  notice.value = '服务记录已保存。可根据本次记录提出健康档案更新建议。';
   activeTab.value = 'records';
   isEditingRecord.value = false;
   await loadTasks();
@@ -247,7 +287,8 @@ async function submitReport() {
     error.value = `${response.code} ${response.message}`;
     return;
   }
-  notice.value = '服务报告已生成，等待长辈或家属确认。';
+  suggestionOrderId.value = selectedTask.value.orderId;
+  notice.value = '服务报告已生成，等待长辈或家属确认。可根据报告提出健康档案更新建议。';
   await loadTasks();
 }
 
@@ -271,10 +312,10 @@ onMounted(loadTasks);
         <text class="header-title">{{ user?.displayName || '护理工作台' }}</text>
         <text class="header-date">{{ new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }) }}</text>
       </view>
-      <button class="refresh-button" type="button" :disabled="loading" @click="loadTasks">刷新</button>
+      <button v-if="activeTab !== 'health-summary'" class="refresh-button" type="button" :disabled="loading" @click="loadTasks">刷新</button>
     </view>
 
-    <view class="summary-strip">
+    <view v-if="activeTab !== 'health-summary'" class="summary-strip">
       <view class="summary-item"><text>{{ activeServiceTasks.length }}</text><text>服务中</text></view>
       <view class="summary-item"><text>{{ pendingRecordTasks.length }}</text><text>待填写</text></view>
       <view class="summary-item"><text>{{ completedCount }}</text><text>已完成</text></view>
@@ -283,9 +324,10 @@ onMounted(loadTasks);
     <view v-if="notice" class="notice success">{{ notice }}</view>
     <view v-if="error" class="notice error">{{ error }}</view>
 
-    <view class="tabbar">
+    <view v-if="activeTab !== 'health-summary'" class="tabbar">
       <button :class="{ active: activeTab === 'tasks' }" type="button" @click="activeTab = 'tasks'">我的任务</button>
       <button :class="{ active: activeTab === 'records' }" type="button" @click="openRecords">服务记录</button>
+      <button :class="{ active: activeTab === 'suggestions' }" type="button" @click="openSuggestions()">档案建议</button>
     </view>
 
     <view v-if="activeTab === 'tasks'" class="task-board">
@@ -293,46 +335,60 @@ onMounted(loadTasks);
         <view class="task-section-heading"><text>{{ group.label }}</text><text>{{ group.tasks.length }} 项</text></view>
         <view v-if="group.tasks.length === 0" class="record-empty">暂无{{ group.label }}的任务</view>
         <view v-for="task in group.tasks" :key="task.taskId" class="task-card">
-          <view class="task-card-top"><text class="task-service">{{ task.serviceName || task.serviceId || '上门护理服务' }}</text><text class="status-chip" :class="`status-${task.taskStatus.toLowerCase()}`">{{ label(task.taskStatus) }}</text></view>
-          <text class="task-person">服务对象 {{ task.elderId || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
-          <button class="secondary-action" type="button" :disabled="loading" @click="selectedTaskId = task.taskId; progressTask(nextTaskAction(task).targetStatus)">{{ nextTaskAction(task).label }}</button>
+          <view class="task-card-top"><text class="task-service">{{ task.serviceName || '上门护理服务' }}</text><text class="status-chip" :class="`status-${task.taskStatus.toLowerCase()}`">{{ label(task.taskStatus) }}</text></view>
+          <text class="task-person">服务对象 {{ task.elderName || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
+          <view class="task-card-actions">
+            <button v-if="preServiceSummaryStatuses.includes(task.taskStatus)" class="secondary-action health-summary-entry" type="button" :disabled="loading" @click="openHealthSummary(task)">查看健康摘要</button>
+            <button class="primary-action" type="button" :disabled="loading" @click="selectedTaskId = task.taskId; progressTask(nextTaskAction(task).targetStatus)">{{ nextTaskAction(task).label }}</button>
+          </view>
         </view>
       </view>
       <view class="task-section">
         <view class="task-section-heading"><text>待填写记录</text><text>{{ pendingRecordTasks.length }} 项</text></view>
         <view v-if="pendingRecordTasks.length === 0" class="record-empty">暂无待填写记录的任务</view>
         <view v-for="task in pendingRecordTasks" :key="task.taskId" class="task-card">
-          <view class="task-card-top"><text class="task-service">{{ task.serviceId || '上门护理服务' }}</text><text class="status-chip status-wait_report">待填写记录</text></view>
-          <text class="task-person">服务对象 {{ task.elderId || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
+          <view class="task-card-top"><text class="task-service">{{ task.serviceName || '上门护理服务' }}</text><text class="status-chip status-wait_report">待填写记录</text></view>
+          <text class="task-person">服务对象 {{ task.elderName || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
           <button class="primary-action" type="button" :disabled="loading" @click="openRecordEditor(task)">填写服务记录</button>
         </view>
       </view>
       <view class="task-section">
         <view class="task-section-heading"><text>等待确认</text><text>{{ waitingConfirmTasks.length }} 项</text></view>
         <view v-if="waitingConfirmTasks.length === 0" class="record-empty">暂无等待长辈或家属确认的报告</view>
-        <view v-for="task in waitingConfirmTasks" :key="task.taskId" class="task-card"><view class="task-card-top"><text class="task-service">{{ task.serviceName || task.serviceId || '上门护理服务' }}</text><text class="status-chip">等待确认</text></view><text class="task-time">{{ taskTime(task.scheduledStart) }}</text></view>
+        <view v-for="task in waitingConfirmTasks" :key="task.taskId" class="task-card"><view class="task-card-top"><text class="task-service">{{ task.serviceName || '上门护理服务' }}</text><text class="status-chip">等待确认</text></view><text class="task-time">{{ taskTime(task.scheduledStart) }}</text><button class="secondary-action suggestion-entry" type="button" @click="openSuggestions(task)">建议更新健康档案</button></view>
       </view>
       <view class="task-section">
         <view class="task-section-heading"><text>已完成</text><text>{{ completedTasks.length }} 项</text></view>
         <view v-if="completedTasks.length === 0" class="record-empty">暂无已完成任务</view>
         <view v-for="task in completedTasks" :key="task.taskId" class="task-card">
-          <view class="task-card-top"><text class="task-service">{{ task.serviceId || '上门护理服务' }}</text><text class="status-chip">已完成</text></view>
-          <text class="task-person">服务对象 {{ task.elderId || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
+          <view class="task-card-top"><text class="task-service">{{ task.serviceName || '上门护理服务' }}</text><text class="status-chip">已完成</text></view>
+          <text class="task-person">服务对象 {{ task.elderName || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
           <view class="task-card-actions">
             <button class="secondary-action" type="button" @click="openRecordsForTask(task)">查看服务记录</button>
             <button v-if="task.orderStatus === 'WAIT_REPORT'" class="primary-action" type="button" :disabled="loading" @click="generateReportForTask(task)">生成服务报告</button>
+            <button class="secondary-action" type="button" @click="openSuggestions(task)">建议更新健康档案</button>
           </view>
         </view>
       </view>
       <view class="task-section">
         <view class="task-section-heading"><text>已取消</text><text>{{ canceledTasks.length }} 项</text></view>
         <view v-if="canceledTasks.length === 0" class="record-empty">暂无已取消任务</view>
-        <view v-for="task in canceledTasks" :key="task.taskId" class="task-card"><view class="task-card-top"><text class="task-service">{{ task.serviceName || task.serviceId || '上门护理服务' }}</text><text class="status-chip">已取消</text></view><text class="task-time">{{ taskTime(task.scheduledStart) }}</text></view>
+        <view v-for="task in canceledTasks" :key="task.taskId" class="task-card"><view class="task-card-top"><text class="task-service">{{ task.serviceName || '上门护理服务' }}</text><text class="status-chip">已取消</text></view><text class="task-time">{{ taskTime(task.scheduledStart) }}</text></view>
       </view>
     </view>
 
-    <view v-else-if="isEditingRecord && recordableTask" class="record-panel">
-      <view class="record-editor-heading"><view><text>填写服务记录</text><text>{{ recordableTask.serviceId || '上门护理服务' }} · {{ taskTime(recordableTask.scheduledStart) }}</text></view><button class="text-action" type="button" @click="openRecords">返回记录列表</button></view>
+    <StageTwentyFivePreServiceSummary
+      v-else-if="activeTab === 'health-summary' && summaryTask"
+      :key="summaryTask.orderId"
+      :order-id="summaryTask.orderId"
+      :service-name="summaryTask.serviceName || '上门护理服务'"
+      :scheduled-start="summaryTask.scheduledStart"
+      :elder-name="summaryTask.elderName"
+      @close="closeHealthSummary"
+    />
+
+    <view v-else-if="activeTab === 'records' && isEditingRecord && recordableTask" class="record-panel">
+      <view class="record-editor-heading"><view><text>填写服务记录</text><text>{{ recordableTask.serviceName || '上门护理服务' }} · {{ taskTime(recordableTask.scheduledStart) }}</text></view><button class="text-action" type="button" @click="openRecords">返回记录列表</button></view>
       <view class="record-form">
         <view class="record-task"><text>本次服务时间</text><text>{{ taskTime(recordableTask.scheduledStart) }}</text></view>
         <view class="field"><text>开始时间</text><view class="record-time-picker"><picker mode="date" :value="recordDate(recordForm.startTime)" @change="selectRecordDate('startTime', $event)"><view class="input">{{ recordDate(recordForm.startTime) }}</view></picker><picker mode="time" :value="recordTime(recordForm.startTime)" @change="selectRecordTime('startTime', $event)"><view class="input">{{ recordTime(recordForm.startTime) }}</view></picker></view></view>
@@ -344,27 +400,35 @@ onMounted(loadTasks);
       </view>
     </view>
 
-    <view v-else class="record-panel">
+    <view v-else-if="activeTab === 'records'" class="record-panel">
       <view class="record-section">
         <view class="record-history-heading"><text>已填写</text><text>{{ recordsLoading ? '加载中' : `${serviceRecords.length} 条` }}</text></view>
         <view v-if="!recordsLoading && serviceRecords.length === 0" class="record-empty">暂无已填写的服务记录</view>
         <view v-for="record in serviceRecords" :key="record.recordId" class="saved-record">
-          <view class="saved-record-heading"><text class="saved-record-title">{{ taskForRecord(record)?.serviceId || '上门护理服务' }}</text><text v-if="record.recordId === recentRecordId" class="recent-chip">刚填写</text></view>
+          <view class="saved-record-heading"><text class="saved-record-title">{{ taskForRecord(record)?.serviceName || '上门护理服务' }}</text><text v-if="record.recordId === recentRecordId" class="recent-chip">刚填写</text></view>
           <text>{{ taskTime(record.startTime) }} 至 {{ taskTime(record.endTime) }}</text>
           <text>{{ record.content }}</text>
           <text v-if="record.nursingAdvice">护理建议：{{ record.nursingAdvice }}</text>
+          <button v-if="taskForRecord(record)" class="text-action suggestion-record-entry" type="button" @click="openSuggestions(taskForRecord(record))">根据本次记录提出档案建议</button>
         </view>
       </view>
       <view class="record-section">
         <view class="record-history-heading"><text>未填写</text><text>{{ pendingRecordTasks.length }} 项</text></view>
         <view v-if="pendingRecordTasks.length === 0" class="record-empty">暂无待填写记录的已完成任务</view>
         <view v-for="task in pendingRecordTasks" :key="task.taskId" class="pending-record-row">
-          <view><text>{{ task.serviceId || '上门护理服务' }}</text><text>{{ taskTime(task.scheduledStart) }}</text></view>
+          <view><text>{{ task.serviceName || '上门护理服务' }}</text><text>{{ taskTime(task.scheduledStart) }}</text></view>
           <button class="primary-action" type="button" @click="openRecordEditor(task)">填写记录</button>
         </view>
       </view>
       <view v-if="servingTasks.length" class="record-empty">服务中的任务需先结束服务，才可填写服务记录。</view>
     </view>
+
+    <StageTwentyThreeSuggestionPanel
+      v-else-if="activeTab === 'suggestions'"
+      :tasks="tasks"
+      :preferred-order-id="suggestionOrderId"
+      @submitted="notice = '健康档案建议已提交管理端审核，正式档案暂未修改。'"
+    />
 
     <view class="nurse-footer"><button type="button" @click="signOut">退出登录</button></view>
   </view>
@@ -393,5 +457,6 @@ onMounted(loadTasks);
 .record-form { display: block; }
 .record-section { display: grid; gap: 12rpx; margin-bottom: 24rpx; }.record-history-heading, .saved-record { display: grid; gap: 10rpx; }.record-history-heading { grid-template-columns: 1fr auto; align-items: center; margin-bottom: 4rpx; font-size: 28rpx; font-weight: 700; }.record-history-heading text:last-child { color: #70817f; font-size: 23rpx; font-weight: 400; }.saved-record { margin: 0; padding: 18rpx; border: 1rpx solid #dce8e5; border-radius: 8rpx; color: #5c706d; font-size: 24rpx; }.saved-record-heading { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }.saved-record-title { color: #1b3632; font-size: 27rpx; font-weight: 700; }.recent-chip { flex: 0 0 auto; padding: 4rpx 12rpx; border-radius: 999rpx; background: #eef5f4; color: #52716c; font-size: 21rpx; }.pending-record-row { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 18rpx; border: 1rpx solid #dce8e5; border-radius: 8rpx; }.pending-record-row > view { display: grid; gap: 8rpx; min-width: 0; }.pending-record-row text:first-child { color: #1b3632; font-size: 27rpx; font-weight: 700; }.pending-record-row text:last-child { color: #70817f; font-size: 23rpx; }.pending-record-row .primary-action { flex: 0 0 auto; height: 66rpx; line-height: 66rpx; padding: 0 20rpx; font-size: 24rpx; }.record-empty { margin: 0; padding: 18rpx; border-radius: 8rpx; background: #f1f6f5; color: #70817f; font-size: 24rpx; }
 .record-editor-heading, .record-entry-callout { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-bottom: 22rpx; }.record-editor-heading > view, .record-entry-callout > view { display: grid; gap: 8rpx; }.record-editor-heading text:first-child, .record-entry-callout text:first-child { color: #1b3632; font-size: 30rpx; font-weight: 700; }.record-editor-heading text:last-child, .record-entry-callout text:last-child { color: #70817f; font-size: 23rpx; }.record-entry-callout { padding: 18rpx; border: 1rpx solid #b8d9d4; border-radius: 8rpx; background: #f1faf7; }.text-action { width: auto; margin: 0; padding: 0; border: 0; background: transparent; color: #0f766e; font-size: 24rpx; }
+.suggestion-entry { width:100%; margin-top:16rpx; height:68rpx; line-height:68rpx; }.suggestion-record-entry { margin-top:4rpx; padding-top:12rpx; border-top:1rpx solid #e7eeec; text-align:left; }
 @media (min-width: 768px) { .nurse-app { width: 440px; margin: 0 auto; box-shadow: 0 0 0 1px #dde7e5, 0 16px 48px rgba(15, 49, 44, .1); } }
 </style>

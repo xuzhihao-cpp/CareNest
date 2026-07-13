@@ -20,38 +20,46 @@ import type {
 } from '@/types/stageTwo';
 
 const accounts = (authFixtures as { accounts: DemoAccount[] }).accounts;
-const supportedRoles: RoleCode[] = ['ELDER', 'FAMILY', 'NURSE', 'ADMIN'];
+const supportedRoles: RoleCode[] = ['ELDER', 'FAMILY', 'NURSE', 'ADMIN', 'CUSTOMER_SERVICE'];
 
 const menuMetaByBackendPath: Record<string, Pick<AuthMenu, 'name' | 'icon'>> = {
   '/elder/home': { name: '长辈首页', icon: 'home' },
   '/elder/reminders': { name: '今日提醒', icon: 'reminder' },
   '/elder/ai': { name: 'AI 语音', icon: 'voice' },
+  '/elder/health-feedback': { name: '健康反馈', icon: 'health' },
   '/family/home': { name: '家属首页', icon: 'home' },
   '/family/elders': { name: '长辈档案', icon: 'health' },
   '/family/medical-files': { name: '病历资料', icon: 'file' },
+  '/family/health-feedback': { name: '健康反馈', icon: 'health' },
   '/family/orders': { name: '服务订单', icon: 'order' },
   '/nurse/home': { name: '护理工作台', icon: 'workbench' },
   '/nurse/orders': { name: '任务管理', icon: 'task' },
   '/nurse/reports': { name: '服务报告', icon: 'file' },
   '/admin/home': { name: '管理首页', icon: 'dashboard' },
   '/admin/users': { name: '用户管理', icon: 'users' },
-  '/admin/dashboard': { name: '数据看板', icon: 'chart' }
+  '/admin/dashboard': { name: '数据看板', icon: 'chart' },
+  '/admin/medical-files': { name: '病历审核', icon: 'file' },
+  '/customer-service/home': { name: '病历审核', icon: 'file' }
 };
 
 const backendPathToPagePath: Record<string, string> = {
   '/elder/home': '/pages/elder/index',
   '/elder/reminders': '/pages/elder/index?view=today-reminders',
   '/elder/ai': '/pages/elder/index?view=voice-assistant',
+  '/elder/health-feedback': '/pages/elder/index?view=health-feedback',
   '/family/home': '/pages/family/index',
   '/family/elders': '/pages/family/index?view=health-archive',
   '/family/medical-files': '/pages/family/index?view=medical-files',
+  '/family/health-feedback': '/pages/family/index?view=health-feedback',
   '/family/orders': '/pages/family/index?view=orders',
   '/nurse/home': '/pages/nurse/index',
   '/nurse/orders': '/pages/nurse/index?view=task-list',
   '/nurse/reports': '/pages/nurse/index?view=submit-report',
   '/admin/home': '/pages/admin/index',
   '/admin/users': '/pages/admin/index?view=users',
-  '/admin/dashboard': '/pages/admin/index?view=dashboard'
+  '/admin/dashboard': '/pages/admin/index?view=dashboard',
+  '/admin/medical-files': '/pages/admin/index?view=medical-files',
+  '/customer-service/home': '/pages/admin/index?view=medical-files'
 };
 
 function isRoleCode(value: string): value is RoleCode {
@@ -211,6 +219,10 @@ export async function getAuthMenus(): Promise<ApiResponse<{ menus: AuthMenu[] }>
 }
 
 export function getRoleHomePath(roleCode: RoleCode, menus: AuthMenu[]) {
+  if (roleCode === 'CUSTOMER_SERVICE') {
+    return menus.find((item) => item.path.includes('medical-files'))?.path
+      ?? '/pages/admin/index?view=medical-files';
+  }
   const menu = menus.find((item) => item.path.includes(roleCode.toLowerCase())) ?? menus[0];
   return menu?.path ?? '/pages/elder/index';
 }

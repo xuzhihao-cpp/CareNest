@@ -8,6 +8,7 @@ function createApiProxy(userApiTarget: string, careApiTarget: string) {
     '/api/v1/auth': { target: userApiTarget, changeOrigin: true },
     '/api/v1/family/bindings': { target: userApiTarget, changeOrigin: true },
     '/api/v1/elder/bindings': { target: userApiTarget, changeOrigin: true },
+    '/api/v1/elder': { target: userApiTarget, changeOrigin: true },
     '/api/v1/family/elders': { target: userApiTarget, changeOrigin: true },
     '/api/v1/elders': { target: userApiTarget, changeOrigin: true },
     '/api/v1/service-addresses': { target: userApiTarget, changeOrigin: true },
