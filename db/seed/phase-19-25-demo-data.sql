@@ -48,14 +48,14 @@ DELETE FROM file_asset WHERE file_id IN ('file_001', 'file_002');
 INSERT INTO file_asset
   (file_id, original_name, mime_type, file_size, storage_bucket, object_key, audit_status, uploaded_by)
 VALUES
-  ('file_001', 'blood-pressure-report.pdf', 'application/pdf', 204800, 'carenest-medical', 'demo/elder_001/blood-pressure-report.pdf', 'APPROVED', 'family-001'),
-  ('file_002', 'lab-result.pdf', 'application/pdf', 102400, 'carenest-medical', 'demo/elder_001/lab-result.pdf', 'PENDING', 'family-001');
+  ('file_001', 'blood-pressure-report.pdf', 'application/pdf', 668, 'smart-nursing', 'demo/elder_001/blood-pressure-report.pdf', 'APPROVED', 'family-001'),
+  ('file_002', 'lab-result.pdf', 'application/pdf', 660, 'smart-nursing', 'demo/elder_001/lab-result.pdf', 'PENDING', 'family-001');
 
 INSERT INTO medical_file
   (medical_file_id, elder_id, file_id, file_type, title, occurred_at, audit_status, review_comment, uploader_id, reviewer_id, reviewed_at)
 VALUES
-  ('medical_file_001', 'elder_001', 'file_001', 'CHECK_REPORT', '近期血压检查报告', '2026-07-01', 'APPROVED', '资料清晰，可用于服务前摘要。', 'family-001', 'admin-001', CURRENT_TIMESTAMP),
-  ('medical_file_002', 'elder_001', 'file_002', 'CHECK_REPORT', '待审核化验单', '2026-07-05', 'PENDING', NULL, 'family-001', NULL, NULL);
+  ('medical_file_001', 'elder_001', 'file_001', 'EXAMINATION_REPORT', '近期血压检查报告', '2026-07-01', 'APPROVED', '资料清晰，可用于服务前摘要。', 'family-001', 'admin-001', CURRENT_TIMESTAMP),
+  ('medical_file_002', 'elder_001', 'file_002', 'EXAMINATION_REPORT', '待审核化验单', '2026-07-05', 'PENDING', NULL, 'family-001', NULL, NULL);
 
 DELETE FROM elder_health_feedback WHERE feedback_id IN ('feedback_001');
 INSERT INTO elder_health_feedback

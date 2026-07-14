@@ -11,22 +11,22 @@ const transformed = await transformWithEsbuild(source, 'stageTwentyRules.ts', {
 });
 const rules = await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(transformed.code)}`);
 
-const maxBytes = 10 * 1024 * 1024;
+const maxBytes = 20 * 1024 * 1024;
 
 test('rejects oversized, unsupported and disguised files', () => {
   assert.match(
     rules.validateMedicalFileDescriptor(
       { name: 'report.pdf', size: maxBytes + 1, mimeType: 'application/pdf' },
       maxBytes,
-      10
+      20
     ),
-    /超过 10 MB/
+    /超过 20 MB/
   );
   assert.match(
     rules.validateMedicalFileDescriptor(
       { name: 'report.exe', size: 10, mimeType: 'application/octet-stream' },
       maxBytes,
-      10
+      20
     ),
     /PDF、JPG 或 PNG/
   );
@@ -34,7 +34,7 @@ test('rejects oversized, unsupported and disguised files', () => {
     rules.validateMedicalFileDescriptor(
       { name: 'renamed.pdf', size: 10, mimeType: 'image/png' },
       maxBytes,
-      10
+      20
     ),
     /扩展名与实际类型不一致/
   );

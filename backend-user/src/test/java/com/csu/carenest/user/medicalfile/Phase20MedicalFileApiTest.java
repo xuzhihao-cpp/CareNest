@@ -43,6 +43,9 @@ class Phase20MedicalFileApiTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private MedicalFileStorage medicalFileStorage;
+
     @Test
     void uploadRequiresAuthentication() throws Exception {
         mockMvc.perform(pdfUpload(null))
@@ -128,6 +131,68 @@ class Phase20MedicalFileApiTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value(422));
+    }
+
+    @Test
+    void rejectsExtensionMismatchAndIncompletePngSignature() throws Exception {
+        String token = loginAndReadToken("family_demo");
+        byte[] pdf = "%PDF-1.4\n%%EOF\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        mockMvc.perform(multipart("/api/v1/files")
+                        .file(new MockMultipartFile("file", "report.txt", "application/pdf", pdf))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value(422));
+
+        byte[] incompletePng = new byte[]{(byte) 0x89, 'P', 'N', 'G', 0, 0, 0, 0};
+        mockMvc.perform(multipart("/api/v1/files")
+                        .file(new MockMultipartFile("file", "scan.png", "image/png", incompletePng))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value(422));
+    }
+
+    @Test
+    void acceptsCompletePngSignature() throws Exception {
+        String token = loginAndReadToken("family_demo");
+        byte[] png = new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
+
+        mockMvc.perform(multipart("/api/v1/files")
+                        .file(new MockMultipartFile("file", "scan.PNG", "image/png", png))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.mimeType").value("image/png"));
+    }
+
+    @Test
+    void rejectsFilesOverTwentyMebibytes() throws Exception {
+        String token = loginAndReadToken("family_demo");
+        byte[] oversized = new byte[(20 * 1024 * 1024) + 1];
+        byte[] signature = "%PDF".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        System.arraycopy(signature, 0, oversized, 0, signature.length);
+
+        mockMvc.perform(multipart("/api/v1/files")
+                        .file(new MockMultipartFile("file", "oversized.pdf", "application/pdf", oversized))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value(422));
+    }
+
+    @Test
+    void removesStoredObjectWhenPresignedResponseCannotBeCreated() throws Exception {
+        String token = loginAndReadToken("family_demo");
+        org.mockito.Mockito.doThrow(new IllegalStateException("signing unavailable"))
+                .when(medicalFileStorage)
+                .presignedGet(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());
+        try {
+            mockMvc.perform(pdfUpload(token))
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.code").value(500));
+
+            org.mockito.Mockito.verify(medicalFileStorage)
+                    .remove(org.mockito.ArgumentMatchers.anyString());
+        } finally {
+            org.mockito.Mockito.reset(medicalFileStorage);
+        }
     }
 
     @Test

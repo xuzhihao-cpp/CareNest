@@ -85,12 +85,16 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin123}
       MINIO_BUCKET: ${MINIO_BUCKET:-smart-nursing}
+    volumes:
+      - ./db/seed/assets:/seed-assets:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         set -eu
         mc alias set local http://minio:9000 "$${MINIO_ACCESS_KEY}" "$${MINIO_SECRET_KEY}"
         mc mb --ignore-existing "local/$${MINIO_BUCKET}"
+        mc cp /seed-assets/blood-pressure-report.pdf "local/$${MINIO_BUCKET}/demo/elder_001/blood-pressure-report.pdf"
+        mc cp /seed-assets/lab-result.pdf "local/$${MINIO_BUCKET}/demo/elder_001/lab-result.pdf"
 
 volumes:
   carenest_mysql_data:

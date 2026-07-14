@@ -199,6 +199,9 @@ public class HealthArchiveService {
                 request.allergies().stream().map(HealthArchiveDtos.AllergyInput::allergenName).toList(),
                 "过敏记录存在重复项目");
         requireUnique(request.riskTags(), "风险标签存在重复项目");
+        if (request.riskTags().stream().anyMatch(tag -> !RISK_LABELS.containsKey(tag))) {
+            throw new ApiException(422, "风险标签不支持");
+        }
         if (request.medications().stream()
                 .anyMatch(item -> item.endDate() != null && item.endDate().isBefore(item.startDate()))) {
             throw new ApiException(422, "用药结束日期不能早于开始日期");
