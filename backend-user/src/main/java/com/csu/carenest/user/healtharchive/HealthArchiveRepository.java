@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -37,6 +38,17 @@ class HealthArchiveRepository {
                 """,
                 String.class,
                 familyId,
+                elderId);
+    }
+
+    List<String> findActiveFamilyIds(String elderId) {
+        return jdbcTemplate.queryForList(
+                """
+                SELECT DISTINCT family_id
+                FROM elder_family_binding
+                WHERE elder_id = ? AND binding_status = 'ACTIVE'
+                """,
+                String.class,
                 elderId);
     }
 
@@ -138,6 +150,157 @@ class HealthArchiveRepository {
                 .findFirst();
     }
 
+    int advanceArchiveVersion(String elderId, int expectedVersion, String updatedBy) {
+        return jdbcTemplate.update(
+                """
+                UPDATE health_archive
+                SET archive_version = archive_version + 1, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE elder_id = ? AND archive_version = ?
+                """,
+                updatedBy,
+                elderId,
+                expectedVersion);
+    }
+
+    void replaceDiseases(String elderId, List<HealthArchiveDtos.DiseaseInput> values) {
+        jdbcTemplate.update("DELETE FROM chronic_disease WHERE elder_id = ?", elderId);
+        for (HealthArchiveDtos.DiseaseInput value : values) {
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO chronic_disease
+                      (disease_id, elder_id, disease_name, disease_status, diagnosed_at, remark)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    nextId("disease"), elderId, value.diseaseName().trim(), value.status(),
+                    value.diagnosedAt(), trimToNull(value.remark()));
+        }
+    }
+
+    void replaceMedications(String elderId, List<SerializedMedication> values) {
+        jdbcTemplate.update("DELETE FROM medication_plan WHERE elder_id = ?", elderId);
+        for (SerializedMedication value : values) {
+            HealthArchiveDtos.MedicationInput input = value.input();
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO medication_plan
+                      (medication_id, elder_id, medication_name, dosage, frequency, time_points,
+                       start_date, end_date, medication_status, remark)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
+                    """,
+                    nextId("med"), elderId, input.medicationName().trim(), trimToNull(input.dosage()),
+                    input.frequency(), value.timePointsJson(), input.startDate(), input.endDate(),
+                    trimToNull(input.remark()));
+        }
+    }
+
+    void replaceAllergies(String elderId, List<HealthArchiveDtos.AllergyInput> values) {
+        jdbcTemplate.update("DELETE FROM allergy_record WHERE elder_id = ?", elderId);
+        for (HealthArchiveDtos.AllergyInput value : values) {
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO allergy_record
+                      (allergy_id, elder_id, allergen, reaction, severity, remark)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    nextId("allergy"), elderId, value.allergenName().trim(), trimToNull(value.reaction()),
+                    value.severity(), trimToNull(value.remark()));
+        }
+    }
+
+    void replaceRiskTags(String elderId, List<String> codes, Map<String, String> labels) {
+        jdbcTemplate.update("DELETE FROM risk_tag WHERE elder_id = ?", elderId);
+        for (String rawCode : codes) {
+            String code = rawCode.trim();
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO risk_tag
+                      (risk_tag_id, elder_id, tag_code, tag_name, risk_level)
+                    VALUES (?, ?, ?, ?, 'MEDIUM')
+                    """,
+                    nextId("risk"), elderId, code, labels.getOrDefault(code, code));
+        }
+    }
+
+    void replaceCarePlan(String elderId, String contentJson) {
+        jdbcTemplate.update("DELETE FROM care_plan WHERE elder_id = ?", elderId);
+        jdbcTemplate.update(
+                """
+                INSERT INTO care_plan (care_plan_id, elder_id, plan_content, plan_status)
+                VALUES (?, ?, ?, 'ACTIVE')
+                """,
+                nextId("plan"), elderId, contentJson);
+    }
+
+    boolean medicationNameExists(String elderId, String normalizedName) {
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM medication_plan
+                WHERE elder_id = ? AND LOWER(TRIM(medication_name)) = ?
+                """,
+                Integer.class,
+                elderId,
+                normalizedName);
+        return count != null && count > 0;
+    }
+
+    void insertMedication(String elderId, SerializedMedication value) {
+        HealthArchiveDtos.MedicationInput input = value.input();
+        jdbcTemplate.update(
+                """
+                INSERT INTO medication_plan
+                  (medication_id, elder_id, medication_name, dosage, frequency, time_points,
+                   start_date, end_date, medication_status, remark)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
+                """,
+                nextId("med"), elderId, input.medicationName().trim(), trimToNull(input.dosage()),
+                input.frequency(), value.timePointsJson(), input.startDate(), input.endDate(),
+                trimToNull(input.remark()));
+    }
+
+    void insertChangeLog(
+            String elderId,
+            String changedBy,
+            String changeType,
+            String beforeJson,
+            String afterJson) {
+        jdbcTemplate.update(
+                """
+                INSERT INTO health_archive_change_log
+                  (change_log_id, elder_id, changed_by, change_type, before_value, after_value)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                nextId("archive_log"), elderId, changedBy, changeType, beforeJson, afterJson);
+    }
+
+    void insertOperationLog(
+            String operatorId,
+            String operationType,
+            String bizId,
+            String beforeJson,
+            String afterJson) {
+        jdbcTemplate.update(
+                """
+                INSERT INTO operation_log
+                  (log_id, operator_id, role_code, operation_type, biz_type, biz_id,
+                   before_value, after_value, trace_id)
+                VALUES (?, ?, 'FAMILY', ?, 'HEALTH_ARCHIVE', ?, ?, ?, ?)
+                """,
+                nextId("op"), operatorId, operationType, bizId, beforeJson, afterJson,
+                "phase19-" + java.util.UUID.randomUUID().toString().replace("-", ""));
+    }
+
+    private String nextId(String prefix) {
+        return prefix + "_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
     record ElderRow(String elderId, String userId) {
     }
 
@@ -167,5 +330,8 @@ class HealthArchiveRepository {
     }
 
     record RiskTagRow(String code, String name) {
+    }
+
+    record SerializedMedication(HealthArchiveDtos.MedicationInput input, String timePointsJson) {
     }
 }

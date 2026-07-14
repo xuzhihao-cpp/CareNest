@@ -4,7 +4,7 @@
 
 **Goal:** Implement the real Phase 19 health archive APIs against MySQL so the existing elder and family frontend can read and version-safely update the same archived data.
 
-**Architecture:** Add a focused `healtharchive` module to `backend-user` with controller, service, persistence models, and MyBatis mappers. Authorization reuses JWT users and the existing `elder_profile` and `elder_family_binding` tables; all writes use one Spring transaction, optimistic version updates, audit logs, and post-commit home-cache invalidation. The existing frontend contract remains authoritative and receives only business DTOs.
+**Architecture:** Add a focused `healtharchive` module to `backend-user` with controller, service, DTOs, and a JDBC repository, matching established backend JDBC usage. Authorization reuses JWT users and the existing `elder_profile` and `elder_family_binding` tables; all writes use one Spring transaction, optimistic version updates, audit logs, and post-commit home-cache invalidation. The existing frontend contract remains authoritative and receives only business DTOs.
 
 **Tech Stack:** Java 17, Spring Boot 3, MyBatis-Plus, MySQL 8, H2 integration tests, Vue 3/TypeScript frontend, Docker Compose, Redis 7.
 
@@ -27,14 +27,13 @@
 - Create: `db/migration/phase-19-health-archive-contract.sql`
 - Modify: `db/seed/phase-19-25-demo-data.sql`
 - Create: `backend-user/src/main/java/com/csu/carenest/user/healtharchive/HealthArchiveDtos.java`
-- Create: `backend-user/src/main/java/com/csu/carenest/user/healtharchive/HealthArchiveRecords.java`
-- Create: `backend-user/src/main/java/com/csu/carenest/user/healtharchive/HealthArchiveMappers.java`
+- Create: `backend-user/src/main/java/com/csu/carenest/user/healtharchive/HealthArchiveRepository.java`
 - Modify: `backend-user/src/test/resources/test-schema.sql`
 - Modify: `backend-user/src/test/resources/test-data.sql`
 
 **Interfaces:**
 - Produces: `HealthArchiveDtos.ArchiveResponse`, `ArchiveUpdateRequest`, `ArchiveUpdateResult`, `MedicationCreateRequest`, and `MedicationCreateResult` matching `frontend/src/types/stageNineteen.ts`.
-- Produces: persistence records for `health_archive`, `chronic_disease`, `medication_plan`, `allergy_record`, `risk_tag`, and `care_plan`.
+- Produces: repository row records and parameterized SQL for `health_archive`, `chronic_disease`, `medication_plan`, `allergy_record`, `risk_tag`, and `care_plan`.
 
 - [ ] Add an integration-test schema and seed rows for all six Phase 19 tables, including a version-1 archive for `elder_001`.
 - [ ] Add a failing DTO validation test proving blank names, duplicate medication data, invalid dates/times, unsupported enum values, and oversized text are rejected with 400 or 422.
@@ -122,4 +121,3 @@
 - [ ] Verify family GET/PUT/GET, elder GET, unauthorized family 403, stale-version 409, and medication quick-add through `http://localhost:3000`.
 - [ ] Verify database archive version, child rows, both audit logs, and absence of partial writes after a rejected request.
 - [ ] Run `mvn -pl backend-user test`, `pnpm typecheck`, relevant frontend scripts, and Docker health checks one final time.
-

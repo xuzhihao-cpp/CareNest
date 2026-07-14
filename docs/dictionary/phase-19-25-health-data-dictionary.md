@@ -25,6 +25,10 @@ This file freezes the database-side names, status values, and Redis key policy f
 | --- | --- | --- | --- | --- | --- |
 | HealthArchive | `archiveVersion` | `archive_version` | int | yes | Incremented when archive content is formally changed. |
 | HealthArchive | `careSummary` | `care_summary` | varchar | no | Human-readable care summary. |
+| RiskTag | `tagCode` | `tag_code` | varchar | yes | Stable frontend code such as `FALL_RISK`; unique per elder. |
+| CarePlan | `careGoals` | `plan_content` JSON | varchar | yes | Goal text, maximum 300 characters. |
+| CarePlan | `dailyCare` | `plan_content` JSON | varchar | yes | Daily care text, maximum 500 characters. |
+| CarePlan | `precautions` | `plan_content` JSON | varchar | yes | Precaution text, maximum 500 characters. |
 | ChronicDisease | `diseaseName` | `disease_name` | varchar | yes | Disease name as record text. |
 | MedicationPlan | `timePoints` | `time_points` | JSON | no | Array of medication time strings, such as `["08:00"]`. |
 | AllergyRecord | `allergen` | `allergen` | varchar | yes | Allergy source. |
@@ -71,5 +75,6 @@ Redis is not the source of truth. MySQL remains authoritative for orders, report
 Implementation rules:
 - Always authorize user and resource scope before reading Redis.
 - Write MySQL in a transaction first, then invalidate Redis after success.
+- Phase 19 archive PUT and medication POST invalidate the elder home key and every active bound family home key after commit; rollback performs no invalidation.
 - Do not cache raw JWT, password, phone number, MinIO keys, full medical file body, or full medical text.
 - Redis outage must not produce fake success; reads may fall back to MySQL, writes must still rely on database consistency.

@@ -164,6 +164,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/elders/{elderId}/health-archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getArchive"];
+        put: operations["updateArchive"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/elders/{elderId}/medications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addMedication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/elders/{elderId}/profile": {
         parameters: {
             query?: never;
@@ -328,6 +360,32 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AllergyInput: {
+            allergenName: string;
+            reaction?: string;
+            remark?: string;
+            severity: string;
+        };
+        AllergyItem: {
+            allergenName: string;
+            reaction: string;
+            remark: string;
+            severity: string;
+        };
+        ApiResponseArchiveResponse: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["ArchiveResponse"];
+            message: string;
+            traceId: string;
+        };
+        ApiResponseArchiveUpdateResult: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["ArchiveUpdateResult"];
+            message: string;
+            traceId: string;
+        };
         ApiResponseAuthResponse: {
             /** Format: int32 */
             code: number;
@@ -384,6 +442,13 @@ export interface components {
             message: string;
             traceId: string;
         };
+        ApiResponseMedicationCreateResult: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["MedicationCreateResult"];
+            message: string;
+            traceId: string;
+        };
         ApiResponsePermissionResponse: {
             /** Format: int32 */
             code: number;
@@ -405,6 +470,33 @@ export interface components {
             message: string;
             traceId: string;
         };
+        ArchiveResponse: {
+            allergies: components["schemas"]["AllergyItem"][];
+            /** Format: int32 */
+            archiveVersion: number;
+            carePlan: components["schemas"]["CarePlanContent"];
+            diseases: components["schemas"]["DiseaseItem"][];
+            elderId: string;
+            medications: components["schemas"]["MedicationItem"][];
+            riskTags: components["schemas"]["RiskTagItem"][];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ArchiveUpdateRequest: {
+            allergies: components["schemas"]["AllergyInput"][];
+            /** Format: int32 */
+            archiveVersion?: number;
+            carePlan: components["schemas"]["CarePlanInput"];
+            diseases: components["schemas"]["DiseaseInput"][];
+            medications: components["schemas"]["MedicationInput"][];
+            riskTags: string[];
+        };
+        ArchiveUpdateResult: {
+            /** Format: int32 */
+            archiveVersion: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         AuthResponse: {
             displayName: string;
             menus: string[];
@@ -422,14 +514,40 @@ export interface components {
             bindingStatus: string;
             elderId: string;
             elderName: string;
+            pendingScopeCodes: string[];
             relationType: string;
             scopeCodes: string[];
+            scopeUpdatePending: boolean;
+        };
+        CarePlanContent: {
+            careGoals: string;
+            dailyCare: string;
+            precautions: string;
+        };
+        CarePlanInput: {
+            careGoals: string;
+            dailyCare: string;
+            precautions: string;
         };
         DemoDataStatusResponse: {
             accounts: string[];
             ready: boolean;
             /** Format: int32 */
             scenarioCount: number;
+        };
+        DiseaseInput: {
+            /** Format: date */
+            diagnosedAt?: string;
+            diseaseName: string;
+            remark?: string;
+            status: string;
+        };
+        DiseaseItem: {
+            /** Format: date */
+            diagnosedAt: string;
+            diseaseName: string;
+            remark: string;
+            status: string;
         };
         ElderProfileRequest: {
             birthDate: string;
@@ -464,6 +582,46 @@ export interface components {
             password: string;
             username: string;
         };
+        MedicationCreateRequest: {
+            /** Format: int32 */
+            archiveVersion?: number;
+            dosage?: string;
+            /** Format: date */
+            endDate?: string;
+            frequency: string;
+            medicationName: string;
+            remark?: string;
+            /** Format: date */
+            startDate: string;
+            timePoints: string[];
+        };
+        MedicationCreateResult: {
+            /** Format: int32 */
+            archiveVersion: number;
+            medication: components["schemas"]["MedicationItem"];
+        };
+        MedicationInput: {
+            dosage?: string;
+            /** Format: date */
+            endDate?: string;
+            frequency: string;
+            medicationName: string;
+            remark?: string;
+            /** Format: date */
+            startDate: string;
+            timePoints: string[];
+        };
+        MedicationItem: {
+            dosage: string;
+            /** Format: date */
+            endDate: string;
+            frequency: string;
+            medicationName: string;
+            remark: string;
+            /** Format: date */
+            startDate: string;
+            timePoints: string[];
+        };
         PermissionRequest: {
             permissionCodes: string[];
         };
@@ -483,6 +641,10 @@ export interface components {
             ackResult: string;
             reportStatus: string;
         };
+        RiskTagItem: {
+            tagCode: string;
+            tagName: string;
+        };
         ServiceAddressRequest: {
             contactName: string;
             contactPhone: string;
@@ -492,8 +654,12 @@ export interface components {
         };
         ServiceAddressResponse: {
             addressId: string;
+            contactName: string;
+            contactPhone: string;
+            detailAddress: string;
             fullAddress: string;
             isDefault: boolean;
+            regionCode: string;
         };
     };
     responses: never;
@@ -740,6 +906,86 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseReportAckResponse"];
+                };
+            };
+        };
+    };
+    getArchive: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                elderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseArchiveResponse"];
+                };
+            };
+        };
+    };
+    updateArchive: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                elderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArchiveUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseArchiveUpdateResult"];
+                };
+            };
+        };
+    };
+    addMedication: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                elderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MedicationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMedicationCreateResult"];
                 };
             };
         };

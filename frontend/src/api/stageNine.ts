@@ -62,6 +62,10 @@ function writeDetails(records: ServiceAddressDetail[]) {
 function toResponse(record: ServiceAddressDetail): ServiceAddressResponse {
   return {
     addressId: record.addressId,
+    contactName: record.contactName,
+    contactPhone: record.contactPhone,
+    regionCode: record.regionCode,
+    detailAddress: record.detailAddress,
     fullAddress: record.fullAddress,
     isDefault: record.isDefault
   };
