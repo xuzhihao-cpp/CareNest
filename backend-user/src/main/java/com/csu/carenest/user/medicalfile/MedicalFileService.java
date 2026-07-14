@@ -85,22 +85,26 @@ public class MedicalFileService {
         ValidatedFile validated = validate(file);
         String fileId = UUID.randomUUID().toString().replace("-", "");
         String objectKey = "medical/" + LocalDate.now() + "/" + fileId + validated.extension();
-        storage.put(objectKey, validated.mimeType(), file);
+        boolean stored = false;
         try {
+            storage.put(objectKey, validated.mimeType(), file);
+            stored = true;
             repository.insertAsset(fileId, validated.originalName(), validated.mimeType(), file.getSize(), objectKey, user.userId());
             String role = user.roles().isEmpty() ? null : user.roles().get(0).name();
             repository.insertUploadLog(UUID.randomUUID().toString().replace("-", ""), user.userId(), role, fileId);
+            String url = storage.presignedGet(objectKey, Duration.ofMinutes(10));
+            return new MedicalFileDtos.UploadResult(fileId, url, validated.originalName(),
+                    validated.mimeType(), file.getSize(), "PENDING");
         } catch (RuntimeException exception) {
-            try {
-                storage.remove(objectKey);
-            } catch (RuntimeException ignored) {
-                exception.addSuppressed(ignored);
+            if (stored) {
+                try {
+                    storage.remove(objectKey);
+                } catch (RuntimeException cleanupException) {
+                    exception.addSuppressed(cleanupException);
+                }
             }
-            throw exception;
+            throw new ApiException(500, "文件上传失败，请稍后重试", exception);
         }
-        String url = storage.presignedGet(objectKey, Duration.ofMinutes(10));
-        return new MedicalFileDtos.UploadResult(fileId, url, validated.originalName(),
-                validated.mimeType(), file.getSize(), "PENDING");
     }
 
     private ValidatedFile validate(MultipartFile file) {
@@ -118,6 +122,9 @@ public class MedicalFileService {
             if (!detected.equals(declared)) {
                 throw new ApiException(422, "文件类型与内容不一致");
             }
+            if (!hasMatchingExtension(original, detected)) {
+                throw new ApiException(422, "文件扩展名与内容不一致");
+            }
             return new ValidatedFile(original, detected, extension(detected));
         } catch (IOException exception) {
             throw new ApiException(422, "无法读取文件");
@@ -127,8 +134,26 @@ public class MedicalFileService {
     private String detect(byte[] bytes) {
         if (bytes.length >= 4 && bytes[0] == '%' && bytes[1] == 'P' && bytes[2] == 'D' && bytes[3] == 'F') return "application/pdf";
         if (bytes.length >= 3 && (bytes[0] & 0xff) == 0xff && (bytes[1] & 0xff) == 0xd8 && (bytes[2] & 0xff) == 0xff) return "image/jpeg";
-        if (bytes.length >= 8 && (bytes[0] & 0xff) == 0x89 && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G') return "image/png";
+        if (bytes.length >= 8
+                && (bytes[0] & 0xff) == 0x89
+                && bytes[1] == 'P'
+                && bytes[2] == 'N'
+                && bytes[3] == 'G'
+                && (bytes[4] & 0xff) == 0x0d
+                && (bytes[5] & 0xff) == 0x0a
+                && (bytes[6] & 0xff) == 0x1a
+                && (bytes[7] & 0xff) == 0x0a) return "image/png";
         throw new ApiException(422, "仅支持PDF、JPEG和PNG文件");
+    }
+
+    private boolean hasMatchingExtension(String fileName, String mimeType) {
+        String lowerName = fileName.toLowerCase(Locale.ROOT);
+        return switch (mimeType) {
+            case "application/pdf" -> lowerName.endsWith(".pdf");
+            case "image/jpeg" -> lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg");
+            case "image/png" -> lowerName.endsWith(".png");
+            default -> false;
+        };
     }
 
     private String sanitize(String name) {

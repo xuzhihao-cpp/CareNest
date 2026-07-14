@@ -178,6 +178,25 @@ class Phase19HealthArchiveApiTest {
     }
 
     @Test
+    void unsupportedRiskTagReturnsUnprocessableEntityWithoutChangingArchive() throws Exception {
+        String token = loginAndReadToken("family_demo");
+        Map<String, Object> payload = validArchiveUpdate(1);
+        payload.put("riskTags", List.of("UNSUPPORTED_RISK"));
+
+        mockMvc.perform(put("/api/v1/elders/elder_001/health-archive")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value(422));
+
+        org.junit.jupiter.api.Assertions.assertEquals(1, count(
+                "SELECT archive_version FROM health_archive WHERE elder_id = 'elder_001'"));
+        org.junit.jupiter.api.Assertions.assertEquals(0, count(
+                "SELECT COUNT(*) FROM health_archive_change_log WHERE elder_id = 'elder_001'"));
+    }
+
+    @Test
     void familyQuickAddsMedicationWithVersionCheck() throws Exception {
         String token = loginAndReadToken("family_demo");
 

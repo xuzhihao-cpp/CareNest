@@ -53,7 +53,7 @@ const statusOptions: Array<{ value: MedicalFileAuditStatus; label: string }> = [
   { value: 'NEED_MORE', label: '需补充' }
 ];
 
-const maxFileSizeMb = Number(import.meta.env.VITE_MEDICAL_FILE_MAX_MB || 10);
+const maxFileSizeMb = Number(import.meta.env.VITE_MEDICAL_FILE_MAX_MB || 20);
 const maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
 const today = new Date().toISOString().slice(0, 10);
 
