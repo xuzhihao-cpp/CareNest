@@ -12,6 +12,8 @@ DROP TABLE IF EXISTS sys_role;
 DROP TABLE IF EXISTS sys_user;
 DROP TABLE IF EXISTS operation_log;
 DROP TABLE IF EXISTS service_address;
+DROP TABLE IF EXISTS medical_file;
+DROP TABLE IF EXISTS file_asset;
 DROP TABLE IF EXISTS care_plan;
 DROP TABLE IF EXISTS risk_tag;
 DROP TABLE IF EXISTS allergy_record;
@@ -97,6 +99,35 @@ CREATE TABLE operation_log (
   trace_id VARCHAR(64),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (log_id)
+);
+
+CREATE TABLE file_asset (
+  file_id VARCHAR(32) NOT NULL PRIMARY KEY,
+  original_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(128) NOT NULL,
+  file_size BIGINT NOT NULL,
+  storage_bucket VARCHAR(64) NOT NULL,
+  object_key VARCHAR(255) NOT NULL,
+  audit_status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+  uploaded_by VARCHAR(32) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE medical_file (
+  medical_file_id VARCHAR(32) NOT NULL PRIMARY KEY,
+  elder_id VARCHAR(32) NOT NULL,
+  file_id VARCHAR(32) NOT NULL UNIQUE,
+  file_type VARCHAR(32) NOT NULL,
+  title VARCHAR(128) NOT NULL,
+  occurred_at DATE,
+  audit_status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+  review_comment VARCHAR(255),
+  uploader_id VARCHAR(32) NOT NULL,
+  reviewer_id VARCHAR(32),
+  reviewed_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE authorization_scope (

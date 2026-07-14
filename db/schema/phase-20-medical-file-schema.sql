@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS file_asset (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (file_id),
   KEY idx_file_asset_uploaded_by (uploaded_by),
+  KEY idx_file_asset_owner_status (uploaded_by, audit_status, created_at),
   CONSTRAINT ck_file_asset_audit_status CHECK (audit_status IN ('PENDING','APPROVED','REJECTED','NEED_MORE'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='文件资产';
 
