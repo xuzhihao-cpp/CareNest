@@ -274,6 +274,48 @@
         }
       }
     },
+    "/api/v1/files" : {
+      "post" : {
+        "tags" : [ "medical-file-controller" ],
+        "operationId" : "upload",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "required" : [ "file" ],
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseUploadResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/family/reports/{reportId}/archive-suggestions/decision" : {
       "post" : {
         "tags" : [ "report-ack-controller" ],
@@ -573,6 +615,80 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ApiResponseMedicationCreateResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elders/{elderId}/medical-files" : {
+      "get" : {
+        "tags" : [ "medical-file-controller" ],
+        "operationId" : "list",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "elderId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseListMedicalFileItem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "medical-file-controller" ],
+        "operationId" : "register",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "elderId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseRegisterResult"
                 }
               }
             }
@@ -1350,6 +1466,48 @@
           }
         }
       },
+      "ApiResponseUploadResult" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/UploadResult"
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "UploadResult" : {
+        "type" : "object",
+        "properties" : {
+          "fileId" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          },
+          "originalName" : {
+            "type" : "string"
+          },
+          "mimeType" : {
+            "type" : "string"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "auditStatus" : {
+            "type" : "string"
+          }
+        }
+      },
       "ReportAckRequest" : {
         "required" : [ "acceptedSuggestionIds", "ackResult", "remark", "satisfaction" ],
         "type" : "object",
@@ -1509,6 +1667,59 @@
             "format" : "date"
           },
           "remark" : {
+            "type" : "string"
+          }
+        }
+      },
+      "RegisterRequest" : {
+        "required" : [ "fileId", "fileType", "occurredAt", "title" ],
+        "type" : "object",
+        "properties" : {
+          "fileId" : {
+            "type" : "string"
+          },
+          "fileType" : {
+            "type" : "string"
+          },
+          "title" : {
+            "maxLength" : 128,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        }
+      },
+      "ApiResponseRegisterResult" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/RegisterResult"
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "RegisterResult" : {
+        "type" : "object",
+        "properties" : {
+          "medicalFileId" : {
+            "type" : "string"
+          },
+          "fileId" : {
+            "type" : "string"
+          },
+          "auditStatus" : {
             "type" : "string"
           }
         }
@@ -1711,6 +1922,71 @@
             }
           },
           "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ApiResponseListMedicalFileItem" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MedicalFileItem"
+            }
+          },
+          "traceId" : {
+            "type" : "string"
+          }
+        }
+      },
+      "MedicalFileItem" : {
+        "type" : "object",
+        "properties" : {
+          "medicalFileId" : {
+            "type" : "string"
+          },
+          "fileId" : {
+            "type" : "string"
+          },
+          "auditStatus" : {
+            "type" : "string"
+          },
+          "fileType" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "occurredAt" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "uploadedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "originalFileName" : {
+            "type" : "string"
+          },
+          "fileSize" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "auditOpinion" : {
+            "type" : "string"
+          },
+          "previewUrl" : {
+            "type" : "string"
+          },
+          "downloadUrl" : {
             "type" : "string"
           }
         }

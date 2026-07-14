@@ -25,3 +25,9 @@ carenest:
   jwt:
     secret: smart-nursing-local-secret
     expire-hours: 24
+  minio:
+    endpoint: http://127.0.0.1:1
+    access-key: test
+    secret-key: test-secret
+    bucket: test-medical
+    public-endpoint: http://127.0.0.1:1

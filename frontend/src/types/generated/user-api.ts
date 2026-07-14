@@ -180,6 +180,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/elders/{elderId}/medical-files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/elders/{elderId}/medications": {
         parameters: {
             query?: never;
@@ -324,6 +340,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -435,6 +467,13 @@ export interface components {
             message: string;
             traceId: string;
         };
+        ApiResponseListMedicalFileItem: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["MedicalFileItem"][];
+            message: string;
+            traceId: string;
+        };
         ApiResponseListServiceAddressResponse: {
             /** Format: int32 */
             code: number;
@@ -456,6 +495,13 @@ export interface components {
             message: string;
             traceId: string;
         };
+        ApiResponseRegisterResult: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["RegisterResult"];
+            message: string;
+            traceId: string;
+        };
         ApiResponseReportAckResponse: {
             /** Format: int32 */
             code: number;
@@ -467,6 +513,13 @@ export interface components {
             /** Format: int32 */
             code: number;
             data: components["schemas"]["ServiceAddressResponse"];
+            message: string;
+            traceId: string;
+        };
+        ApiResponseUploadResult: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["UploadResult"];
             message: string;
             traceId: string;
         };
@@ -582,6 +635,23 @@ export interface components {
             password: string;
             username: string;
         };
+        MedicalFileItem: {
+            auditOpinion: string;
+            auditStatus: string;
+            downloadUrl: string;
+            fileId: string;
+            /** Format: int64 */
+            fileSize: number;
+            fileType: string;
+            medicalFileId: string;
+            /** Format: date */
+            occurredAt: string;
+            originalFileName: string;
+            previewUrl: string;
+            title: string;
+            /** Format: date-time */
+            uploadedAt: string;
+        };
         MedicationCreateRequest: {
             /** Format: int32 */
             archiveVersion?: number;
@@ -629,6 +699,18 @@ export interface components {
             permissions: string[];
             roleCode: string;
         };
+        RegisterRequest: {
+            fileId: string;
+            fileType: string;
+            /** Format: date */
+            occurredAt: string;
+            title: string;
+        };
+        RegisterResult: {
+            auditStatus: string;
+            fileId: string;
+            medicalFileId: string;
+        };
         ReportAckRequest: {
             acceptedSuggestionIds: string[];
             ackResult: string;
@@ -660,6 +742,15 @@ export interface components {
             fullAddress: string;
             isDefault: boolean;
             regionCode: string;
+        };
+        UploadResult: {
+            auditStatus: string;
+            fileId: string;
+            mimeType: string;
+            originalName: string;
+            /** Format: int64 */
+            size: number;
+            url: string;
         };
     };
     responses: never;
@@ -958,6 +1049,58 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseArchiveUpdateResult"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                elderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListMedicalFileItem"];
+                };
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                elderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRegisterResult"];
                 };
             };
         };
@@ -1272,6 +1415,35 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseReportAckResponse"];
+                };
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseUploadResult"];
                 };
             };
         };

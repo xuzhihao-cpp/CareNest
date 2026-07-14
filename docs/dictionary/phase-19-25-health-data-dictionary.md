@@ -47,6 +47,8 @@ This file freezes the database-side names, status values, and Redis key policy f
 | auditStatus | `APPROVED` | Approved and visible to approved downstream reads. | `file_asset`, `medical_file` |
 | auditStatus | `REJECTED` | Rejected by admin/customer service. | `file_asset`, `medical_file` |
 | auditStatus | `NEED_MORE` | Requires supplementary material. | `file_asset`, `medical_file` |
+
+The persisted/wire value for a newly uploaded medical file is `PENDING`. The Stage 20 frontend may normalize it to the UI-only alias `PENDING_REVIEW`; that alias must not be written to MySQL.
 | healthReviewStatus | `PENDING` | Waiting for health archive review. | `health_info_review_task`, `health_update_suggestion` |
 | healthReviewStatus | `APPROVED` | Approved and can be archived. | `health_info_review_task`, `health_update_suggestion` |
 | healthReviewStatus | `REJECTED` | Rejected and must not change formal archive. | `health_info_review_task`, `health_update_suggestion` |
