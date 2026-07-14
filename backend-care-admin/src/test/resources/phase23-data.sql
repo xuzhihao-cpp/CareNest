@@ -1,0 +1,12 @@
+INSERT INTO sys_role VALUES ('role_admin','ADMIN',TRUE),('role_cs','CUSTOMER_SERVICE',TRUE),('role_nurse','NURSE',TRUE);
+INSERT INTO user_role VALUES ('admin-001','role_admin'),('cs-001','role_cs'),('nurse-001','role_nurse'),('nurse-002','role_nurse');
+INSERT INTO sys_permission VALUES ('perm_health_review','HEALTH_ARCHIVE_REVIEW',TRUE);
+INSERT INTO role_permission VALUES ('role_admin','perm_health_review'),('role_cs','perm_health_review');
+INSERT INTO elder_profile VALUES ('elder_001','elder-001','张爷爷');
+INSERT INTO health_archive VALUES ('archive_001','elder_001',1,'血压需持续观察');
+INSERT INTO chronic_disease VALUES ('disease_001','elder_001','高血压','ACTIVE',DATE '2022-03-01','定期测量');
+INSERT INTO service_item VALUES ('service_001','上门护理');
+INSERT INTO nursing_order VALUES ('order_001','elder_001','service_001','WAIT_CONFIRM');
+INSERT INTO nurse_task VALUES ('task_001','order_001','nurse-001','COMPLETED');
+INSERT INTO care_service_record(record_id,order_id,nurse_id,content,nursing_advice) VALUES ('record_001','order_001','nurse-001','完成血压测量','建议持续监测');
+INSERT INTO service_report(report_id,order_id,summary,nursing_advice) VALUES ('report_001','order_001','护理服务完成','继续监测血压');
