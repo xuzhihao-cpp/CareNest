@@ -36,7 +36,12 @@ This file freezes the database-side names, status values, and Redis key policy f
 | FileAsset | `objectKey` | `object_key` | varchar | yes | Internal object key, backend-only. Frontend must not display it. |
 | MedicalFile | `auditStatus` | `audit_status` | varchar | yes | Uses `PENDING/APPROVED/REJECTED/NEED_MORE`. |
 | HealthFeedback | `inputType` | `input_type` | varchar | yes | Uses `BUTTON/TEXT/VOICE`. |
+| HealthFeedback | `feedbackType` | `feedback_type` | varchar | yes | Uses `PAIN/DIZZINESS/SLEEP/DIET/MENTAL_STATE`. |
+| HealthFeedback | `severity` | `severity` | varchar | yes | Uses `LOW/MEDIUM/HIGH`; controls list priority only. |
+| HealthFeedback | `fileId` | `file_id` | varchar | voice only | Must reference an audio asset uploaded by the submitting elder. |
 | HealthUpdateSuggestion | `suggestionStatus` | `suggestion_status` | varchar | yes | Uses `PENDING/APPROVED/REJECTED/NEED_MORE`. |
+| HealthUpdateSuggestion | `sourceType` | `source_type` | varchar | yes | Uses `SERVICE_RECORD/SERVICE_REPORT`; source must belong to the order. |
+| HealthUpdateSuggestion | - | `pending_dedupe_key` | generated char(64) | pending only | Prevents concurrent duplicate pending suggestions. |
 | HealthInfoReviewTask | `taskType` | `task_type` | varchar | yes | Default `HEALTH_UPDATE`. |
 
 ## Status Values

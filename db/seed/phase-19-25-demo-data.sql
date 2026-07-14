@@ -1,6 +1,12 @@
 USE smart_nursing;
 SET NAMES utf8mb4;
 
+INSERT INTO sys_permission(permission_id,permission_code,permission_name,permission_group,enabled)
+VALUES ('perm_health_archive_review','HEALTH_ARCHIVE_REVIEW','健康档案审核','health',1)
+ON DUPLICATE KEY UPDATE permission_name=VALUES(permission_name),enabled=1;
+INSERT IGNORE INTO role_permission(role_id,permission_id,sort)
+SELECT role_id,'perm_health_archive_review',90 FROM sys_role WHERE role_code IN ('ADMIN','CUSTOMER_SERVICE');
+
 INSERT INTO health_archive
   (archive_id, elder_id, archive_version, care_summary, updated_by)
 VALUES
@@ -68,12 +74,12 @@ DELETE FROM health_info_review_task WHERE review_task_id = 'review_task_019_001'
 INSERT INTO health_update_suggestion
   (suggestion_id, elder_id, order_id, field_name, old_value, new_value, source_type, source_id, reason, suggestion_status, created_by, review_task_id)
 VALUES
-  ('suggestion_001', 'elder_001', 'order_001', 'riskTags', '跌倒风险：MEDIUM', '夜间跌倒风险：HIGH', 'SERVICE_RECORD', 'service_record_001', '护理记录提示夜间起身不稳，需要管理员审核后归档。', 'PENDING', 'nurse-001', 'review_task_019_001');
+  ('suggestion_001', 'elder_001', 'order_001', 'riskTags', JSON_ARRAY(JSON_OBJECT('tagCode','FALL_RISK','tagName','跌倒风险')), JSON_OBJECT('tagCode','NIGHT_FALL_RISK','tagName','夜间跌倒风险'), 'SERVICE_RECORD', 'service_record_001', '护理记录提示夜间起身不稳，需要管理员审核后归档。', 'PENDING', 'nurse-001', 'review_task_019_001');
 
 INSERT INTO health_info_review_task
   (review_task_id, suggestion_id, task_type, order_id, elder_id, field_name, old_value, new_value, source_type, source_id, review_status, created_by)
 VALUES
-  ('review_task_019_001', 'suggestion_001', 'HEALTH_UPDATE', 'order_001', 'elder_001', 'riskTags', '跌倒风险：MEDIUM', '夜间跌倒风险：HIGH', 'SUGGESTION', 'suggestion_001', 'PENDING', 'nurse-001');
+  ('review_task_019_001', 'suggestion_001', 'HEALTH_UPDATE', 'order_001', 'elder_001', 'riskTags', JSON_ARRAY(JSON_OBJECT('tagCode','FALL_RISK','tagName','跌倒风险')), JSON_OBJECT('tagCode','NIGHT_FALL_RISK','tagName','夜间跌倒风险'), 'SERVICE_RECORD', 'service_record_001', 'PENDING', 'nurse-001');
 
 INSERT INTO operation_log
   (log_id, operator_id, role_code, operation_type, biz_type, biz_id, after_value, trace_id)

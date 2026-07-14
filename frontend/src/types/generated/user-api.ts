@@ -148,6 +148,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/elder/health-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/elder/reports/{reportId}/ack": {
         parameters: {
             query?: never;
@@ -187,7 +203,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list"];
+        get: operations["list_1"];
         put?: never;
         post: operations["register"];
         delete?: never;
@@ -300,6 +316,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["familyElders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/family/elders/{elderId}/health-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -432,6 +464,13 @@ export interface components {
             message: string;
             traceId: string;
         };
+        ApiResponseCreateResult: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["CreateResult"];
+            message: string;
+            traceId: string;
+        };
         ApiResponseDemoDataStatusResponse: {
             /** Format: int32 */
             code: number;
@@ -485,6 +524,13 @@ export interface components {
             /** Format: int32 */
             code: number;
             data: components["schemas"]["MedicationCreateResult"];
+            message: string;
+            traceId: string;
+        };
+        ApiResponsePageResultItem: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["PageResultItem"];
             message: string;
             traceId: string;
         };
@@ -582,6 +628,19 @@ export interface components {
             dailyCare: string;
             precautions: string;
         };
+        CreateRequest: {
+            content: string;
+            elderId: string;
+            feedbackType: string;
+            fileId: string;
+            inputType: string;
+            severity: string;
+        };
+        CreateResult: {
+            /** Format: date-time */
+            createdAt: string;
+            feedbackId: string;
+        };
         DemoDataStatusResponse: {
             accounts: string[];
             ready: boolean;
@@ -630,6 +689,19 @@ export interface components {
             serverTime: string;
             status: string;
             version: string;
+        };
+        Item: {
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            elderId: string;
+            elderName: string;
+            feedbackId: string;
+            feedbackType: string;
+            fileId: string;
+            inputType: string;
+            severity: string;
+            voiceUrl: string;
         };
         LoginRequest: {
             password: string;
@@ -691,6 +763,15 @@ export interface components {
             /** Format: date */
             startDate: string;
             timePoints: string[];
+        };
+        PageResultItem: {
+            /** Format: int32 */
+            page: number;
+            records: components["schemas"]["Item"][];
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
         };
         PermissionRequest: {
             permissionCodes: string[];
@@ -973,6 +1054,32 @@ export interface operations {
             };
         };
     };
+    create: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseCreateResult"];
+                };
+            };
+        };
+    };
     elderAck: {
         parameters: {
             query?: never;
@@ -1053,7 +1160,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    list_1: {
         parameters: {
             query?: never;
             header?: {
@@ -1359,6 +1466,37 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseListElderProfileResponse"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: {
+                dateFrom?: string;
+                dateTo?: string;
+                feedbackType?: string;
+                page?: number;
+                severity?: string;
+                size?: number;
+            };
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                elderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResultItem"];
                 };
             };
         };

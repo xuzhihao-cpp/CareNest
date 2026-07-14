@@ -59,4 +59,4 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 ALTER TABLE health_info_review_task
-  ADD CONSTRAINT ck_health_review_source_type CHECK (source_type IN ('REPORT_ACK','SERVICE_RECORD','MANUAL','MEDICAL_FILE','SUGGESTION'));
+  ADD CONSTRAINT ck_health_review_source_type CHECK (source_type IN ('REPORT_ACK','SERVICE_RECORD','SERVICE_REPORT','MANUAL','MEDICAL_FILE','SUGGESTION'));

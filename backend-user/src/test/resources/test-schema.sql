@@ -11,6 +11,8 @@ DROP TABLE IF EXISTS user_role;
 DROP TABLE IF EXISTS sys_role;
 DROP TABLE IF EXISTS sys_user;
 DROP TABLE IF EXISTS operation_log;
+DROP TABLE IF EXISTS voice_command_log;
+DROP TABLE IF EXISTS elder_health_feedback;
 DROP TABLE IF EXISTS service_address;
 DROP TABLE IF EXISTS medical_file;
 DROP TABLE IF EXISTS file_asset;
@@ -271,6 +273,28 @@ CREATE TABLE elder_family_binding (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (binding_id)
+);
+
+CREATE TABLE elder_health_feedback (
+  feedback_id VARCHAR(32) NOT NULL PRIMARY KEY,
+  elder_id VARCHAR(32) NOT NULL,
+  feedback_type VARCHAR(32) NOT NULL,
+  severity VARCHAR(32) NOT NULL,
+  content VARCHAR(512),
+  input_type VARCHAR(32) NOT NULL,
+  file_id VARCHAR(32),
+  created_by VARCHAR(32) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE voice_command_log (
+  voice_log_id VARCHAR(32) NOT NULL PRIMARY KEY,
+  user_id VARCHAR(32) NOT NULL,
+  file_id VARCHAR(32),
+  intent_type VARCHAR(64),
+  source_biz_type VARCHAR(64),
+  source_biz_id VARCHAR(32),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE service_address (

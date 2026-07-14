@@ -65,25 +65,6 @@ public class Phase19To30Controller {
         return ApiResponse.success(phaseService.reviewMedicalFile(currentUser, fileId, request));
     }
 
-    @PostMapping("/orders/{orderId}/health-update-suggestions")
-    public ApiResponse<HealthArchiveDtos.SuggestionResponse> createHealthSuggestion(
-            @RequestHeader("Authorization") String authorization,
-            @PathVariable("orderId") String orderId,
-            @Valid @RequestBody HealthArchiveDtos.SuggestionRequest request) {
-        CurrentUser currentUser = authService.requireCurrentUser(authorization);
-        return ApiResponse.success(phaseService.createHealthSuggestion(currentUser, orderId, request));
-    }
-
-    @GetMapping("/admin/health-review-tasks")
-    public ApiResponse<PageData<HealthArchiveDtos.ReviewTaskResponse>> healthReviewTasks(
-            @RequestHeader("Authorization") String authorization,
-            @RequestParam(name = "status", required = false) String status,
-            @RequestParam(name = "page", defaultValue = "1") int page,
-            @RequestParam(name = "size", defaultValue = "10") int size) {
-        authService.requireAnyRole(authorization, RoleCode.ADMIN, RoleCode.CUSTOMER_SERVICE);
-        return ApiResponse.success(phaseService.healthReviewTasks(status, page, size));
-    }
-
     @GetMapping("/admin/health-review-tasks/{taskId}")
     public ApiResponse<HealthArchiveDtos.ReviewTaskResponse> healthReviewTask(
             @RequestHeader("Authorization") String authorization,
