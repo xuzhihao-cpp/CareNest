@@ -26,6 +26,8 @@ public class MedicalFileService {
     private final HomeCacheInvalidator homeCacheInvalidator;
     private static final Set<String> FILE_TYPES = Set.of(
             "PRESCRIPTION", "EXAMINATION_REPORT", "DISCHARGE_SUMMARY", "MEDICAL_RECORD");
+    private static final Set<String> MEDICAL_MIME_TYPES = Set.of(
+            "application/pdf", "image/jpeg", "image/png");
 
     public MedicalFileService(AuthService authService, MedicalFileStorage storage,
                               MedicalFileRepository repository, HomeCacheInvalidator homeCacheInvalidator) {
@@ -49,6 +51,9 @@ public class MedicalFileService {
         MedicalFileRepository.AssetRow asset = repository.findAsset(request.fileId())
                 .orElseThrow(() -> new ApiException(404, "文件不存在"));
         if (!user.userId().equals(asset.uploadedBy())) throw new ApiException(403, "文件不属于当前用户");
+        if (!MEDICAL_MIME_TYPES.contains(asset.mimeType())) {
+            throw new ApiException(422, "该文件格式不能登记为医疗资料");
+        }
         if (repository.isAssetBound(request.fileId())) throw new ApiException(409, "文件已登记");
         String id = UUID.randomUUID().toString().replace("-", "");
         repository.insertMedicalFile(id, elderId, request, user.userId());
@@ -112,10 +117,10 @@ public class MedicalFileService {
         }
         String original = sanitize(file.getOriginalFilename());
         try {
-            byte[] header = file.getInputStream().readNBytes(8);
+            byte[] header = file.getInputStream().readNBytes(16);
             String detected = detect(header);
             String declared = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
-            if (!detected.equals(declared)) {
+            if (!compatibleMime(detected, declared)) {
                 throw new ApiException(422, "文件类型与内容不一致");
             }
             return new ValidatedFile(original, detected, extension(detected));
@@ -128,7 +133,27 @@ public class MedicalFileService {
         if (bytes.length >= 4 && bytes[0] == '%' && bytes[1] == 'P' && bytes[2] == 'D' && bytes[3] == 'F') return "application/pdf";
         if (bytes.length >= 3 && (bytes[0] & 0xff) == 0xff && (bytes[1] & 0xff) == 0xd8 && (bytes[2] & 0xff) == 0xff) return "image/jpeg";
         if (bytes.length >= 8 && (bytes[0] & 0xff) == 0x89 && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G') return "image/png";
-        throw new ApiException(422, "仅支持PDF、JPEG和PNG文件");
+        if (bytes.length >= 3 && bytes[0] == 'I' && bytes[1] == 'D' && bytes[2] == '3') return "audio/mpeg";
+        if (bytes.length >= 2 && (bytes[0] & 0xff) == 0xff && ((bytes[1] & 0xf6) == 0xf0)) return "audio/aac";
+        if (bytes.length >= 2 && (bytes[0] & 0xff) == 0xff && ((bytes[1] & 0xe0) == 0xe0)) return "audio/mpeg";
+        if (bytes.length >= 12 && bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F'
+                && bytes[8] == 'W' && bytes[9] == 'A' && bytes[10] == 'V' && bytes[11] == 'E') return "audio/wav";
+        if (bytes.length >= 8 && bytes[4] == 'f' && bytes[5] == 't' && bytes[6] == 'y' && bytes[7] == 'p') return "audio/mp4";
+        if (bytes.length >= 4 && (bytes[0] & 0xff) == 0x1a && (bytes[1] & 0xff) == 0x45
+                && (bytes[2] & 0xff) == 0xdf && (bytes[3] & 0xff) == 0xa3) return "audio/webm";
+        if (bytes.length >= 4 && bytes[0] == 'O' && bytes[1] == 'g' && bytes[2] == 'g' && bytes[3] == 'S') return "audio/ogg";
+        throw new ApiException(422, "仅支持PDF、JPEG、PNG或指定语音文件");
+    }
+
+    private boolean compatibleMime(String detected, String declared) {
+        if (detected.equals(declared)) return true;
+        return switch (detected) {
+            case "audio/mpeg" -> declared.equals("audio/mp3") || declared.equals("audio/aac");
+            case "audio/aac" -> declared.equals("audio/aac");
+            case "audio/mp4" -> declared.equals("audio/x-m4a");
+            case "audio/wav" -> Set.of("audio/x-wav", "audio/wave").contains(declared);
+            default -> false;
+        };
     }
 
     private String sanitize(String name) {
@@ -139,7 +164,18 @@ public class MedicalFileService {
     }
 
     private String extension(String mime) {
-        return switch (mime) { case "application/pdf" -> ".pdf"; case "image/jpeg" -> ".jpg"; default -> ".png"; };
+        return switch (mime) {
+            case "application/pdf" -> ".pdf";
+            case "image/jpeg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "audio/mpeg" -> ".mp3";
+            case "audio/aac" -> ".aac";
+            case "audio/mp4" -> ".m4a";
+            case "audio/wav" -> ".wav";
+            case "audio/webm" -> ".webm";
+            case "audio/ogg" -> ".ogg";
+            default -> ".bin";
+        };
     }
 
     private record ValidatedFile(String originalName, String mimeType, String extension) {
