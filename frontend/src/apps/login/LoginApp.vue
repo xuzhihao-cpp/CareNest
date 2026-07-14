@@ -51,7 +51,7 @@ function fillWrongPassword() {
       <view class="login-head">
         <text class="login-mark">C</text>
         <view>
-          <text class="eyebrow">CARE PLATFORM</text>
+          <text class="eyebrow">智慧护理平台</text>
           <text class="login-title">登录智慧护理平台</text>
           <text class="login-subtitle">选择角色后登录，进入对应工作台。</text>
         </view>

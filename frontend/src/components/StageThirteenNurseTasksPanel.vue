@@ -111,7 +111,7 @@ async function loadTasks(scenario: StageThirteenScenario = 'normal') {
   loading.value = false;
   applyResponse(
     response,
-    scenario === 'empty' ? '已切换为空任务列表 mock' : scenario === 'normal' ? '护理任务列表已加载' : ''
+    scenario === 'empty' ? '当前筛选条件下暂无护理任务' : ''
   );
 }
 
@@ -121,7 +121,7 @@ async function loadDetail(taskId: string) {
   lastTraceId.value = response.traceId;
   if (response.code === 0) {
     selectedDetail.value = response.data.records[0] ?? null;
-    message.value = '护理任务详情已读取';
+    message.value = '';
     error.value = '';
   } else {
     selectedDetail.value = null;
@@ -144,7 +144,7 @@ onMounted(() => {
   <view class="stage-thirteen-panel glass-panel" aria-label="阶段13护理任务列表">
     <view class="section-title">
       <text>⑬</text>
-      <text>护理任务列表 MVP</text>
+      <text>护理任务</text>
     </view>
 
     <view class="stage-thirteen-summary">
@@ -166,7 +166,7 @@ onMounted(() => {
 
     <view class="nurse-task-toolbar">
       <view class="binding-options">
-        <text class="section-mini">状态 status</text>
+        <text class="section-mini">任务状态</text>
         <view class="segmented-row">
           <button
             v-for="item in statusOptions"
@@ -204,7 +204,7 @@ onMounted(() => {
       <text class="empty-icon">∅</text>
       <view>
         <text class="empty-title">暂无护理任务</text>
-        <text class="empty-desc">空数据 mock 已返回 records: []，列表和详情契约仍保持 PageResult。</text>
+        <text class="empty-desc">当前没有分配给你的护理任务。</text>
       </view>
     </view>
 

@@ -101,7 +101,7 @@ async function loadOrders(scenario: AdminOrderScenario = 'normal') {
   loading.value = false;
   applyPageResponse(
     response,
-    scenario === 'empty' ? '已切换为空订单 mock' : scenario === 'normal' ? '管理端订单列表已加载' : ''
+    scenario === 'empty' ? '当前筛选条件下暂无订单' : ''
   );
 }
 
@@ -111,7 +111,7 @@ async function loadDetail(orderId: string) {
   lastTraceId.value = response.traceId;
   if (response.code === 0) {
     selectedDetail.value = response.data.records[0] ?? null;
-    message.value = '订单详情和状态日志已读取';
+    message.value = '';
     error.value = '';
   } else {
     selectedDetail.value = null;
@@ -145,8 +145,7 @@ onMounted(() => {
 <template>
   <view class="stage-eleven-panel glass-panel" aria-label="阶段11管理端订单列表">
     <view class="section-title">
-      <text>⑪</text>
-      <text>管理端订单列表 MVP</text>
+      <text>订单查询</text>
     </view>
 
     <view class="stage-eleven-summary">
@@ -168,7 +167,7 @@ onMounted(() => {
 
     <view class="admin-order-filters">
       <view class="binding-options">
-        <text class="section-mini">状态 orderStatus</text>
+        <text class="section-mini">订单状态</text>
         <view class="segmented-row">
           <button
             v-for="item in statusOptions"
@@ -184,16 +183,16 @@ onMounted(() => {
       </view>
 
       <label class="field">
-        <text>关键字 keyword</text>
-        <input v-model="query.keyword" class="input" placeholder="order-002 / NO202607100002" />
+        <text>关键词</text>
+        <input v-model="query.keyword" class="input" placeholder="服务名称、联系人或订单编号" />
       </label>
       <label class="field">
-        <text>开始 dateFrom</text>
-        <input v-model="query.dateFrom" class="input" placeholder="2026-07-10" />
+        <text>开始日期</text>
+        <input v-model="query.dateFrom" class="input" type="date" />
       </label>
       <label class="field">
-        <text>结束 dateTo</text>
-        <input v-model="query.dateTo" class="input" placeholder="2026-07-10" />
+        <text>结束日期</text>
+        <input v-model="query.dateTo" class="input" type="date" />
       </label>
       <view class="binding-actions">
         <button class="hero-action" type="button" :disabled="loading" @click="loadOrders('normal')">
@@ -221,8 +220,8 @@ onMounted(() => {
     <view v-if="records.length === 0 && !error" class="empty-state">
       <text class="empty-icon">∅</text>
       <view>
-        <text class="empty-title">暂无管理端订单</text>
-        <text class="empty-desc">空数据 mock 已返回 records: []，筛选结构仍保持 page / size / total。</text>
+        <text class="empty-title">暂无符合条件的订单</text>
+        <text class="empty-desc">可调整订单状态、关键词或日期范围后重新查询。</text>
       </view>
     </view>
 
@@ -246,7 +245,7 @@ onMounted(() => {
 
       <view class="admin-order-detail">
         <view class="contract-response">
-          <text class="section-mini">GET /api/v1/admin/orders/{orderId}</text>
+          <text class="section-mini">订单详情</text>
           <text v-if="selectedDetail" class="permission-main">
             {{ selectedDetail.serviceName || '护理服务' }} · {{ displayLabel(selectedDetail.orderStatus) }}
           </text>
@@ -258,7 +257,7 @@ onMounted(() => {
         <view v-if="selectedDetail" class="status-log-list">
           <view v-for="log in selectedDetail.statusLogs" :key="log.statusLogId" class="status-log-row">
             <text class="flow-label">{{ displayLabel(log.fromStatus || 'INIT') }} → {{ displayLabel(log.toStatus) }}</text>
-            <text class="flow-time">{{ log.statusLogId }} · {{ log.changedBy }} · {{ log.changeReason }}</text>
+            <text class="flow-time">{{ log.changedBy }} · {{ log.changeReason }}</text>
           </view>
         </view>
       </view>

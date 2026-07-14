@@ -267,7 +267,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .pre-service-summary { display:grid; gap:18rpx; min-width:0; color:#17312e; }
 .summary-header { display:flex; align-items:center; justify-content:space-between; gap:16rpx; }
-.back-command,.refresh-command,.summary-state button,.medical-item button { min-height:68rpx; margin:0; padding:0 22rpx; border:1rpx solid #bfd4cf; border-radius:4rpx; background:#fff; color:#176d65; font-size:24rpx; font-weight:700; }
+.back-command,.refresh-command,.summary-state button,.medical-item button { min-height:80rpx; margin:0; padding:0 22rpx; border:1rpx solid #bfd4cf; border-radius:4rpx; background:#fff; color:#176d65; font-size:24rpx; font-weight:700; }
 .service-context { padding:24rpx 4rpx 22rpx; border-bottom:1rpx solid #d9e5e2; }
 .context-kicker,.context-title,.context-meta,.context-service,.context-time,.summary-item>text,.state-title { display:block; }
 .context-kicker { color:#167d73; font-size:21rpx; font-weight:800; }
@@ -282,6 +282,6 @@ onBeforeUnmount(() => {
 .risk-section { padding:22rpx; border:1rpx solid #e7c987; background:#fffaf0; }.risk-list { display:flex; flex-wrap:wrap; gap:10rpx; }.risk-tag { padding:10rpx 14rpx; border:1rpx solid #e2bd68; border-radius:4rpx; background:#fff; color:#80580b; font-size:24rpx; font-weight:750; }
 .allergy-section { padding:22rpx; border:1rpx solid #e8c0bb; background:#fff8f7; }.item-list { display:grid; gap:12rpx; }.summary-item { display:grid; gap:8rpx; padding:18rpx; border:1rpx solid #dce7e4; background:#fff; }.item-title { display:flex; align-items:flex-start; justify-content:space-between; gap:14rpx; }.item-title strong { min-width:0; color:#193833; font-size:27rpx; }.item-title text { flex:none; color:#5e746f; font-size:21rpx; }.item-title text.severe { color:#b13c34; font-weight:800; }.summary-item>text { color:#5d726d; font-size:23rpx; line-height:1.5; }
 .section-empty { padding:17rpx; background:#f0f5f4; color:#687b77; font-size:23rpx; line-height:1.5; }.care-empty { margin-top:0; }.care-points { display:grid; gap:9rpx; padding:18rpx; border-left:5rpx solid #16847a; background:#eef8f5; color:#31534d; font-size:24rpx; line-height:1.55; }.care-points text { display:block; }
-.medical-item button { justify-self:start; min-height:62rpx; margin-top:4rpx; }.preview-error { padding:14rpx 16rpx; background:#fff0ef; color:#a43b34; font-size:23rpx; }.report-item .item-title text { max-width:210rpx; text-align:right; }.read-only-note { padding:20rpx; border-top:1rpx solid #dce7e4; color:#647873; font-size:23rpx; line-height:1.55; text-align:center; }
+.medical-item button { justify-self:start; min-height:80rpx; margin-top:4rpx; }.preview-error { padding:14rpx 16rpx; background:#fff0ef; color:#a43b34; font-size:23rpx; }.report-item .item-title text { max-width:210rpx; text-align:right; }.read-only-note { padding:20rpx; border-top:1rpx solid #dce7e4; color:#647873; font-size:23rpx; line-height:1.55; text-align:center; }
 @media (max-width: 390px) { .item-title { align-items:flex-start; }.report-item .item-title { display:grid; }.report-item .item-title text { max-width:none; text-align:left; } }
 </style>

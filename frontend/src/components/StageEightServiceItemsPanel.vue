@@ -90,7 +90,7 @@ function applyMutation(response: ApiResponse<ServiceItemResponse>, successText: 
   }
 }
 
-async function loadServices() {
+async function loadServices(preserveMessage = false) {
   if (!isAdmin.value && !isFamily.value) {
     return;
   }
@@ -101,7 +101,7 @@ async function loadServices() {
   if (response.code === 0) {
     records.value = response.data.records;
     error.value = '';
-    message.value = '服务项目列表已加载';
+    if (!preserveMessage) message.value = '';
     if (isAdmin.value && records.value.length > 0 && !selectedServiceId.value) {
       applyRecord(records.value[0]);
     }
@@ -115,7 +115,7 @@ async function loadServices() {
 async function createService() {
   const response = await createServiceItem(form.value);
   applyMutation(response, '服务项目已新增');
-  await loadServices();
+  await loadServices(response.code === 0);
 }
 
 async function saveSelectedService() {
@@ -125,7 +125,7 @@ async function saveSelectedService() {
   }
   const response = await updateServiceItem(selectedServiceId.value, form.value);
   applyMutation(response, '服务项目已保存');
-  await loadServices();
+  await loadServices(response.code === 0);
 }
 
 async function toggleServiceStatus(record: ServiceItemResponse) {
@@ -137,7 +137,7 @@ async function toggleServiceStatus(record: ServiceItemResponse) {
     status: record.status === 'ON_SHELF' ? 'OFF_SHELF' : 'ON_SHELF'
   });
   applyMutation(response, '服务上下架状态已更新');
-  await loadServices();
+  await loadServices(response.code === 0);
 }
 
 async function deleteService(record: ServiceItemResponse) {
@@ -156,7 +156,7 @@ async function deleteService(record: ServiceItemResponse) {
   }
   message.value = '服务项目已删除。';
   error.value = '';
-  await loadServices();
+  await loadServices(true);
 }
 
 function confirmDeleteService(record: ServiceItemResponse) {
@@ -180,8 +180,7 @@ onMounted(() => {
 <template>
   <view class="stage-eight-panel glass-panel" aria-label="阶段8服务项目">
     <view class="section-title">
-      <text>⑧</text>
-      <text>服务项目 MVP</text>
+      <text>服务项目管理</text>
     </view>
 
     <view class="stage-eight-summary">
@@ -228,12 +227,12 @@ onMounted(() => {
 
       <view class="service-editor">
         <label class="field">
-          <text>服务名称 serviceName</text>
+          <text>服务名称</text>
           <input v-model="form.serviceName" class="input" placeholder="服务项目名称" />
         </label>
 
         <view class="binding-options service-category-options">
-          <text class="section-mini">分类 category</text>
+          <text class="section-mini">服务分类</text>
           <view class="segmented-row">
             <button
               v-for="item in categoryOptions"
@@ -250,17 +249,17 @@ onMounted(() => {
 
         <view class="service-number-grid">
           <label class="field">
-            <text>价格 price</text>
+            <text>服务价格（元）</text>
             <input v-model.number="form.price" class="input" type="number" placeholder="199" />
           </label>
           <label class="field">
-            <text>时长 durationMinutes</text>
+            <text>服务时长（分钟）</text>
             <input v-model.number="form.durationMinutes" class="input" type="number" placeholder="60" />
           </label>
         </view>
 
         <view class="binding-options service-status-options">
-          <text class="section-mini">上下架 status</text>
+          <text class="section-mini">上架状态</text>
           <view class="segmented-row">
             <button
               v-for="item in statusOptions"
@@ -291,7 +290,7 @@ onMounted(() => {
         <view class="service-card-main">
           <text class="flow-label">{{ record.serviceName }}</text>
           <text class="flow-time">
-            {{ labelCategory(record.category) }} · {{ record.durationMinutes }} 分钟 · {{ record.serviceId }}
+            {{ labelCategory(record.category) }} · {{ record.durationMinutes }} 分钟
           </text>
         </view>
         <view class="service-price-box">
@@ -299,7 +298,7 @@ onMounted(() => {
           <text class="tag tag-teal">{{ labelStatus(record.status) }}</text>
         </view>
       </view>
-      <view class="binding-actions"><button class="ghost-action" type="button" @click="loadServices"><text>刷新服务列表</text></button></view>
+      <view class="binding-actions"><button class="ghost-action" type="button" @click="loadServices()"><text>刷新服务列表</text></button></view>
     </view>
 
     <view v-if="message" class="success-banner">
@@ -313,7 +312,7 @@ onMounted(() => {
       <text class="empty-icon">∅</text>
       <view>
         <text class="empty-title">暂无服务项目</text>
-        <text class="empty-desc">空数据 mock 已返回 records: []，服务项目表结构仍保持一致。</text>
+        <text class="empty-desc">当前还没有服务项目，可在右侧填写信息后新增。</text>
       </view>
     </view>
 
