@@ -96,3 +96,43 @@ INSERT INTO service_address (
   'address_001', 'elder_001', 'family-001', '张小明', '13800000002',
   '310000', '310100', '310101', '人民路100号1单元201', TRUE
 );
+
+INSERT INTO health_archive (
+  archive_id, elder_id, archive_version, care_summary, updated_by
+) VALUES (
+  'archive_001', 'elder_001', 1, '血压需持续观察，服务前确认用药和过敏情况。', 'family-001'
+);
+
+INSERT INTO chronic_disease (
+  disease_id, elder_id, disease_name, disease_status, diagnosed_at, remark
+) VALUES (
+  'disease_001', 'elder_001', '高血压', 'ACTIVE', DATE '2022-03-01', '定期测量血压'
+);
+
+INSERT INTO medication_plan (
+  medication_id, elder_id, medication_name, dosage, frequency, time_points,
+  start_date, end_date, medication_status, remark
+) VALUES (
+  'med_001', 'elder_001', '降压药', '1片', 'ONCE_DAILY', '["08:00"]',
+  DATE '2024-01-01', NULL, 'ACTIVE', '遵医嘱记录'
+);
+
+INSERT INTO allergy_record (
+  allergy_id, elder_id, allergen, reaction, severity, remark
+) VALUES (
+  'allergy_001', 'elder_001', '青霉素', '皮疹', 'SEVERE', '护理前核对'
+);
+
+INSERT INTO risk_tag (
+  risk_tag_id, elder_id, tag_code, tag_name, risk_level, remark
+) VALUES (
+  'risk_001', 'elder_001', 'FALL_RISK', '跌倒风险', 'MEDIUM', '移动时注意搀扶'
+);
+
+INSERT INTO care_plan (
+  care_plan_id, elder_id, plan_content, plan_status
+) VALUES (
+  'plan_001', 'elder_001',
+  '{"careGoals":"保持血压稳定","dailyCare":"每日测量血压","precautions":"避免突然起身"}',
+  'ACTIVE'
+);

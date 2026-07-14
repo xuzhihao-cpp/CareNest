@@ -130,7 +130,9 @@ export async function createFamilyBinding(payload: BindingRequest): Promise<ApiR
       elderName: '张爷爷',
       relationType: payload.relationType,
       bindingStatus: 'PENDING',
-      scopeCodes: payload.scopeCodes
+      scopeCodes: payload.scopeCodes,
+      pendingScopeCodes: [],
+      scopeUpdatePending: false
     };
     bindingRecords = [created, ...bindingRecords];
     return success(created, 'mock-6-family-bindings-create');

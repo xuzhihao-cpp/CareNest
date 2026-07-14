@@ -12,6 +12,12 @@ DROP TABLE IF EXISTS sys_role;
 DROP TABLE IF EXISTS sys_user;
 DROP TABLE IF EXISTS operation_log;
 DROP TABLE IF EXISTS service_address;
+DROP TABLE IF EXISTS care_plan;
+DROP TABLE IF EXISTS risk_tag;
+DROP TABLE IF EXISTS allergy_record;
+DROP TABLE IF EXISTS medication_plan;
+DROP TABLE IF EXISTS chronic_disease;
+DROP TABLE IF EXISTS health_archive;
 DROP TABLE IF EXISTS health_archive_change_log;
 DROP TABLE IF EXISTS elder_contact;
 DROP TABLE IF EXISTS elder_family_binding;
@@ -138,6 +144,85 @@ CREATE TABLE health_archive_change_log (
   after_value VARCHAR(4000),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (change_log_id)
+);
+
+CREATE TABLE health_archive (
+  archive_id VARCHAR(32) NOT NULL,
+  elder_id VARCHAR(32) NOT NULL,
+  archive_version INT NOT NULL DEFAULT 1,
+  care_summary VARCHAR(512),
+  updated_by VARCHAR(32),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (archive_id),
+  CONSTRAINT uk_health_archive_elder UNIQUE (elder_id)
+);
+
+CREATE TABLE chronic_disease (
+  disease_id VARCHAR(32) NOT NULL,
+  elder_id VARCHAR(32) NOT NULL,
+  disease_name VARCHAR(64) NOT NULL,
+  disease_status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  diagnosed_at DATE,
+  remark VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (disease_id),
+  CONSTRAINT uk_chronic_disease_elder_name UNIQUE (elder_id, disease_name)
+);
+
+CREATE TABLE medication_plan (
+  medication_id VARCHAR(32) NOT NULL,
+  elder_id VARCHAR(32) NOT NULL,
+  medication_name VARCHAR(64) NOT NULL,
+  dosage VARCHAR(64),
+  frequency VARCHAR(64) NOT NULL,
+  time_points VARCHAR(1000),
+  start_date DATE NOT NULL,
+  end_date DATE,
+  medication_status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  remark VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (medication_id),
+  CONSTRAINT uk_medication_plan_elder_name UNIQUE (elder_id, medication_name)
+);
+
+CREATE TABLE allergy_record (
+  allergy_id VARCHAR(32) NOT NULL,
+  elder_id VARCHAR(32) NOT NULL,
+  allergen VARCHAR(64) NOT NULL,
+  reaction VARCHAR(128),
+  severity VARCHAR(32) NOT NULL,
+  remark VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (allergy_id),
+  CONSTRAINT uk_allergy_record_elder_name UNIQUE (elder_id, allergen)
+);
+
+CREATE TABLE risk_tag (
+  risk_tag_id VARCHAR(32) NOT NULL,
+  elder_id VARCHAR(32) NOT NULL,
+  tag_code VARCHAR(64) NOT NULL,
+  tag_name VARCHAR(64) NOT NULL,
+  risk_level VARCHAR(32),
+  remark VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (risk_tag_id),
+  CONSTRAINT uk_risk_tag_elder_code UNIQUE (elder_id, tag_code)
+);
+
+CREATE TABLE care_plan (
+  care_plan_id VARCHAR(32) NOT NULL,
+  elder_id VARCHAR(32) NOT NULL,
+  plan_content VARCHAR(4000) NOT NULL,
+  plan_status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (care_plan_id),
+  CONSTRAINT uk_care_plan_elder UNIQUE (elder_id)
 );
 
 CREATE TABLE elder_family_binding (

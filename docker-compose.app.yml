@@ -11,9 +11,9 @@ services:
       BACKEND_USER_PORT: 8081
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-smart_nursing}
-      MYSQL_USER: ${MYSQL_USER:-smart_nursing}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-smart_nursing123}
+      MYSQL_DATABASE: ${CARENEST_MYSQL_DATABASE:-smart_nursing}
+      MYSQL_USER: ${CARENEST_MYSQL_USER:-smart_nursing}
+      MYSQL_PASSWORD: ${CARENEST_MYSQL_PASSWORD:-smart_nursing123}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -60,9 +60,9 @@ services:
       BACKEND_CARE_ADMIN_PORT: 8082
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-smart_nursing}
-      MYSQL_USER: ${MYSQL_USER:-smart_nursing}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-smart_nursing123}
+      MYSQL_DATABASE: ${CARENEST_MYSQL_DATABASE:-smart_nursing}
+      MYSQL_USER: ${CARENEST_MYSQL_USER:-smart_nursing}
+      MYSQL_PASSWORD: ${CARENEST_MYSQL_PASSWORD:-smart_nursing123}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}

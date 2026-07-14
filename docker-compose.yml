@@ -9,13 +9,13 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_0900_ai_ci
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-smart_nursing}
-      MYSQL_USER: ${MYSQL_USER:-smart_nursing}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-smart_nursing123}
+      MYSQL_ROOT_PASSWORD: ${CARENEST_MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${CARENEST_MYSQL_DATABASE:-smart_nursing}
+      MYSQL_USER: ${CARENEST_MYSQL_USER:-smart_nursing}
+      MYSQL_PASSWORD: ${CARENEST_MYSQL_PASSWORD:-smart_nursing123}
       TZ: Asia/Shanghai
     ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - "${CARENEST_MYSQL_PORT:-3306}:3306"
     volumes:
       - carenest_mysql_data:/var/lib/mysql
       - ./docker/mysql/00-run-project-sql.sh:/docker-entrypoint-initdb.d/00-run-project-sql.sh:ro

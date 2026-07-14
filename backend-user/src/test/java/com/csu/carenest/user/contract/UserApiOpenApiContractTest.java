@@ -48,6 +48,9 @@ class UserApiOpenApiContractTest {
                 .andExpect(jsonPath("$.paths['/api/v1/elder/reports/{reportId}/ack'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/family/reports/{reportId}/ack'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/family/reports/{reportId}/archive-suggestions/decision'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/elders/{elderId}/health-archive'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/elders/{elderId}/health-archive'].put").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/elders/{elderId}/medications'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/health'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/admin/demo-data/status'].get").exists());
     }
@@ -82,6 +85,8 @@ class UserApiOpenApiContractTest {
         allowedPaths.add("/api/v1/elder/bindings");
         allowedPaths.add("/api/v1/family/reports/{reportId}/ack");
         allowedPaths.add("/api/v1/family/reports/{reportId}/archive-suggestions/decision");
+        allowedPaths.add("/api/v1/elders/{elderId}/health-archive");
+        allowedPaths.add("/api/v1/elders/{elderId}/medications");
         Iterator<String> pathNames = paths.fieldNames();
         while (pathNames.hasNext()) {
             String path = pathNames.next();

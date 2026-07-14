@@ -19,25 +19,29 @@ DELETE FROM medication_plan WHERE elder_id = 'elder_001';
 INSERT INTO medication_plan
   (medication_id, elder_id, medication_name, dosage, frequency, time_points, start_date, medication_status, remark)
 VALUES
-  ('med_001', 'elder_001', '降压药', '1片', '每日一次', JSON_ARRAY('08:00'), '2024-01-01', 'ACTIVE', '仅作记录，具体用药以医生医嘱为准');
+  ('med_001', 'elder_001', '降压药', '1片', 'ONCE_DAILY', JSON_ARRAY('08:00'), '2024-01-01', 'ACTIVE', '仅作记录，具体用药以医生医嘱为准');
 
 DELETE FROM allergy_record WHERE elder_id = 'elder_001';
 INSERT INTO allergy_record
   (allergy_id, elder_id, allergen, reaction, severity, remark)
 VALUES
-  ('allergy_001', 'elder_001', '青霉素', '皮疹', 'HIGH', '护理前需主动核对');
+  ('allergy_001', 'elder_001', '青霉素', '皮疹', 'SEVERE', '护理前需主动核对');
 
 DELETE FROM risk_tag WHERE elder_id = 'elder_001';
 INSERT INTO risk_tag
-  (risk_tag_id, elder_id, tag_name, risk_level, remark)
+  (risk_tag_id, elder_id, tag_code, tag_name, risk_level, remark)
 VALUES
-  ('risk_001', 'elder_001', '跌倒风险', 'MEDIUM', '上下楼和洗浴时需搀扶');
+  ('risk_001', 'elder_001', 'FALL_RISK', '跌倒风险', 'MEDIUM', '上下楼和洗浴时需搀扶');
 
 DELETE FROM care_plan WHERE elder_id = 'elder_001';
 INSERT INTO care_plan
   (care_plan_id, elder_id, plan_content, plan_status)
 VALUES
-  ('plan_001', 'elder_001', '服务前确认血压、过敏史和当天用药情况，护理过程中避免长时间站立。', 'ACTIVE');
+  ('plan_001', 'elder_001', JSON_OBJECT(
+    'careGoals', '保持血压稳定并降低跌倒风险',
+    'dailyCare', '每日记录血压和服药情况',
+    'precautions', '服务前确认过敏史，护理过程中避免长时间站立'
+  ), 'ACTIVE');
 
 DELETE FROM medical_file WHERE medical_file_id IN ('medical_file_001', 'medical_file_002');
 DELETE FROM file_asset WHERE file_id IN ('file_001', 'file_002');

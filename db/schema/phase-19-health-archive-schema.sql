@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS chronic_disease (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (disease_id),
   KEY idx_chronic_disease_elder (elder_id),
+  UNIQUE KEY uk_chronic_disease_elder_name (elder_id, disease_name),
   CONSTRAINT fk_chronic_disease_elder FOREIGN KEY (elder_id) REFERENCES elder_profile (elder_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='慢病记录';
 
@@ -43,6 +44,7 @@ CREATE TABLE IF NOT EXISTS medication_plan (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (medication_id),
   KEY idx_medication_plan_elder (elder_id),
+  UNIQUE KEY uk_medication_plan_elder_name (elder_id, medication_name),
   CONSTRAINT fk_medication_plan_elder FOREIGN KEY (elder_id) REFERENCES elder_profile (elder_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用药计划';
 
@@ -57,12 +59,14 @@ CREATE TABLE IF NOT EXISTS allergy_record (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (allergy_id),
   KEY idx_allergy_record_elder (elder_id),
+  UNIQUE KEY uk_allergy_record_elder_name (elder_id, allergen),
   CONSTRAINT fk_allergy_record_elder FOREIGN KEY (elder_id) REFERENCES elder_profile (elder_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='过敏记录';
 
 CREATE TABLE IF NOT EXISTS risk_tag (
   risk_tag_id VARCHAR(32) NOT NULL COMMENT '风险标签ID',
   elder_id VARCHAR(32) NOT NULL COMMENT '长辈ID',
+  tag_code VARCHAR(64) NOT NULL COMMENT '风险标签稳定代码',
   tag_name VARCHAR(64) NOT NULL COMMENT '标签名称',
   risk_level VARCHAR(32) DEFAULT NULL COMMENT '风险等级',
   remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
@@ -70,6 +74,7 @@ CREATE TABLE IF NOT EXISTS risk_tag (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (risk_tag_id),
   KEY idx_risk_tag_elder (elder_id),
+  UNIQUE KEY uk_risk_tag_elder_code (elder_id, tag_code),
   CONSTRAINT fk_risk_tag_elder FOREIGN KEY (elder_id) REFERENCES elder_profile (elder_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='风险标签';
 
@@ -82,5 +87,6 @@ CREATE TABLE IF NOT EXISTS care_plan (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (care_plan_id),
   KEY idx_care_plan_elder (elder_id),
+  UNIQUE KEY uk_care_plan_elder (elder_id),
   CONSTRAINT fk_care_plan_elder FOREIGN KEY (elder_id) REFERENCES elder_profile (elder_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='照护计划';
