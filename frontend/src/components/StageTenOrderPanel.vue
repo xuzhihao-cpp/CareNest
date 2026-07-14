@@ -170,9 +170,7 @@ async function viewOrderDetail(orderId: string, silent = false) {
   lastTraceId.value = response.traceId;
   if (response.code === 0) {
     selectedOrderDetail.value = response.data;
-    if (!silent) {
-      message.value = '订单详情已读取';
-    }
+    if (!silent) message.value = '';
     error.value = '';
   } else {
     error.value = `${response.code} ${response.message}`;
@@ -216,7 +214,7 @@ onUnmounted(() => {
   <view class="stage-ten-panel glass-panel" aria-label="阶段10预约下单">
     <view class="section-title">
       <text>⑩</text>
-      <text>预约下单 MVP</text>
+      <text>预约服务</text>
     </view>
 
     <view class="stage-ten-summary">
@@ -239,7 +237,7 @@ onUnmounted(() => {
     <view class="order-workbench">
       <view class="order-picker">
         <view class="binding-options">
-          <text class="section-mini">长辈 elderId</text>
+          <text class="section-mini">服务对象</text>
           <view class="segmented-row">
             <button
               v-for="elder in elders"
@@ -249,13 +247,13 @@ onUnmounted(() => {
               type="button"
               @click="selectElder(elder.elderId)"
             >
-              <text>{{ elder.elderId }}</text>
+              <text>{{ elder.name || '未命名长辈' }}</text>
             </button>
           </view>
         </view>
 
         <view class="binding-options">
-          <text class="section-mini">服务 serviceId</text>
+          <text class="section-mini">选择服务</text>
           <view class="order-option-list">
             <button
               v-for="service in services"
@@ -267,7 +265,7 @@ onUnmounted(() => {
             >
               <view>
                 <text class="flow-label">{{ service.serviceName }}</text>
-                <text class="flow-time">{{ service.serviceId }} · ¥{{ service.price }} · {{ service.durationMinutes }} 分钟</text>
+                <text class="flow-time">¥{{ service.price }} · {{ service.durationMinutes }} 分钟</text>
               </view>
               <text class="tag tag-teal">{{ displayLabel(service.status) }}</text>
             </button>
@@ -275,7 +273,7 @@ onUnmounted(() => {
         </view>
 
         <view class="binding-options">
-          <text class="section-mini">地址 addressId</text>
+          <text class="section-mini">服务地址</text>
           <view class="order-option-list">
             <button
               v-for="address in addresses"
@@ -299,16 +297,16 @@ onUnmounted(() => {
 
       <view class="order-form">
         <label class="field">
-          <text>预约时间 scheduledStart</text>
+          <text>预约时间</text>
           <input v-model="form.scheduledStart" class="input" type="datetime-local" />
         </label>
         <label class="field">
-          <text>偏好护理员 preferredNurseId</text>
+          <text>偏好护理员</text>
           <input v-model="form.preferredNurseId" class="input" placeholder="可为空" />
         </label>
         <label class="field">
-          <text>备注 remark</text>
-          <input v-model="form.remark" class="input" placeholder="阶段10预约下单演示" />
+          <text>服务备注</text>
+          <input v-model="form.remark" class="input" placeholder="可填写上门注意事项" />
         </label>
 
         <view class="order-preview">
@@ -346,7 +344,7 @@ onUnmounted(() => {
       <text class="empty-icon">∅</text>
       <view>
         <text class="empty-title">暂无预约订单</text>
-        <text class="empty-desc">空数据 mock 已返回 records: []，提交预约后应出现 WAIT_DISPATCH 订单。</text>
+        <text class="empty-desc">还没有预约订单，选择服务和地址后即可提交预约。</text>
       </view>
     </view>
 

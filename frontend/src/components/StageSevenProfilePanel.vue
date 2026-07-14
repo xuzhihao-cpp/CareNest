@@ -203,7 +203,7 @@ async function loadElderProfile() {
     records.value = [response.data];
     applyProfile(response.data);
     error.value = '';
-    message.value = '长辈端基础档案已加载';
+    message.value = '';
   } else {
     records.value = [];
     error.value = `${response.code} ${response.message}`;
@@ -253,7 +253,7 @@ onMounted(() => {
   <view class="stage-seven-panel glass-panel" aria-label="阶段7长辈基础档案">
     <view class="section-title">
       <text>⑦</text>
-      <text>长辈基础档案 MVP</text>
+      <text>长辈基础档案</text>
     </view>
 
     <view class="stage-seven-summary">
@@ -312,11 +312,11 @@ onMounted(() => {
         </view>
         <template v-else>
         <label class="field">
-          <text>姓名 name</text>
+          <text>姓名</text>
           <input v-model="form.name" class="input" placeholder="请输入长辈姓名" />
         </label>
         <label class="field">
-          <text>出生日期 birthDate</text>
+          <text>出生日期</text>
           <picker
             mode="date"
             start="1900-01-01"
@@ -331,7 +331,7 @@ onMounted(() => {
         </label>
 
         <view class="binding-options">
-          <text class="section-mini">性别 gender</text>
+          <text class="section-mini">性别</text>
           <view class="segmented-row">
             <button
               v-for="item in genderOptions"
@@ -347,7 +347,7 @@ onMounted(() => {
         </view>
 
         <view class="binding-options">
-          <text class="section-mini">照护等级 careLevel</text>
+          <text class="section-mini">照护等级</text>
           <view class="segmented-row">
             <button
               v-for="item in careLevelOptions"
@@ -364,17 +364,17 @@ onMounted(() => {
 
         <view class="contact-grid">
           <label class="field">
-            <text>紧急联系人 contactName</text>
+            <text>紧急联系人</text>
             <input v-model="form.emergencyContacts[0].contactName" class="input" maxlength="32" placeholder="联系人姓名" />
           </label>
           <label class="field">
-            <text>联系电话 contactPhone</text>
+            <text>联系电话</text>
             <input v-model="form.emergencyContacts[0].contactPhone" class="input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="11" placeholder="11 位手机号码" @input="updateEmergencyPhone" />
           </label>
         </view>
 
         <view class="binding-options">
-          <text class="section-mini">联系人关系 relationType</text>
+          <text class="section-mini">与长辈的关系</text>
           <view class="segmented-row">
             <button
               v-for="item in relationOptions"
@@ -434,7 +434,7 @@ onMounted(() => {
       <text class="empty-icon">∅</text>
       <view>
         <text class="empty-title">暂无长辈基础档案</text>
-        <text class="empty-desc">空数据 mock 已返回 records: []，分页结构仍保持 total / page / size。</text>
+        <text class="empty-desc">还没有长辈基础档案，请先填写并保存基础信息。</text>
       </view>
     </view>
 

@@ -659,7 +659,13 @@ onMounted(loadContext);
             </view>
             <view class="two-column">
               <label class="archive-field"><text>开始日期</text><picker mode="date" start="1900-01-01" :value="item.startDate" @change="item.startDate = $event.detail.value"><view class="picker-field">{{ item.startDate || '选择开始日期' }}</view></picker></label>
-              <label class="archive-field"><text>结束日期</text><picker mode="date" :start="item.startDate || today" :value="item.endDate" @change="item.endDate = $event.detail.value"><view class="picker-field">{{ item.endDate || '长期使用或未确定' }}</view></picker></label>
+              <view class="archive-field">
+                <text>结束日期</text>
+                <view class="end-date-control">
+                  <picker mode="date" :start="item.startDate || today" :value="item.endDate" @change="item.endDate = $event.detail.value"><view class="picker-field">{{ item.endDate || '选择结束日期' }}</view></picker>
+                  <button :class="['long-term-choice', { active: !item.endDate }]" type="button" @click="item.endDate = ''">长期使用</button>
+                </view>
+              </view>
             </view>
             <label class="archive-field"><text>用药说明</text><input v-model="item.remark" maxlength="100" placeholder="例如：饭后服用（可选）" /></label>
           </view>
@@ -739,8 +745,8 @@ onMounted(loadContext);
 .archive-kicker { color:#0f766e; font-size:22rpx; font-weight:700; }
 .archive-title { margin-top:6rpx; font-size:36rpx; font-weight:800; }
 .archive-subtitle { margin-top:8rpx; color:#607671; font-size:25rpx; line-height:1.55; }
-.icon-command,.secondary-command,.primary-command,.inline-command,.editor-section-heading button,.time-row button { min-height:72rpx; padding:0 24rpx; border:1rpx solid #bfd4cf; border-radius:4rpx; background:#fff; color:#176d65; font-size:25rpx; font-weight:700; }
-.icon-command { flex:none; min-height:64rpx; padding:0 20rpx; }
+.icon-command,.secondary-command,.primary-command,.inline-command,.editor-section-heading button,.time-row button { min-height:88rpx; padding:0 24rpx; border:1rpx solid #bfd4cf; border-radius:4rpx; background:#fff; color:#176d65; font-size:25rpx; font-weight:700; }
+.icon-command { flex:none; min-height:80rpx; padding:0 20rpx; }
 button[disabled] { opacity:.48; }
 .primary-command { border-color:#137f75; background:#137f75; color:#fff; }
 .elder-selector { margin:0 -24rpx; width:calc(100% + 48rpx); white-space:nowrap; }
@@ -787,25 +793,28 @@ button[disabled] { opacity:.48; }
 .editor-section-heading>view { display:grid; gap:4rpx; }
 .editor-section-heading text:first-child { font-size:29rpx; font-weight:800; }
 .editor-section-heading text:last-child { color:#71837f; font-size:22rpx; line-height:1.4; }
-.editor-section-heading button { min-height:58rpx; padding:0 18rpx; }
+.editor-section-heading button { min-height:80rpx; padding:0 18rpx; }
 .edit-card { display:grid; gap:16rpx; padding:20rpx; border:1rpx solid #d8e4e1; background:#f9fbfa; }
 .edit-card-heading { padding-bottom:12rpx; border-bottom:1rpx solid #e2eae8; font-size:25rpx; font-weight:800; }
 .danger-text { color:#c43f37; font-size:23rpx; font-weight:700; }
 .archive-field { display:grid; gap:8rpx; color:#536b66; font-size:23rpx; font-weight:700; }
 .archive-field input,.picker-field,.archive-field textarea { width:100%; box-sizing:border-box; border:1rpx solid #cbdad6; border-radius:4rpx; background:#fff; color:#17312e; font-size:26rpx; font-weight:600; }
-.archive-field input,.picker-field { min-height:76rpx; padding:0 18rpx; line-height:76rpx; }
+.archive-field input,.picker-field { min-height:88rpx; padding:0 18rpx; line-height:88rpx; }
 .archive-field textarea { min-height:150rpx; padding:16rpx 18rpx; line-height:1.5; }
 .two-column { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14rpx; }
 .choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10rpx; }
-.choice-grid button,.risk-choice-grid button { min-height:66rpx; padding:0 12rpx; border:1rpx solid #cbdad6; border-radius:4rpx; background:#fff; color:#516863; font-size:23rpx; font-weight:700; }
+.choice-grid button,.risk-choice-grid button { min-height:88rpx; padding:0 12rpx; border:1rpx solid #cbdad6; border-radius:4rpx; background:#fff; color:#516863; font-size:23rpx; font-weight:700; }
 .choice-grid button.active,.risk-choice-grid button.active { border-color:#63b9af; background:#e4f6f2; color:#0f766e; }
 .frequency-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .severity-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
 .risk-choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
 .time-list { display:grid; gap:10rpx; }
 .time-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10rpx; }
-.time-row button { min-height:76rpx; color:#b73d36; }
-.inline-command { justify-self:start; min-height:62rpx; }
+.time-row button { min-height:88rpx; color:#b73d36; }
+.inline-command { justify-self:start; min-height:80rpx; }
+.end-date-control { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10rpx; }
+.long-term-choice { width:auto; min-width:156rpx; min-height:88rpx; margin:0; padding:0 16rpx; border:1rpx solid #bfd4cf; border-radius:4rpx; background:#fff; color:#526a65; font-size:22rpx; font-weight:700; line-height:1.2; }
+.long-term-choice.active { border-color:#67bcb1; background:#e5f6f2; color:#0f766e; }
 .inline-error,.inline-success { padding:18rpx 20rpx; border:1rpx solid #efb7b2; background:#fff2f1; color:#a3342e; font-size:24rpx; line-height:1.5; }
 .inline-success { border-color:#9fd8cf; background:#eaf8f5; color:#0f766e; }
 .review-panel { position:fixed; inset:0; z-index:30; display:flex; align-items:flex-end; justify-content:center; padding:24rpx; box-sizing:border-box; background:rgba(15,34,31,.44); }

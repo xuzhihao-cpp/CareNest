@@ -270,7 +270,7 @@ onMounted(async () => {
   <view class="stage-nine-panel glass-panel" aria-label="阶段9服务地址">
     <view class="section-title">
       <text>⑨</text>
-      <text>服务地址 MVP</text>
+      <text>服务地址</text>
     </view>
 
     <view class="stage-nine-summary">
@@ -293,7 +293,7 @@ onMounted(async () => {
     <view class="address-workbench">
       <view class="address-list">
         <view class="binding-options">
-          <text class="section-mini">选择长辈 elderId</text>
+          <text class="section-mini">选择长辈</text>
           <view class="segmented-row">
             <button
               v-for="elder in elders"
@@ -303,7 +303,7 @@ onMounted(async () => {
               type="button"
               @click="selectElder(elder.elderId)"
             >
-              <text>{{ elder.elderId }}</text>
+              <text>{{ elder.name || '未命名长辈' }}</text>
             </button>
           </view>
         </view>
@@ -361,27 +361,27 @@ onMounted(async () => {
       <view class="address-form">
         <view class="contact-grid">
           <label class="field">
-            <text>联系人 contactName</text>
+            <text>联系人</text>
             <input v-model="form.contactName" class="input" maxlength="32" placeholder="联系人姓名" />
           </label>
           <label class="field">
-            <text>联系电话 contactPhone</text>
+            <text>联系电话</text>
             <input v-model="form.contactPhone" class="input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="11" placeholder="11 位手机号码" @input="updatePhone" />
           </label>
         </view>
 
         <label class="field">
-          <text>区县编码 regionCode</text>
+          <text>区县编码</text>
           <input v-model="form.regionCode" class="input" inputmode="numeric" maxlength="6" placeholder="6 位区县编码，例如 310101" @input="normalizeRegionCode" />
         </label>
 
         <label class="field">
-          <text>详细地址 detailAddress</text>
+          <text>详细地址</text>
           <input v-model="form.detailAddress" class="input" maxlength="120" placeholder="街道、门牌号、楼栋和房间号" />
         </label>
 
         <view class="binding-options">
-          <text class="section-mini">默认地址 isDefault</text>
+          <text class="section-mini">默认地址</text>
           <label class="default-address-toggle">
             <checkbox :checked="form.isDefault" @click="form.isDefault = !form.isDefault" />
             <text>设为默认地址</text>

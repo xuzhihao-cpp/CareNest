@@ -204,7 +204,7 @@ watch(records, () => {
   <view class="stage-six-panel glass-panel" aria-label="阶段6长辈家属绑定管理">
     <view class="section-title">
       <text>⑥</text>
-      <text>长辈/家属多对多绑定 MVP</text>
+      <text>长辈与家属绑定</text>
     </view>
 
     <view class="stage-six-summary">
@@ -226,12 +226,12 @@ watch(records, () => {
 
     <view v-if="roleCode === 'FAMILY'" class="binding-form">
       <label class="field">
-        <text>长辈邀请码 elderInviteCode</text>
+        <text>长辈邀请码</text>
         <input v-model="form.elderInviteCode" class="input" placeholder="elder_001" />
       </label>
 
       <view class="binding-options">
-        <text class="section-mini">关系类型 relationType</text>
+        <text class="section-mini">与长辈的关系</text>
         <view class="segmented-row">
           <button
             v-for="item in relationOptions"
@@ -247,7 +247,7 @@ watch(records, () => {
       </view>
 
       <view class="binding-options">
-        <text class="section-mini">绑定范围 scopeCodes</text>
+        <text class="section-mini">绑定范围</text>
         <view class="segmented-row">
           <button
             v-for="item in scopeOptions"

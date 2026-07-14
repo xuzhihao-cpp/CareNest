@@ -167,7 +167,7 @@ onMounted(() => {
   <view class="stage-fourteen-panel glass-panel" aria-label="阶段14护理执行记录">
     <view class="section-title">
       <text>⑭</text>
-      <text>护理执行记录 MVP</text>
+      <text>护理执行记录</text>
     </view>
 
     <view class="stage-fourteen-summary">
@@ -214,28 +214,28 @@ onMounted(() => {
 
       <view class="care-record-form">
         <view class="contract-response">
-          <text class="section-mini">POST /api/v1/nurse/orders/{orderId}/service-records</text>
+          <text class="section-mini">服务记录</text>
           <text class="permission-main">{{ selectedOrderId || '请选择任务' }}</text>
-          <text class="auth-meta">care_service_record</text>
+          <text class="auth-meta">记录本次服务过程和护理建议</text>
         </view>
         <label class="field">
-          <text>开始 startTime</text>
+          <text>开始时间</text>
           <input v-model="serviceForm.startTime" class="input" />
         </label>
         <label class="field">
-          <text>结束 endTime</text>
+          <text>结束时间</text>
           <input v-model="serviceForm.endTime" class="input" />
         </label>
         <label class="field">
-          <text>内容 content</text>
+          <text>服务内容</text>
           <input v-model="serviceForm.content" class="input" />
         </label>
         <label class="field">
-          <text>建议 nursingAdvice</text>
+          <text>护理建议</text>
           <input v-model="serviceForm.nursingAdvice" class="input" />
         </label>
         <view class="binding-options">
-          <text class="section-mini">异常 abnormalFlag</text>
+          <text class="section-mini">是否发现异常</text>
           <view class="segmented-row">
             <button
               class="choice-button"
@@ -262,28 +262,28 @@ onMounted(() => {
 
       <view class="care-record-form">
         <view class="contract-response">
-          <text class="section-mini">POST /api/v1/nurse/orders/{orderId}/vital-signs</text>
+          <text class="section-mini">生命体征记录</text>
           <text class="permission-main">生命体征</text>
-          <text class="auth-meta">vital_sign_record</text>
+          <text class="auth-meta">记录本次测量结果和后续建议</text>
         </view>
         <label class="field">
-          <text>开始 startTime</text>
+          <text>开始时间</text>
           <input v-model="vitalForm.startTime" class="input" />
         </label>
         <label class="field">
-          <text>结束 endTime</text>
+          <text>结束时间</text>
           <input v-model="vitalForm.endTime" class="input" />
         </label>
         <label class="field">
-          <text>体征 content</text>
+          <text>生命体征</text>
           <input v-model="vitalForm.content" class="input" />
         </label>
         <label class="field">
-          <text>建议 nursingAdvice</text>
+          <text>护理建议</text>
           <input v-model="vitalForm.nursingAdvice" class="input" />
         </label>
         <view class="binding-options">
-          <text class="section-mini">异常 abnormalFlag</text>
+          <text class="section-mini">是否发现异常</text>
           <view class="segmented-row">
             <button
               class="choice-button"
@@ -332,7 +332,7 @@ onMounted(() => {
       <text class="empty-icon">∅</text>
       <view>
         <text class="empty-title">暂无护理执行记录</text>
-        <text class="empty-desc">提交护理记录或生命体征后，会写入 care_service_record / vital_sign_record。</text>
+        <text class="empty-desc">完成服务后，可在上方填写服务记录或生命体征。</text>
       </view>
     </view>
 

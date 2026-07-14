@@ -341,7 +341,7 @@ onMounted(chooseInitialOrder);
 
       <view class="form-section value-form">
         <template v-if="fieldName === 'diseases'">
-          <label class="field"><text>疾病名称</text><input v-model="disease.diseaseName" maxlength="80" placeholder="例如：高血压" /></label>
+          <label class="field"><text>疾病名称</text><input v-model="disease.diseaseName" maxlength="80" placeholder="请手动输入，例如：高血压" /></label>
           <view class="field"><text>当前状态</text><picker :range="diseaseStatuses" range-key="label" :value="pickerIndex(diseaseStatuses, disease.status)" @change="setDiseaseStatus"><view class="picker-value">{{ diseaseStatuses.find((item) => item.value === disease.status)?.label }}</view></picker></view>
           <view class="field"><text>确诊日期（选填）</text><picker mode="date" :end="localDate()" :value="disease.diagnosedAt" @change="disease.diagnosedAt = $event.detail.value"><view class="picker-value">{{ disease.diagnosedAt || '选择日期' }}</view></picker></view>
           <label class="field"><text>补充说明（选填）</text><textarea v-model="disease.remark" maxlength="300" placeholder="记录病情变化或观察情况" /></label>
@@ -354,7 +354,13 @@ onMounted(chooseInitialOrder);
           <view class="field"><text>用药时间</text><picker mode="time" :value="medication.timePoints[0]" @change="setMedicationTime"><view class="picker-value">{{ medication.timePoints[0] }}</view></picker></view>
           <view class="date-grid">
             <view class="field"><text>开始日期</text><picker mode="date" :value="medication.startDate" @change="medication.startDate = $event.detail.value"><view class="picker-value">{{ medication.startDate }}</view></picker></view>
-            <view class="field"><text>结束日期（选填）</text><picker mode="date" :start="medication.startDate" :value="medication.endDate" @change="medication.endDate = $event.detail.value"><view class="picker-value">{{ medication.endDate || '长期使用' }}</view></picker></view>
+            <view class="field">
+              <text>结束日期（选填）</text>
+              <view class="end-date-control">
+                <picker mode="date" :start="medication.startDate" :value="medication.endDate" @change="medication.endDate = $event.detail.value"><view class="picker-value">{{ medication.endDate || '选择结束日期' }}</view></picker>
+                <button :class="['long-term-choice', { active: !medication.endDate }]" type="button" @click="medication.endDate = ''">长期使用</button>
+              </view>
+            </view>
           </view>
           <label class="field"><text>补充说明（选填）</text><textarea v-model="medication.remark" maxlength="300" placeholder="记录用药调整的具体情况" /></label>
         </template>
@@ -398,11 +404,14 @@ onMounted(chooseInitialOrder);
 .choice-card,.source-card { display:grid; gap:8rpx; width:100%; margin:0; padding:18rpx; border:1rpx solid #d8e4e1; border-radius:7rpx; background:#fff; color:#687d79; text-align:left; font-size:23rpx; line-height:1.45; }
 .choice-card.selected,.source-card.selected { border-color:#72c4b9; background:#eaf8f4; }.choice-title { display:block; color:#193732; font-size:27rpx; font-weight:700; }
 .source-card { grid-template-columns:minmax(0,1fr) auto; align-items:center; }.source-card > view { display:grid; gap:7rpx; min-width:0; }.source-type { padding:5rpx 10rpx; border-radius:5rpx; background:#edf5f3; color:#39716a; font-size:20rpx; }
-.field-options,.risk-options { display:flex; flex-wrap:wrap; gap:10rpx; }.field-option,.risk-options button { width:auto; margin:0; padding:0 18rpx; height:64rpx; line-height:64rpx; border:1rpx solid #cddbd8; border-radius:6rpx; background:#fff; color:#465e5a; font-size:23rpx; }.field-option.selected,.risk-options button.selected { border-color:#70c2b7; background:#e4f6f2; color:#08756a; font-weight:700; }
+.field-options,.risk-options { display:flex; flex-wrap:wrap; gap:10rpx; }.field-option,.risk-options button { width:auto; min-height:88rpx; margin:0; padding:0 20rpx; border:1rpx solid #cddbd8; border-radius:6rpx; background:#fff; color:#465e5a; font-size:23rpx; line-height:1.2; }.field-option.selected,.risk-options button.selected { border-color:#70c2b7; background:#e4f6f2; color:#08756a; font-weight:700; }
 .field-help { color:#6f817e; font-size:22rpx; line-height:1.55; }.value-form { gap:18rpx; }.field { position:relative; display:grid; gap:9rpx; }.field > text:first-child,.risk-heading { color:#354f4b; font-size:24rpx; font-weight:600; }
-.field input,.field textarea,.picker-value { box-sizing:border-box; width:100%; border:1rpx solid #d5e0de; border-radius:7rpx; background:#fbfdfc; padding:16rpx; color:#18312d; font-size:25rpx; }.field textarea { min-height:132rpx; }.picker-value { min-height:70rpx; }
+.field input,.field textarea,.picker-value { box-sizing:border-box; width:100%; border:1rpx solid #c8d8d4; border-radius:7rpx; background:#fff; color:#18312d; font-size:25rpx; }.field input,.picker-value { min-height:88rpx; padding:0 18rpx; line-height:88rpx; }.field textarea { min-height:144rpx; padding:16rpx 18rpx; line-height:1.5; }
 .date-grid { display:grid; grid-template-columns:1fr 1fr; gap:12rpx; }.reason-field textarea { padding-bottom:42rpx; }.counter { position:absolute; right:14rpx; bottom:12rpx; color:#83918f; font-size:20rpx; }
-.submit-button { width:100%; margin:4rpx 0 0; border:0; border-radius:7rpx; background:#0f766e; color:#fff; font-size:27rpx; font-weight:700; }.submit-button[disabled] { opacity:.55; }
+.end-date-control { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10rpx; }
+.long-term-choice { width:auto; min-width:156rpx; min-height:88rpx; margin:0; padding:0 16rpx; border:1rpx solid #bdd3ce; border-radius:6rpx; background:#fff; color:#526a65; font-size:22rpx; font-weight:700; line-height:1.2; }
+.long-term-choice.active { border-color:#67bcb1; background:#e5f6f2; color:#0f766e; }
+.submit-button { width:100%; min-height:88rpx; margin:4rpx 0 0; padding:0 24rpx; border:0; border-radius:7rpx; background:#0f766e; color:#fff; font-size:27rpx; font-weight:700; line-height:1.2; }.submit-button[disabled] { opacity:.55; }
 .empty-state { padding:18rpx; border-radius:7rpx; background:#f2f6f5; color:#71837f; font-size:23rpx; }
 @media (max-width:390px) { .date-grid { grid-template-columns:1fr; }.source-card { grid-template-columns:1fr; }.source-type { width:max-content; } }
 </style>

@@ -68,6 +68,21 @@ function sanitizePayload(payload: ServiceItemRequest): ServiceItemRequest {
   };
 }
 
+function fromBackendRecord(record: ServiceItemResponse): ServiceItemResponse {
+  return {
+    ...record,
+    price: Number(record.price) / 100
+  };
+}
+
+function toBackendPayload(payload: ServiceItemRequest): ServiceItemRequest {
+  const sanitized = sanitizePayload(payload);
+  return {
+    ...sanitized,
+    price: Math.round(sanitized.price * 100)
+  };
+}
+
 function validatePayload(payload: ServiceItemRequest) {
   return (
     payload.serviceName.length > 0 &&
@@ -116,7 +131,7 @@ export async function getServiceItems(
   if (response.code !== 0) {
     return response as ApiResponse<ServiceItemPageResult>;
   }
-  const records = Array.isArray(response.data) ? response.data : response.data.records;
+  const records = (Array.isArray(response.data) ? response.data : response.data.records).map(fromBackendRecord);
   return success(
     toPage(records),
     response.traceId
@@ -136,10 +151,11 @@ export async function getServiceItem(serviceId: string): Promise<ApiResponse<Ser
     return success(found, 'mock-8-service-item');
   }
 
-  return request<ServiceItemResponse>({
+  const response = await request<ServiceItemResponse>({
     method: 'GET',
     url: serviceItemPath(serviceId)
   });
+  return response.code === 0 ? { ...response, data: fromBackendRecord(response.data) } : response;
 }
 
 export async function createServiceItem(payload: ServiceItemRequest): Promise<ApiResponse<ServiceItemResponse>> {
@@ -161,11 +177,12 @@ export async function createServiceItem(payload: ServiceItemRequest): Promise<Ap
     return success(created, 'mock-8-service-create');
   }
 
-  return request<ServiceItemResponse>({
+  const response = await request<ServiceItemResponse>({
     method: 'POST',
     url: adminServiceItemsPath,
-    data: payload
+    data: toBackendPayload(payload)
   });
+  return response.code === 0 ? { ...response, data: fromBackendRecord(response.data) } : response;
 }
 
 export async function updateServiceItem(
@@ -195,11 +212,12 @@ export async function updateServiceItem(
     return success(updated, 'mock-8-service-update');
   }
 
-  return request<ServiceItemResponse>({
+  const response = await request<ServiceItemResponse>({
     method: 'PUT',
     url: adminServiceItemPath(serviceId),
-    data: payload
+    data: toBackendPayload(payload)
   });
+  return response.code === 0 ? { ...response, data: fromBackendRecord(response.data) } : response;
 }
 
 export async function deleteServiceItem(serviceId: string): Promise<ApiResponse<ServiceItemResponse>> {

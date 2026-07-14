@@ -164,7 +164,7 @@ async function handleFamilyCancel(scenario: StageSeventeenScenario = 'normal') {
   loading.value = true;
   const response = await cancelFamilyOrder(orderId.value, payload(), scenario);
   loading.value = false;
-  applyResponse(response, '家属端已取消订单，管理端同步显示 CANCELED');
+  applyResponse(response, '订单已取消');
   await refreshOrders();
   if (response.code === 0) {
     uni.$emit('carenest-orders-updated', response.data.orderId);
@@ -175,7 +175,7 @@ async function handleAdminCancel(scenario: StageSeventeenScenario = 'normal') {
   loading.value = true;
   const response = await cancelAdminOrder(orderId.value, payload(), scenario);
   loading.value = false;
-  applyResponse(response, '管理端已取消订单，家属端同步显示 CANCELED');
+  applyResponse(response, '订单已取消');
   await refreshOrders();
   if (response.code === 0) {
     uni.$emit('carenest-orders-updated', response.data.orderId);
@@ -207,8 +207,7 @@ onMounted(() => {
 <template>
   <view v-if="canUsePanel" class="stage-seventeen-panel glass-panel" aria-label="阶段17订单取消与改期">
     <view class="section-title">
-      <text>⑰</text>
-      <text>订单取消与改期 MVP</text>
+      <text>订单取消与改期</text>
     </view>
 
     <view class="stage-seventeen-summary">
@@ -322,7 +321,7 @@ onMounted(() => {
     </view>
 
     <view v-if="latestAdminOrder" class="report-section">
-      <text class="section-mini">order_status_log</text>
+      <text class="section-mini">订单状态记录</text>
       <view v-for="log in latestAdminOrder.statusLogs" :key="log.statusLogId" class="status-log-row">
         <text class="flow-label">{{ displayLabel(log.fromStatus || 'INIT') }} → {{ displayLabel(log.toStatus) }}</text>
         <text class="flow-time">{{ log.changedBy }} / {{ log.changeReason }}</text>

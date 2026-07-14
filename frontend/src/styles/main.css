@@ -39,18 +39,49 @@ page {
   font-family: var(--font-sans);
 }
 
-button {
+button,
+uni-button {
+  display: inline-flex;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
-  line-height: inherit;
+  line-height: 1.25;
+  text-align: center;
+  vertical-align: middle;
 }
 
-button::after {
+button::after,
+uni-button::after {
   border: 0;
+}
+
+/* Multi-line option cards keep their reading alignment while centering as a group. */
+.account-chip,
+.elder-choice,
+.type-grid button,
+.decision-grid button,
+.extracted-items button,
+.task-choice,
+.choice-card,
+.source-card {
+  align-content: center;
+  align-items: normal;
+  justify-content: stretch;
+  justify-items: start;
+}
+
+.severity-grid button {
+  align-content: center;
+  align-items: normal;
+  justify-content: stretch;
+  justify-items: center;
 }
 
 text {
@@ -1184,9 +1215,10 @@ uni-tabbar,
 
 .empty-state {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: center;
+  min-width: 0;
   min-height: 128px;
   padding: 20px;
   border: 1px dashed var(--line-strong);
@@ -1194,6 +1226,10 @@ uni-tabbar,
   box-shadow: var(--shadow-panel);
   backdrop-filter: blur(18px) saturate(1.2);
   -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.empty-state:has(> .empty-icon) {
+  grid-template-columns: 44px minmax(0, 1fr);
 }
 
 .empty-icon {
@@ -1463,6 +1499,142 @@ button,
 .account-chip,
 .nav-button {
   border-radius: 4px !important;
+}
+
+button[class],
+uni-button[class] {
+  margin: 0 !important;
+  line-height: 1.25;
+}
+
+/* Product surfaces use a compact, work-focused visual system. */
+.glass-panel {
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 18px rgba(65, 91, 106, 0.07);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.stage-six-panel,
+.stage-seven-panel,
+.stage-eight-panel,
+.stage-nine-panel,
+.stage-ten-panel,
+.stage-eleven-panel,
+.stage-twelve-panel,
+.stage-thirteen-panel,
+.stage-fourteen-panel,
+.stage-fifteen-panel,
+.stage-sixteen-panel,
+.stage-seventeen-panel,
+.stage-eighteen-panel {
+  gap: 16px;
+  padding: 18px;
+  border-radius: 8px;
+}
+
+.section-title {
+  margin-bottom: 0;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.hero-action {
+  min-width: 108px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 4px;
+  background: #0f8f83;
+  box-shadow: none;
+  font-size: 14px;
+}
+
+.ghost-action,
+.choice-button,
+.row-action {
+  min-height: 38px;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: none;
+  line-height: 1.2;
+}
+
+.hero-action,
+.ghost-action,
+.choice-button,
+.row-action,
+.nav-button {
+  white-space: nowrap;
+}
+
+.input {
+  min-height: 44px;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.service-row,
+.service-card,
+.address-row,
+.order-option,
+.order-row,
+.admin-order-row,
+.status-log-row,
+.nurse-task-row,
+.profile-row,
+.binding-row,
+.elder-approval-card,
+.booking-preview,
+.order-preview {
+  border-radius: 6px;
+  background: #fff;
+}
+
+.empty-state {
+  border-radius: 6px;
+  background: #fbfdfc;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.success-banner,
+.error-banner {
+  border-radius: 6px;
+}
+
+.admin-order-filters {
+  grid-template-columns: minmax(260px, 1.5fr) repeat(2, minmax(160px, 0.7fr)) auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfdfc;
+}
+
+.admin-order-filters > .binding-options {
+  grid-column: 1 / -1;
+}
+
+.admin-order-filters .binding-actions {
+  grid-column: auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+@media (max-width: 980px) {
+  .admin-order-filters > .binding-options,
+  .admin-order-filters .binding-actions {
+    grid-column: 1;
+  }
+}
+
+.service-editor {
+  padding: 16px !important;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfdfc;
 }
 
 /* Legacy scenario controls are not part of the real-API product UI. */
