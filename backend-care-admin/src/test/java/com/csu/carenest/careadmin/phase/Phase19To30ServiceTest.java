@@ -52,12 +52,14 @@ class Phase19To30ServiceTest {
 
     @Mock
     private Phase19To30Repository repository;
+    @Mock
+    private Phase25MedicalFileStorage medicalFileStorage;
 
     private Phase19To30Service service;
 
     @BeforeEach
     void setUp() {
-        service = new Phase19To30Service(repository, new ObjectMapper());
+        service = new Phase19To30Service(repository, new ObjectMapper(), medicalFileStorage);
     }
 
     @Test

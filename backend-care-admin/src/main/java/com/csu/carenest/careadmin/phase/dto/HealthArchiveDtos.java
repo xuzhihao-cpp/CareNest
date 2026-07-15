@@ -1,5 +1,6 @@
 package com.csu.carenest.careadmin.phase.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -71,12 +72,75 @@ public final class HealthArchiveDtos {
     }
 
     public record PreServiceHealthSummary(
-            Map<String, Object> elderProfile,
-            List<String> riskTags,
-            List<Map<String, Object>> medications,
-            List<Map<String, Object>> diseases,
-            List<Map<String, Object>> allergies,
-            List<Map<String, Object>> approvedMedicalFiles,
-            List<Map<String, Object>> recentReports) {
+            PreServiceElderProfile elderProfile,
+            List<RiskTag> riskTags,
+            List<Medication> medications,
+            List<Disease> diseases,
+            List<Allergy> allergies,
+            List<ApprovedMedicalFile> approvedMedicalFiles,
+            List<RecentReport> recentReports) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record PreServiceElderProfile(
+            String elderName,
+            String gender,
+            String birthDate,
+            Integer age,
+            String careLevel,
+            CarePlan carePlan,
+            List<String> carePoints) {
+    }
+
+    public record CarePlan(String careGoals, String dailyCare, String precautions) {
+    }
+
+    public record RiskTag(String tagCode, String tagName) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Medication(
+            String medicationName,
+            String dosage,
+            String frequency,
+            List<String> timePoints,
+            String startDate,
+            String endDate,
+            String remark) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Disease(
+            String diseaseName,
+            String status,
+            String diagnosedAt,
+            String remark) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record Allergy(
+            String allergenName,
+            String reaction,
+            String severity,
+            String remark) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record ApprovedMedicalFile(
+            String title,
+            String fileType,
+            String occurredAt,
+            String summary,
+            String previewUrl) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record RecentReport(
+            String serviceName,
+            String occurredAt,
+            String generatedAt,
+            String summary,
+            String nursingAdvice,
+            List<String> vitalSigns) {
     }
 }
