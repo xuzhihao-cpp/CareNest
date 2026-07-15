@@ -9,7 +9,6 @@ import {
   getFamilyOrders,
   getOrderDetail,
   getStageTenEndpointSummary,
-  resetStageTenMockRecords
 } from '@/api/stageTen';
 import type { ApiResponse } from '@/types/api';
 import type { RoleCode } from '@/types/stageOne';
@@ -137,7 +136,7 @@ async function loadOrders(scenario: OrderScenario = 'normal', keepMutationState 
     error.value = '';
     if (!keepMutationState) {
       message.value =
-        scenario === 'empty' ? '已切换为空订单 mock' : scenario === 'normal' ? '预约订单列表已加载' : message.value;
+        scenario === 'empty' ? '当前暂无符合条件的订单' : scenario === 'normal' ? '预约订单列表已加载' : message.value;
     }
   } else {
     orders.value = [];
@@ -190,11 +189,6 @@ function handleOrdersUpdated() {
   void refreshOrderPresentation();
 }
 
-async function resetNormalMock() {
-  resetStageTenMockRecords();
-  selectedOrderDetail.value = null;
-  await loadOrders('normal');
-}
 
 onMounted(async () => {
   if (!canUsePanel.value) {
@@ -225,7 +219,7 @@ onUnmounted(() => {
       </view>
       <view>
         <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || 'mock-10' }}</text>
+        <text class="permission-main">{{ lastTraceId || '暂无追踪信息' }}</text>
         <text class="auth-meta">校验绑定授权、服务上架和地址归属</text>
       </view>
     </view>
@@ -319,15 +313,6 @@ onUnmounted(() => {
         <view class="binding-actions">
           <button class="hero-action" type="button" :disabled="loading || !canSubmit" @click="submitOrder">
             <text>提交预约</text>
-          </button>
-        <button class="ghost-action test-action" type="button" @click="resetNormalMock">
-            <text>重置 mock</text>
-          </button>
-        <button class="ghost-action test-action" type="button" @click="loadOrders('empty')">
-            <text>空数据 mock</text>
-          </button>
-        <button class="ghost-action test-action" type="button" @click="loadOrders('error')">
-            <text>错误 mock</text>
           </button>
         </view>
       </view>

@@ -101,7 +101,7 @@ async function loadRecords(scenario: 'normal' | 'empty' | 'error' = 'normal') {
   if (response.code === 0) {
     records.value = response.data.records;
     error.value = '';
-    message.value = scenario === 'empty' ? '已切换为空执行记录 mock' : '护理执行记录已读取';
+    message.value = scenario === 'empty' ? '当前暂无服务记录' : '护理执行记录已读取';
   } else {
     records.value = [];
     message.value = '';
@@ -180,7 +180,7 @@ onMounted(() => {
       </view>
       <view>
         <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || 'mock-14' }}</text>
+        <text class="permission-main">{{ lastTraceId || '暂无追踪信息' }}</text>
         <text class="auth-meta">只做服务记录和生命体征，不生成报告</text>
       </view>
     </view>
@@ -319,12 +319,6 @@ onMounted(() => {
     <view class="binding-actions">
       <button class="ghost-action" type="button" @click="loadRecords('normal')">
         <text>读取记录</text>
-      </button>
-      <button class="ghost-action test-action" type="button" @click="loadRecords('empty')">
-        <text>空数据 mock</text>
-      </button>
-      <button class="ghost-action test-action" type="button" @click="loadRecords('error')">
-        <text>错误 mock</text>
       </button>
     </view>
 

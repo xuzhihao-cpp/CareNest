@@ -6,7 +6,6 @@ import {
   deleteServiceAddress,
   getServiceAddresses,
   getStageNineEndpointSummary,
-  resetStageNineMockRecords,
   updateServiceAddress
 } from '@/api/stageNine';
 import type { ApiResponse } from '@/types/api';
@@ -168,7 +167,7 @@ async function loadAddresses(scenario: ServiceAddressScenario = 'normal', keepMu
     error.value = '';
     if (!keepMutationState) {
       message.value =
-        scenario === 'empty' ? '已切换为空地址 mock' : scenario === 'normal' ? '服务地址列表已加载' : message.value;
+        scenario === 'empty' ? '当前暂无服务地址' : scenario === 'normal' ? '服务地址列表已加载' : message.value;
     }
     syncBookingAddress();
     if (records.value.length > 0) {
@@ -251,11 +250,6 @@ async function removeAddress(record: AddressDisplay) {
   }
 }
 
-async function resetNormalMock() {
-  resetStageNineMockRecords();
-  resetForm();
-  await loadAddresses('normal');
-}
 
 onMounted(async () => {
   if (!canUsePanel.value) {
@@ -281,7 +275,7 @@ onMounted(async () => {
       </view>
       <view>
         <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || 'mock-9' }}</text>
+        <text class="permission-main">{{ lastTraceId || '暂无追踪信息' }}</text>
         <text class="auth-meta">预约前默认地址选择预览</text>
       </view>
     </view>
@@ -402,15 +396,6 @@ onMounted(async () => {
           </button>
           <button class="ghost-action" type="button" :disabled="loading || !selectedAddressId" @click="saveAddress">
             <text>保存所选</text>
-          </button>
-          <button class="ghost-action test-action" type="button" @click="resetNormalMock">
-            <text>重置 mock</text>
-          </button>
-          <button class="ghost-action test-action" type="button" @click="loadAddresses('empty')">
-            <text>空数据 mock</text>
-          </button>
-          <button class="ghost-action test-action" type="button" @click="loadAddresses('error')">
-            <text>错误 mock</text>
           </button>
         </view>
       </view>

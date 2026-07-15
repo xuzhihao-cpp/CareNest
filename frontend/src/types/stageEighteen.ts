@@ -12,5 +12,5 @@ export interface StageEighteenFlowStep {
   label: string;
   ownerRole: 'ELDER' | 'FAMILY' | 'NURSE' | 'ADMIN' | 'ALL';
   sourceStage: string;
-  status: 'READY' | 'MOCK_ONLY' | 'PENDING';
+  status: 'READY' | 'PENDING';
 }

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { isMockEnabled } from '@/api/client';
 import {
   getAdminDemoDataStatus,
   getIntegrationHealth,
@@ -30,11 +29,10 @@ const endpoints = getStageEighteenEndpointSummary();
 const canReadAdminStatus = computed(() => props.roleCode === 'ADMIN' && props.authUser?.roles.includes('ADMIN'));
 const readyCount = computed(() => flowSteps.value.filter((item) => item.status === 'READY').length);
 const scenarioCount = computed(() => adminStatusResponse.value?.data.scenarioCount ?? 0);
-const modeLabel = computed(() => (isMockEnabled() ? 'contract mock' : 'real api'));
+const modeLabel = computed(() => '真实服务');
 
 function statusClass(status: StageEighteenFlowStep['status']) {
   if (status === 'READY') return 'tag-teal';
-  if (status === 'MOCK_ONLY') return 'tag-amber';
   return 'tag-coral';
 }
 
@@ -90,7 +88,7 @@ onMounted(() => refreshStatus());
           {{ scenarioCount }} /
           {{ modeLabel }}
         </text>
-        <text class="auth-meta">{{ healthResponse?.traceId ?? 'mock-18-health' }}</text>
+        <text class="auth-meta">{{ healthResponse?.traceId ?? '暂无追踪信息' }}</text>
       </view>
     </view>
 
@@ -101,12 +99,6 @@ onMounted(() => refreshStatus());
     <view class="binding-actions">
       <button class="hero-action" type="button" :disabled="loading" @click="refreshStatus('normal')">
         <text>Refresh</text>
-      </button>
-      <button class="ghost-action test-action" type="button" :disabled="loading" @click="refreshStatus('empty')">
-        <text>Empty mock</text>
-      </button>
-      <button class="ghost-action test-action" type="button" :disabled="loading" @click="refreshStatus('error')">
-        <text>Error mock</text>
       </button>
     </view>
 
