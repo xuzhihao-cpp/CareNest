@@ -32,10 +32,11 @@
 | GET | `/admin/health-review-tasks/{taskId}` | - | 审核任务详情 | `ADMIN/CUSTOMER_SERVICE` |
 | POST | `/admin/health-review-tasks/{taskId}/archive` | `{decisions:[{sourceField,targetField,normalizedValue,decision,comment}]}` | `{taskId,status,archiveVersion}` | `ADMIN/CUSTOMER_SERVICE` |
 | GET | `/nurse/orders/{orderId}/pre-service-health-summary` | - | `{elderProfile,riskTags,medications,diseases,allergies,approvedMedicalFiles,recentReports}` | 订单护理或 `ADMIN` |
+| GET | `/nurse/orders/{orderId}/medical-files/{medicalFileId}/preview` | - | 已审核病历文件流 | 订单护理或 `ADMIN` |
 
 健康建议仅允许 `SERVICE_RECORD/SERVICE_REPORT` 来源，来源记录必须真实属于当前订单，重复待审提交返回原建议。家属不能提交。
 
-健康字段白名单为 `careSummary/riskTags/diseases/medications/allergies/carePlan`。归档状态为 `APPROVED/REJECTED/NEED_MORE`，版本号沿用 `health_archive.archive_version` 整数；只有批准项写正式档案并递增版本，驳回或要求补充不得修改档案。服务前摘要仅允许被派护理在 `DISPATCHED/ACCEPTED/ON_THE_WAY/SERVING` 查看，且只返回已审核通过病历并记录访问日志。
+健康字段白名单为 `careSummary/riskTags/diseases/medications/allergies/carePlan`。归档状态为 `APPROVED/REJECTED/NEED_MORE`，版本号沿用 `health_archive.archive_version` 整数；只有批准项写正式档案并递增版本，驳回或要求补充不得修改档案。服务前摘要仅允许被派护理在订单和任务均处于 `DISPATCHED/ACCEPTED/ON_THE_WAY` 时查看；服务中及完成后不开放回看。摘要只返回已审核通过病历和状态为 `WAIT_CONFIRM/CONFIRMED` 的近期报告，并记录访问日志。响应和预览接口不返回对象存储路径、内部审核意见、档案版本或订单、长辈、文件、报告内部编号。
 
 ## 阶段26-28：护理准入和培训审核
 

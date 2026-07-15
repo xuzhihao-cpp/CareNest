@@ -5,6 +5,7 @@ import com.csu.carenest.careadmin.phase.entity.MedicalFileEntity;
 import com.csu.carenest.careadmin.phase.entity.NurseRecommendationEntity;
 import com.csu.carenest.careadmin.phase.entity.QualificationApplicationEntity;
 import com.csu.carenest.careadmin.phase.entity.TrainingRecordEntity;
+import com.csu.carenest.careadmin.phase.dto.HealthArchiveDtos;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -128,6 +129,15 @@ public class Phase19To30Repository {
     public boolean nurseOwnsOrder(String nurseId, String orderId) {
         Integer count = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*) FROM nurse_task WHERE nurse_id = ? AND order_id = ?
+                """, Integer.class, nurseId, orderId);
+        return count != null && count > 0;
+    }
+
+    public boolean nurseHasPreServiceTask(String nurseId, String orderId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM nurse_task
+                WHERE nurse_id = ? AND order_id = ?
+                  AND task_status IN ('DISPATCHED', 'ACCEPTED', 'ON_THE_WAY')
                 """, Integer.class, nurseId, orderId);
         return count != null && count > 0;
     }
@@ -426,70 +436,106 @@ public class Phase19To30Repository {
                 """, carePlanId, elderId, planContent);
     }
 
-    public Map<String, Object> findElderProfile(String elderId) {
-        return queryForMap("""
-                SELECT ep.elder_id AS elderId, ep.elder_name AS elderName, ep.gender,
-                       ep.birth_date AS birthDate, ep.care_level AS careLevel,
-                       ha.care_summary AS careSummary, ha.archive_version AS archiveVersion
+    public Optional<PreServiceArchiveSnapshot> findPreServiceArchive(String elderId) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject("""
+                SELECT ep.elder_name, ep.gender, ep.birth_date, ep.care_level,
+                       ha.care_summary, ha.archive_version, cp.plan_content
                 FROM elder_profile ep
                 LEFT JOIN health_archive ha ON ha.elder_id = ep.elder_id
+                LEFT JOIN care_plan cp ON cp.elder_id = ep.elder_id AND cp.plan_status = 'ACTIVE'
                 WHERE ep.elder_id = ?
-                """, elderId);
+                """, (rs, rowNum) -> new PreServiceArchiveSnapshot(
+                    rs.getString("elder_name"), rs.getString("gender"), text(rs.getObject("birth_date")),
+                    rs.getString("care_level"), rs.getString("care_summary"),
+                    rs.getObject("archive_version") == null ? 0 : rs.getInt("archive_version"),
+                    rs.getString("plan_content")), elderId));
+        } catch (EmptyResultDataAccessException exception) {
+            return Optional.empty();
+        }
     }
 
-    public List<String> findRiskTags(String elderId) {
+    public List<HealthArchiveDtos.RiskTag> findRiskTags(String elderId) {
         return jdbcTemplate.query("""
-                SELECT tag_name FROM risk_tag WHERE elder_id = ? ORDER BY risk_level DESC, tag_name
-                """, (rs, rowNum) -> rs.getString("tag_name"), elderId);
+                SELECT tag_code, tag_name FROM risk_tag WHERE elder_id = ? ORDER BY risk_level DESC, tag_name
+                """, (rs, rowNum) -> new HealthArchiveDtos.RiskTag(
+                rs.getString("tag_code"), rs.getString("tag_name")), elderId);
     }
 
-    public List<Map<String, Object>> findMedications(String elderId) {
-        return jdbcTemplate.queryForList("""
-                SELECT medication_id AS medicationId, medication_name AS medicationName,
-                       dosage, frequency, start_date AS startDate, end_date AS endDate
+    public List<MedicationRow> findMedications(String elderId) {
+        return jdbcTemplate.query("""
+                SELECT medication_name, dosage, frequency, time_points, start_date, end_date, remark
                 FROM medication_plan
                 WHERE elder_id = ? AND medication_status = 'ACTIVE'
                 ORDER BY start_date DESC
-                """, elderId);
+                """, (rs, rowNum) -> new MedicationRow(
+                rs.getString("medication_name"), rs.getString("dosage"), rs.getString("frequency"),
+                rs.getString("time_points"), text(rs.getObject("start_date")), text(rs.getObject("end_date")),
+                rs.getString("remark")), elderId);
     }
 
-    public List<Map<String, Object>> findDiseases(String elderId) {
-        return jdbcTemplate.queryForList("""
-                SELECT disease_id AS diseaseId, disease_name AS diseaseName,
-                       disease_status AS diseaseStatus, diagnosed_at AS diagnosedAt, remark
+    public List<HealthArchiveDtos.Disease> findDiseases(String elderId) {
+        return jdbcTemplate.query("""
+                SELECT disease_name, disease_status, diagnosed_at, remark
                 FROM chronic_disease
                 WHERE elder_id = ? AND disease_status = 'ACTIVE'
                 ORDER BY disease_name
-                """, elderId);
+                """, (rs, rowNum) -> new HealthArchiveDtos.Disease(
+                rs.getString("disease_name"), rs.getString("disease_status"),
+                text(rs.getObject("diagnosed_at")), rs.getString("remark")), elderId);
     }
 
-    public List<Map<String, Object>> findAllergies(String elderId) {
-        return jdbcTemplate.queryForList("""
-                SELECT allergy_id AS allergyId, allergen, reaction
+    public List<HealthArchiveDtos.Allergy> findAllergies(String elderId) {
+        return jdbcTemplate.query("""
+                SELECT allergen, reaction, severity, remark
                 FROM allergy_record WHERE elder_id = ? ORDER BY allergen
-                """, elderId);
+                """, (rs, rowNum) -> new HealthArchiveDtos.Allergy(
+                rs.getString("allergen"), rs.getString("reaction"),
+                rs.getString("severity"), rs.getString("remark")), elderId);
     }
 
-    public List<Map<String, Object>> findApprovedMedicalFiles(String elderId) {
-        return jdbcTemplate.queryForList("""
-                SELECT medical_file_id AS medicalFileId, file_id AS fileId, file_type AS fileType,
-                       title, occurred_at AS occurredAt, audit_status AS auditStatus
-                FROM medical_file
-                WHERE elder_id = ? AND audit_status = 'APPROVED'
-                ORDER BY occurred_at DESC
-                """, elderId);
+    public List<MedicalFileRow> findApprovedMedicalFiles(String elderId) {
+        return jdbcTemplate.query("""
+                SELECT mf.medical_file_id, mf.file_type, mf.title, mf.occurred_at,
+                       fa.original_name, fa.mime_type, fa.storage_bucket, fa.object_key
+                FROM medical_file mf
+                JOIN file_asset fa ON fa.file_id = mf.file_id
+                WHERE mf.elder_id = ? AND mf.audit_status = 'APPROVED' AND fa.audit_status = 'APPROVED'
+                ORDER BY mf.occurred_at DESC
+                """, (rs, rowNum) -> new MedicalFileRow(
+                rs.getString("medical_file_id"), rs.getString("file_type"), rs.getString("title"),
+                text(rs.getObject("occurred_at")), rs.getString("original_name"), rs.getString("mime_type"),
+                rs.getString("storage_bucket"), rs.getString("object_key")), elderId);
     }
 
-    public List<Map<String, Object>> findRecentReports(String elderId) {
-        return jdbcTemplate.queryForList("""
-                SELECT sr.report_id AS reportId, sr.order_id AS orderId, sr.summary,
-                       sr.nursing_advice AS nursingAdvice, sr.generated_at AS generatedAt
+    public Optional<MedicalFileRow> findApprovedMedicalFile(String elderId, String medicalFileId) {
+        return findApprovedMedicalFiles(elderId).stream()
+                .filter(file -> file.medicalFileId().equals(medicalFileId))
+                .findFirst();
+    }
+
+    public List<RecentReportRow> findRecentReports(String elderId) {
+        return jdbcTemplate.query("""
+                SELECT sr.report_id, si.service_name, o.scheduled_start_at, sr.summary,
+                       sr.nursing_advice, sr.generated_at
                 FROM service_report sr
                 JOIN nursing_order o ON o.order_id = sr.order_id
+                JOIN service_item si ON si.service_id = o.service_id
                 WHERE o.elder_id = ? AND sr.report_status IN ('WAIT_CONFIRM', 'CONFIRMED')
                 ORDER BY sr.generated_at DESC
                 LIMIT 10
-                """, elderId);
+                """, (rs, rowNum) -> new RecentReportRow(
+                rs.getString("report_id"), rs.getString("service_name"),
+                text(rs.getObject("scheduled_start_at")), text(rs.getObject("generated_at")),
+                rs.getString("summary"), rs.getString("nursing_advice")), elderId);
+    }
+
+    public List<String> findReportVitalSigns(String reportId) {
+        return jdbcTemplate.query("""
+                SELECT item_content FROM service_report_item
+                WHERE report_id = ? AND item_type = 'VITAL_SIGN'
+                ORDER BY sort, item_id
+                """, (rs, rowNum) -> rs.getString("item_content"), reportId);
     }
 
     public void updateNurseProfileForApplication(
@@ -764,5 +810,25 @@ public class Phase19To30Repository {
             return timestamp.toLocalDateTime().toString();
         }
         return value == null ? null : value.toString();
+    }
+
+    public record PreServiceArchiveSnapshot(
+            String elderName, String gender, String birthDate, String careLevel,
+            String careSummary, int archiveVersion, String carePlanJson) {
+    }
+
+    public record MedicationRow(
+            String medicationName, String dosage, String frequency, String timePointsJson,
+            String startDate, String endDate, String remark) {
+    }
+
+    public record MedicalFileRow(
+            String medicalFileId, String fileType, String title, String occurredAt,
+            String originalName, String mimeType, String bucket, String objectKey) {
+    }
+
+    public record RecentReportRow(
+            String reportId, String serviceName, String occurredAt, String generatedAt,
+            String summary, String nursingAdvice) {
     }
 }
