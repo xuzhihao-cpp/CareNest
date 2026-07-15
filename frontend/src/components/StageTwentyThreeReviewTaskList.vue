@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { getAuthPermissions } from '@/api/stageThree';
-import { getAdminHealthReviewTasks } from '@/api/stageTwentyThree';
+import {
+  getAdminHealthReviewTasks,
+  getHealthReviewPermissions
+} from '@/api/stageTwentyThree';
 import {
   archiveHealthReviewTask,
   getHealthArchiveChangeLogs,
@@ -179,7 +181,8 @@ async function loadTaskDetail(taskId: string, preserveArchiveResult = false) {
   changeLogs.value = [];
   historyError.value = '';
   if (!preserveArchiveResult) archiveResult.value = null;
-  const response = await getHealthReviewTaskDetail(taskId);
+  const taskContext = records.value.find((item) => item.taskId === taskId);
+  const response = await getHealthReviewTaskDetail(taskId, taskContext);
   if (sequence !== detailRequestSequence || selectedTaskId.value !== taskId) return;
   detailLoading.value = false;
   if (response.code !== 0) {
@@ -279,14 +282,14 @@ async function submitArchive() {
 async function initialize() {
   permissionsLoading.value = true;
   error.value = '';
-  const response = await getAuthPermissions();
+  const response = await getHealthReviewPermissions();
   permissionsLoading.value = false;
   permissionsLoaded.value = true;
   if (response.code !== 0) {
     error.value = businessError(response.code, 'list');
     return;
   }
-  permissionCodes.value = response.data.permissions;
+  permissionCodes.value = response.data;
   if (!canUsePanel.value) {
     error.value = '当前账号没有健康信息审核归档权限。';
     return;

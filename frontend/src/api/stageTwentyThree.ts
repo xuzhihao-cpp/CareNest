@@ -23,6 +23,10 @@ const suggestionPath = (orderId: string) =>
   `/orders/${encodeURIComponent(orderId)}/health-update-suggestions`;
 const adminReviewTasksPath = '/admin/health-review-tasks';
 
+interface HealthReviewPermissionWireResponse {
+  permissions?: unknown;
+}
+
 interface SuggestionWireResult {
   suggestionId?: string;
   status?: string;
@@ -82,6 +86,19 @@ function normalizeAdminTask(record: AdminHealthReviewTaskWire): AdminHealthRevie
     reason: source.reason?.trim() || record.reason?.trim() || '未填写原因',
     submittedAt
   };
+}
+
+export async function getHealthReviewPermissions(): Promise<ApiResponse<string[]>> {
+  const response = await request<HealthReviewPermissionWireResponse>({
+    method: 'GET',
+    url: '/auth/permissions'
+  });
+  if (response.code !== 0) return { ...response, data: [] };
+  if (!response.data || !Array.isArray(response.data.permissions)
+    || response.data.permissions.some((permission) => typeof permission !== 'string')) {
+    return failure(502, '账号权限响应不完整', [], response.traceId);
+  }
+  return { ...response, data: response.data.permissions };
 }
 
 export async function createHealthUpdateSuggestion(

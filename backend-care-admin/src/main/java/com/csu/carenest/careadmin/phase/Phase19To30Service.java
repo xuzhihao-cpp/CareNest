@@ -31,6 +31,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -195,6 +196,23 @@ public class Phase19To30Service {
 
     public HealthArchiveDtos.ReviewTaskResponse healthReviewTask(String taskId) {
         return toReviewTaskResponse(requireReviewTask(taskId));
+    }
+
+    public List<HealthArchiveDtos.ArchiveChangeLogResponse> archiveChangeLogs(String elderId) {
+        if (!hasText(elderId)) {
+            throw new BusinessRuleException();
+        }
+        return repository.findArchiveChangeLogs(elderId.trim(), 20).stream()
+                .map(row -> new HealthArchiveDtos.ArchiveChangeLogResponse(
+                        string(row, "changeLogId"),
+                        nullableString(row, "fieldName"),
+                        string(row, "changeType"),
+                        nullableString(row, "beforeValue"),
+                        nullableString(row, "afterValue"),
+                        nullableString(row, "comment"),
+                        nullableString(row, "archiveVersion"),
+                        toLocalDateTime(row.get("changedAt")).toString()))
+                .toList();
     }
 
     @Transactional
@@ -584,15 +602,24 @@ public class Phase19To30Service {
         Map<String, Object> value = normalizedObject(normalizedValue);
         switch (targetField) {
             case "careSummary" -> repository.updateCareSummary(elderId, normalizedValue, reviewerId);
-            case "riskTags" -> repository.upsertRiskTag(
-                    nextId("risk"), elderId,
-                    requiredMapText(value, "tagName", "name", "value"),
-                    enumMapText(value, "MEDIUM", Set.of("LOW", "MEDIUM", "HIGH"), "riskLevel"),
-                    mapText(value, "remark"));
+            case "riskTags" -> {
+                Map<String, Object> riskTag = normalizedRiskTag(value);
+                String tagName = requiredMapText(riskTag, "tagName", "name", "value");
+                String tagCode = mapText(riskTag, "tagCode", "code");
+                if (!hasText(tagCode)) {
+                    tagCode = generatedRiskTagCode(tagName);
+                }
+                repository.upsertRiskTag(
+                        nextId("risk"), elderId, tagCode, tagName,
+                        enumMapText(riskTag, "MEDIUM", Set.of("LOW", "MEDIUM", "HIGH"), "riskLevel"),
+                        mapText(riskTag, "remark"));
+            }
             case "diseases" -> repository.upsertDisease(
                     nextId("disease"), elderId,
                     requiredMapText(value, "diseaseName", "name", "value"),
-                    enumMapText(value, "ACTIVE", Set.of("ACTIVE", "INACTIVE"), "diseaseStatus", "status"),
+                    enumMapText(value, "ACTIVE",
+                            Set.of("ACTIVE", "MONITORING", "STABLE", "RESOLVED"),
+                            "diseaseStatus", "status"),
                     mapText(value, "remark"));
             case "medications" -> repository.upsertMedication(
                     nextId("medication"), elderId,
@@ -644,6 +671,42 @@ public class Phase19To30Service {
         } catch (JsonProcessingException exception) {
             throw new BusinessRuleException();
         }
+    }
+
+    /** 兼容旧任务保存的“风险名称：等级”文本，同时保留新接口的结构化风险对象。 */
+    private Map<String, Object> normalizedRiskTag(Map<String, Object> value) {
+        if (hasText(mapText(value, "tagName", "name")) || hasText(mapText(value, "riskLevel"))) {
+            return value;
+        }
+        String raw = mapText(value, "value");
+        if (!hasText(raw)) {
+            return value;
+        }
+        String trimmed = raw.trim();
+        for (String level : List.of("HIGH", "MEDIUM", "LOW")) {
+            for (String separator : List.of("：", ":")) {
+                String suffix = separator + level;
+                if (trimmed.toUpperCase().endsWith(suffix)) {
+                    Map<String, Object> parsed = new HashMap<>(value);
+                    parsed.put("tagName", trimmed.substring(0, trimmed.length() - suffix.length()).trim());
+                    parsed.put("riskLevel", level);
+                    return parsed;
+                }
+            }
+        }
+        return value;
+    }
+
+    private String generatedRiskTagCode(String tagName) {
+        return switch (tagName.trim()) {
+            case "跌倒风险" -> "FALL_RISK";
+            case "压疮风险" -> "PRESSURE_INJURY_RISK";
+            case "吞咽风险" -> "SWALLOWING_RISK";
+            case "用药风险" -> "MEDICATION_RISK";
+            case "走失风险" -> "WANDERING_RISK";
+            case "过敏风险" -> "ALLERGY_RISK";
+            default -> "CUSTOM_" + Integer.toUnsignedString(tagName.trim().hashCode(), 16).toUpperCase();
+        };
     }
 
     private String enumMapText(
