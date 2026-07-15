@@ -1,5 +1,18 @@
 # CareNest 开发日志
 
+## 2026-07-15
+
+### 成员1：阶段 26-31 数据库与数据规范
+
+- 阅读 `need/phase-26-31-optimized-ai-task-cards.md`，按成员1职责限定为数据库结构、迁移、权限种子、演示数据、数据字典、Redis 数据规范和验收说明。
+- 新增阶段 26-27 护理准入表：`nurse_profile`、`nurse_certificate`，保留资质申请历史，证件号仅保存脱敏值，并用组合外键约束资质文件归属。
+- 新增阶段 28 培训记录表：`nurse_training_record`，保留培训批次、状态、通过时间、过期时间、审核人和说明；`EXPIRED` 仅作为读取计算状态，不入库。
+- 新增阶段 29-30 推荐与偏好结构：`nurse_service_skill`、`nurse_score`、`nurse_recommendation_log`，并为 `nursing_order` 补充 `preferred_nurse_id`、推荐原因快照和推荐日志关联字段。
+- 新增阶段 31 服务前注意事项表：`care_attention_notice`、`care_attention_ack`，用 `notice_hash` 防止重复生成同一订单同一来源同一内容的提醒。
+- 新增 `db/seed/phase-26-31-demo-data.sql`，冻结阶段 26-31 权限码，并提供无申请、待审、需补充、资质通过但培训未过、培训有效、培训过期、两个可推荐护理、无候选服务、偏好护理和注意事项演示数据。
+- 新增 `docs/dictionary/phase-26-31-nurse-admission-data-dictionary.md`，记录字段、状态、权限码和推荐 Redis 缓存规则：`recommend:nurses:{requestHash}` 最多 5 分钟，MySQL 推荐日志始终为事实源。
+- 新增 `docs/stage-check/member1-phase-26-31.md`，记录成员1交付边界与数据库验证命令；不声明后端/前端/Redis 客户端/MinIO 对象创建已经完成。
+
 ## 2026-07-11
 
 ### 成员1：阶段 19-25 数据库与数据规范
