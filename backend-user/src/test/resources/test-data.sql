@@ -61,6 +61,9 @@ INSERT INTO elder_profile (
   '张小明', '13800000002', '高血压，需定期测量血压'
 );
 
+INSERT INTO reminder_task (reminder_id, elder_id, source_type, source_id, title, content, reminder_at, reminder_status, created_by)
+VALUES ('reminder_001', 'elder_001', 'MEDICATION_PLAN', 'medication_001', '早晨用药', '请按照照护计划服药。', CURRENT_TIMESTAMP, 'PENDING', 'system');
+
 INSERT INTO elder_contact (contact_id, elder_id, contact_name, contact_phone, relation_type, is_primary) VALUES
 ('contact_001', 'elder_001', '张小明', '13800000002', 'SON', TRUE);
 

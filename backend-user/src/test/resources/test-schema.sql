@@ -11,6 +11,8 @@ DROP TABLE IF EXISTS user_role;
 DROP TABLE IF EXISTS sys_role;
 DROP TABLE IF EXISTS sys_user;
 DROP TABLE IF EXISTS operation_log;
+DROP TABLE IF EXISTS reminder_record;
+DROP TABLE IF EXISTS reminder_task;
 DROP TABLE IF EXISTS voice_command_log;
 DROP TABLE IF EXISTS elder_health_feedback;
 DROP TABLE IF EXISTS service_address;
@@ -101,6 +103,19 @@ CREATE TABLE operation_log (
   trace_id VARCHAR(64),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (log_id)
+);
+
+CREATE TABLE reminder_task (
+  reminder_id VARCHAR(32) PRIMARY KEY, elder_id VARCHAR(32) NOT NULL, source_type VARCHAR(32) NOT NULL,
+  source_id VARCHAR(64) NOT NULL, title VARCHAR(128) NOT NULL, content VARCHAR(512) NOT NULL,
+  reminder_at TIMESTAMP NOT NULL, reminder_status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+  snoozed_until TIMESTAMP, completed_at TIMESTAMP, needs_help_at TIMESTAMP, created_by VARCHAR(32),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE reminder_record (
+  record_id VARCHAR(32) PRIMARY KEY, reminder_id VARCHAR(32) NOT NULL, elder_id VARCHAR(32) NOT NULL,
+  from_status VARCHAR(32), to_status VARCHAR(32) NOT NULL, action_type VARCHAR(32) NOT NULL,
+  acted_by VARCHAR(32) NOT NULL, note VARCHAR(255), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE file_asset (
