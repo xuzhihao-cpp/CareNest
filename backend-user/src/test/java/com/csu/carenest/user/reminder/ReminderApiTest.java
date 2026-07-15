@@ -42,7 +42,7 @@ class ReminderApiTest {
         mockMvc.perform(get("/api/v1/elder/reminders/records").header("Authorization", bearer(token)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(1))
                 .andExpect(jsonPath("$.data.records[0].toStatus").value("DONE"));
-        assertEquals("DONE", jdbc.queryForObject("SELECT reminder_status FROM reminder_task WHERE reminder_id='reminder_001'", String.class));
+        assertEquals("DONE", jdbc.queryForObject("SELECT reminder_status FROM reminder_task WHERE task_id='reminder_001'", String.class));
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM operation_log WHERE operation_type='REMINDER_ACTION'", Integer.class));
     }
 
@@ -54,7 +54,7 @@ class ReminderApiTest {
         mockMvc.perform(post("/api/v1/elder/reminders/reminder_001/actions").header("Authorization", bearer(elder))
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of("action", "INVALID"))))
                 .andExpect(status().isUnprocessableEntity());
-        assertEquals("PENDING", jdbc.queryForObject("SELECT reminder_status FROM reminder_task WHERE reminder_id='reminder_001'", String.class));
+        assertEquals("PENDING", jdbc.queryForObject("SELECT reminder_status FROM reminder_task WHERE task_id='reminder_001'", String.class));
     }
 
     @Test
@@ -63,7 +63,7 @@ class ReminderApiTest {
         mockMvc.perform(post("/api/v1/elder/reminders/reminder_001/actions").header("Authorization", bearer(elder))
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of("action", "SNOOZE", "snoozeMinutes", 30))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.reminder.status").value("SNOOZED"));
-        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM reminder_record WHERE to_status='SNOOZED'", Integer.class));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM reminder_record WHERE result='SNOOZED'", Integer.class));
     }
 
     private String login(String username) throws Exception {

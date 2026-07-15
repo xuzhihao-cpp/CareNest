@@ -28,8 +28,9 @@ public class ReminderController {
     @GetMapping("/records")
     public ApiResponse<ReminderDtos.PageResult<ReminderDtos.RecordItem>> records(
             @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(name = "elderId", required = false) String elderId,
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "20") int size) {
-        return ApiResponse.success(service.records(authorization, page, size));
+        return ApiResponse.success(service.records(authorization, elderId, page, size));
     }
 }
