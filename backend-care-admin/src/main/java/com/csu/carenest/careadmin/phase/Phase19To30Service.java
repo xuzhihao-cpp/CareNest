@@ -25,9 +25,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.Period;
 import java.time.format.DateTimeParseException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -57,14 +61,19 @@ public class Phase19To30Service {
     private static final Set<String> SUGGESTION_ORDER_STATUSES = Set.of(
             "SERVING", "WAIT_REPORT", "WAIT_CONFIRM", "COMPLETED");
     private static final Set<String> PRE_SERVICE_ORDER_STATUSES = Set.of(
-            "DISPATCHED", "ACCEPTED", "ON_THE_WAY", "SERVING");
+            "DISPATCHED", "ACCEPTED", "ON_THE_WAY");
 
     private final Phase19To30Repository repository;
     private final ObjectMapper objectMapper;
+    private final Phase25MedicalFileStorage medicalFileStorage;
 
-    public Phase19To30Service(Phase19To30Repository repository, ObjectMapper objectMapper) {
+    public Phase19To30Service(
+            Phase19To30Repository repository,
+            ObjectMapper objectMapper,
+            Phase25MedicalFileStorage medicalFileStorage) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.medicalFileStorage = medicalFileStorage;
     }
 
     public PageData<MedicalFileDtos.MedicalFileItem> medicalFiles(
@@ -249,7 +258,7 @@ public class Phase19To30Service {
         return new HealthArchiveDtos.ArchiveResponse(taskId, finalStatus, String.valueOf(nextVersion));
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public HealthArchiveDtos.PreServiceHealthSummary preServiceHealthSummary(
             CurrentUser currentUser,
             String orderId) {
@@ -259,18 +268,59 @@ public class Phase19To30Service {
                 && !PRE_SERVICE_ORDER_STATUSES.contains(string(order, "order_status"))) {
             throw new ConflictException();
         }
+        if (currentUser.hasRole(RoleCode.NURSE)
+                && !repository.nurseHasPreServiceTask(currentUser.userId(), orderId)) {
+            throw new ConflictException();
+        }
         String elderId = string(order, "elder_id");
+        Phase19To30Repository.PreServiceArchiveSnapshot archive = repository.findPreServiceArchive(elderId)
+                .orElseThrow(NotFoundException::new);
         HealthArchiveDtos.PreServiceHealthSummary summary = new HealthArchiveDtos.PreServiceHealthSummary(
-                repository.findElderProfile(elderId),
+                toPreServiceElderProfile(archive),
                 repository.findRiskTags(elderId),
-                repository.findMedications(elderId),
+                repository.findMedications(elderId).stream().map(this::toMedication).toList(),
                 repository.findDiseases(elderId),
                 repository.findAllergies(elderId),
-                repository.findApprovedMedicalFiles(elderId),
-                repository.findRecentReports(elderId));
+                repository.findApprovedMedicalFiles(elderId).stream()
+                        .map(file -> new HealthArchiveDtos.ApprovedMedicalFile(
+                                file.title(), file.fileType(), file.occurredAt(), null,
+                                "/api/v1/nurse/orders/"
+                                        + UriUtils.encodePathSegment(orderId, StandardCharsets.UTF_8)
+                                        + "/medical-files/"
+                                        + UriUtils.encodePathSegment(file.medicalFileId(), StandardCharsets.UTF_8)
+                                        + "/preview"))
+                        .toList(),
+                repository.findRecentReports(elderId).stream()
+                        .map(report -> new HealthArchiveDtos.RecentReport(
+                                report.serviceName(), report.occurredAt(), report.generatedAt(), report.summary(),
+                                report.nursingAdvice(), repository.findReportVitalSigns(report.reportId())))
+                        .toList());
         saveOperationLog(currentUser, "VIEW_PRE_SERVICE_HEALTH_SUMMARY",
-                "NURSING_ORDER", orderId, null, Map.of("elderId", elderId));
+                "NURSING_ORDER", orderId, null, Map.of("archiveVersion", archive.archiveVersion()));
         return summary;
+    }
+
+    @Transactional(readOnly = true)
+    public MedicalFilePreview preServiceMedicalFilePreview(
+            CurrentUser currentUser, String orderId, String medicalFileId) {
+        Map<String, Object> order = requireOrder(orderId);
+        requireOrderAccess(currentUser, order, true);
+        if (currentUser.hasRole(RoleCode.NURSE)
+                && !PRE_SERVICE_ORDER_STATUSES.contains(string(order, "order_status"))) {
+            throw new ConflictException();
+        }
+        if (currentUser.hasRole(RoleCode.NURSE)
+                && !repository.nurseHasPreServiceTask(currentUser.userId(), orderId)) {
+            throw new ConflictException();
+        }
+        Phase19To30Repository.MedicalFileRow file = repository
+                .findApprovedMedicalFile(string(order, "elder_id"), medicalFileId)
+                .orElseThrow(NotFoundException::new);
+        return new MedicalFilePreview(
+                medicalFileStorage.read(file.bucket(), file.objectKey()), file.mimeType(), file.originalName());
+    }
+
+    public record MedicalFilePreview(byte[] content, String mimeType, String originalName) {
     }
 
     @Transactional
@@ -692,6 +742,57 @@ public class Phase19To30Service {
             return record.trainingStatus();
         }
         return parseDateTime(record.expiredAt()).isAfter(LocalDateTime.now()) ? APPROVED : REJECTED;
+    }
+
+    private HealthArchiveDtos.PreServiceElderProfile toPreServiceElderProfile(
+            Phase19To30Repository.PreServiceArchiveSnapshot archive) {
+        HealthArchiveDtos.CarePlan carePlan = parseCarePlan(archive.carePlanJson());
+        List<String> carePoints = hasText(archive.careSummary())
+                ? java.util.Arrays.stream(archive.careSummary().split("[;；\\n]"))
+                .map(String::trim).filter(this::hasText).distinct().toList()
+                : List.of();
+        Integer age = null;
+        if (hasText(archive.birthDate())) {
+            try {
+                age = Math.max(0, Period.between(LocalDate.parse(archive.birthDate()), LocalDate.now()).getYears());
+            } catch (DateTimeParseException ignored) {
+                // Birth date remains available even if legacy data cannot be used for age calculation.
+            }
+        }
+        return new HealthArchiveDtos.PreServiceElderProfile(
+                archive.elderName(), archive.gender(), archive.birthDate(), age,
+                archive.careLevel(), carePlan, carePoints);
+    }
+
+    private HealthArchiveDtos.CarePlan parseCarePlan(String raw) {
+        if (!hasText(raw)) {
+            return new HealthArchiveDtos.CarePlan("", "", "");
+        }
+        try {
+            Map<String, Object> values = objectMapper.readValue(raw, new TypeReference<>() {
+            });
+            return new HealthArchiveDtos.CarePlan(
+                    Optional.ofNullable(mapText(values, "careGoals")).orElse(""),
+                    Optional.ofNullable(mapText(values, "dailyCare")).orElse(""),
+                    Optional.ofNullable(mapText(values, "precautions")).orElse(""));
+        } catch (JsonProcessingException exception) {
+            return new HealthArchiveDtos.CarePlan("", raw, "");
+        }
+    }
+
+    private HealthArchiveDtos.Medication toMedication(Phase19To30Repository.MedicationRow row) {
+        List<String> timePoints = List.of();
+        if (hasText(row.timePointsJson())) {
+            try {
+                timePoints = objectMapper.readValue(row.timePointsJson(), new TypeReference<>() {
+                });
+            } catch (JsonProcessingException exception) {
+                throw new IllegalStateException("Invalid archived medication time points", exception);
+            }
+        }
+        return new HealthArchiveDtos.Medication(
+                row.medicationName(), row.dosage(), row.frequency(), timePoints,
+                row.startDate(), row.endDate(), row.remark());
     }
 
     private void saveOperationLog(

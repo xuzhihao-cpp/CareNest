@@ -19,6 +19,11 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 成员3阶段21、23至30接口入口。
@@ -90,6 +95,27 @@ public class Phase19To30Controller {
         CurrentUser currentUser = authService.requireAnyRole(
                 authorization, RoleCode.NURSE, RoleCode.ADMIN);
         return ApiResponse.success(phaseService.preServiceHealthSummary(currentUser, orderId));
+    }
+
+    @GetMapping("/nurse/orders/{orderId}/medical-files/{medicalFileId}/preview")
+    public ResponseEntity<byte[]> preServiceMedicalFilePreview(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable("orderId") String orderId,
+            @PathVariable("medicalFileId") String medicalFileId) {
+        CurrentUser currentUser = authService.requireAnyRole(authorization, RoleCode.NURSE, RoleCode.ADMIN);
+        Phase19To30Service.MedicalFilePreview preview =
+                phaseService.preServiceMedicalFilePreview(currentUser, orderId, medicalFileId);
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(preview.mimeType());
+        } catch (Exception ignored) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                        .filename(preview.originalName(), StandardCharsets.UTF_8).build().toString())
+                .body(preview.content());
     }
 
     @PostMapping("/nurse/qualification-applications")
