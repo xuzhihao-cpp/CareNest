@@ -1,5 +1,6 @@
 package com.csu.carenest.careadmin.phase;
 
+import com.csu.carenest.careadmin.attention.Phase31AttentionService;
 import com.csu.carenest.careadmin.auth.CurrentUser;
 import com.csu.carenest.careadmin.auth.RoleCode;
 import com.csu.carenest.careadmin.phase.dto.ServiceItemRequest;
@@ -28,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,12 +49,15 @@ class CareAdminPhaseServiceCacheTest {
     @Mock
     private HomeCacheInvalidator homeCacheInvalidator;
 
+    @Mock
+    private Phase31AttentionService attentionService;
+
     @Test
     void publicOnShelfListUsesFiveMinuteCacheHit() {
         ServiceItemResponse cached = new ServiceItemResponse("service_001", "上门护理", "照护", 10000, 60, "ON_SHELF");
         when(cacheService.get(RedisKeyFactory.onShelfServiceItemsKey(), ServiceItemResponse[].class))
                 .thenReturn(Optional.of(new ServiceItemResponse[]{cached}));
-        CareAdminPhaseService service = new CareAdminPhaseService(jdbcTemplate, new ObjectMapper(), cacheService, lockService, homeCacheInvalidator);
+        CareAdminPhaseService service = service();
 
         assertEquals(List.of(cached), service.serviceItems(false));
         verify(jdbcTemplate, never()).query(anyString(), any(RowMapper.class));
@@ -63,7 +68,7 @@ class CareAdminPhaseServiceCacheTest {
         ServiceItemResponse item = new ServiceItemResponse("service_001", "上门护理", "照护", 10000, 60, "ON_SHELF");
         when(cacheService.get(RedisKeyFactory.onShelfServiceItemsKey(), ServiceItemResponse[].class)).thenReturn(Optional.empty());
         when(jdbcTemplate.query(anyString(), any(RowMapper.class))).thenReturn(List.of(item));
-        CareAdminPhaseService service = new CareAdminPhaseService(jdbcTemplate, new ObjectMapper(), cacheService, lockService, homeCacheInvalidator);
+        CareAdminPhaseService service = service();
 
         assertEquals(List.of(item), service.serviceItems(false));
         assertEquals(List.of(item), service.serviceItems(true));
@@ -83,7 +88,7 @@ class CareAdminPhaseServiceCacheTest {
                 "duration_minutes", 60,
                 "service_status", "ON_SHELF"
         ));
-        CareAdminPhaseService service = new CareAdminPhaseService(jdbcTemplate, new ObjectMapper(), cacheService, lockService, homeCacheInvalidator);
+        CareAdminPhaseService service = service();
 
         service.createServiceItem(
                 new CurrentUser("admin_001", List.of(RoleCode.ADMIN)),
@@ -103,8 +108,7 @@ class CareAdminPhaseServiceCacheTest {
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1);
         when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
         when(jdbcTemplate.queryForList(anyString())).thenReturn(List.of());
-        CareAdminPhaseService service = new CareAdminPhaseService(
-                jdbcTemplate, new ObjectMapper(), cacheService, lockService, homeCacheInvalidator);
+        CareAdminPhaseService service = service();
 
         service.dispatchOrder(
                 new CurrentUser("admin_001", List.of(RoleCode.ADMIN)),
@@ -120,11 +124,44 @@ class CareAdminPhaseServiceCacheTest {
     void dispatchReturnsConflictWhenOrderLockIsAlreadyHeld() {
         when(lockService.tryAcquire(RedisKeyFactory.orderLockKey("order_001"), Duration.ofSeconds(20)))
                 .thenReturn(new RedisLockService.Acquisition(RedisLockService.State.CONTENDED, null, null, null));
-        CareAdminPhaseService service = new CareAdminPhaseService(jdbcTemplate, new ObjectMapper(), cacheService, lockService, homeCacheInvalidator);
+        CareAdminPhaseService service = service();
 
         assertThrows(com.csu.carenest.careadmin.common.ConflictException.class, () -> service.dispatchOrder(
                 new CurrentUser("admin_001", List.of(RoleCode.ADMIN)),
                 "order_001",
                 new com.csu.carenest.careadmin.phase.dto.DispatchRequest("nurse_001", "安排服务", "DISPATCHED")));
+    }
+
+    @Test
+    void serviceStartDoesNotUpdateTaskWhenRequiredAttentionIsMissing() {
+        Map<String, Object> task = Map.of(
+                "task_id", "task_001", "order_id", "order_001",
+                "nurse_id", "nurse_001", "task_status", "ON_THE_WAY");
+        Map<String, Object> order = Map.of(
+                "order_id", "order_001", "elder_id", "elder_001",
+                "order_status", "ON_THE_WAY");
+        when(jdbcTemplate.queryForMap(anyString(), any(Object[].class)))
+                .thenReturn(task, task, order);
+        when(lockService.tryAcquire(RedisKeyFactory.orderLockKey("order_001"), Duration.ofSeconds(20)))
+                .thenReturn(new RedisLockService.Acquisition(RedisLockService.State.UNAVAILABLE, null, null, null));
+        doThrow(new com.csu.carenest.careadmin.common.BusinessRuleException())
+                .when(attentionService)
+                .requireAllRequiredAcknowledged("order_001", "task_001", "nurse_001");
+        CareAdminPhaseService service = service();
+
+        assertThrows(com.csu.carenest.careadmin.common.BusinessRuleException.class,
+                () -> service.updateTaskStatus(
+                        new CurrentUser("nurse_001", List.of(RoleCode.NURSE)),
+                        "task_001",
+                        new com.csu.carenest.careadmin.phase.dto.TaskStatusRequest(
+                                "SERVING", null, null)));
+
+        verify(jdbcTemplate, never()).update(contains("UPDATE nurse_task SET task_status"), any(Object[].class));
+    }
+
+    private CareAdminPhaseService service() {
+        return new CareAdminPhaseService(
+                jdbcTemplate, new ObjectMapper(), cacheService, lockService,
+                homeCacheInvalidator, attentionService);
     }
 }
