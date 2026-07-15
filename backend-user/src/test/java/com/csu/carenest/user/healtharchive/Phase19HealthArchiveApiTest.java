@@ -69,6 +69,35 @@ class Phase19HealthArchiveApiTest {
     }
 
     @Test
+    void activeFamilyWithHealthViewReadsArchiveChangeLogs() throws Exception {
+        String token = loginAndReadToken("family_demo");
+
+        mockMvc.perform(put("/api/v1/elders/elder_001/health-archive")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validArchiveUpdate(1))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/elders/elder_001/health-archive/change-logs")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data[0].changeLogId").isNotEmpty())
+                .andExpect(jsonPath("$.data[0].changeType").value("FAMILY_EDIT"))
+                .andExpect(jsonPath("$.data[0].changedAt").isNotEmpty());
+    }
+
+    @Test
+    void pendingFamilyBindingCannotReadArchiveChangeLogs() throws Exception {
+        String token = loginAndReadToken("family_demo");
+
+        mockMvc.perform(get("/api/v1/elders/elder_002/health-archive/change-logs")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403));
+    }
+
+    @Test
     void elderCannotReadAnotherEldersArchive() throws Exception {
         String token = loginAndReadToken("elder_other_demo");
 

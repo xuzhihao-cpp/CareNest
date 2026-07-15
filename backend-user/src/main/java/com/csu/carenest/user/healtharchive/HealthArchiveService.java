@@ -8,6 +8,7 @@ import com.csu.carenest.user.common.NotFoundException;
 import com.csu.carenest.user.redis.HomeCacheInvalidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +68,54 @@ public class HealthArchiveService {
         HealthArchiveRepository.ElderRow elder = repository.findElder(elderId).orElseThrow(NotFoundException::new);
         requireReadAccess(currentUser, elder);
         return assembleArchive(elderId);
+    }
+
+    public List<HealthArchiveDtos.ArchiveChangeLogResponse> getArchiveChangeLogs(
+            String authorization,
+            String elderId) {
+        AuthService.CurrentUser currentUser = authService.requireCurrentUser(authorization);
+        HealthArchiveRepository.ElderRow elder = repository.findElder(elderId).orElseThrow(NotFoundException::new);
+        requireReadAccess(currentUser, elder);
+        return repository.findArchiveChangeLogs(elderId, 20).stream()
+                .map(this::toArchiveChangeLogResponse)
+                .toList();
+    }
+
+    private HealthArchiveDtos.ArchiveChangeLogResponse toArchiveChangeLogResponse(
+            HealthArchiveRepository.ArchiveChangeLogRow row) {
+        JsonNode after = readJsonObject(row.afterValue());
+        String normalizedValue = jsonValue(after, "normalizedValue");
+        return new HealthArchiveDtos.ArchiveChangeLogResponse(
+                row.changeLogId(),
+                jsonValue(after, "targetField"),
+                row.changeType(),
+                row.beforeValue(),
+                "REVIEW_ARCHIVE".equals(row.changeType()) && normalizedValue != null
+                        ? normalizedValue
+                        : row.afterValue(),
+                jsonValue(after, "comment"),
+                jsonValue(after, "archiveVersion"),
+                row.changedAt());
+    }
+
+    private JsonNode readJsonObject(String value) {
+        if (value == null || value.isBlank()) {
+            return objectMapper.createObjectNode();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(value);
+            return node != null && node.isObject() ? node : objectMapper.createObjectNode();
+        } catch (JsonProcessingException exception) {
+            return objectMapper.createObjectNode();
+        }
+    }
+
+    private String jsonValue(JsonNode object, String fieldName) {
+        JsonNode value = object.path(fieldName);
+        if (value.isMissingNode() || value.isNull()) {
+            return null;
+        }
+        return value.isValueNode() ? value.asText() : value.toString();
     }
 
     @Transactional
