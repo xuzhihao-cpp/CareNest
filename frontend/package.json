@@ -16,6 +16,7 @@
     "test:stage23": "node --test scripts/test-stage-twenty-three.mjs",
     "test:stage24": "node --test scripts/test-stage-twenty-four.mjs",
     "test:stage25": "node --test scripts/test-stage-twenty-five.mjs",
+    "test:stage32": "node scripts/test-stage-thirty-two.mjs",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview --host 127.0.0.1 --port 5173"
   },
