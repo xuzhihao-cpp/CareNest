@@ -7,7 +7,9 @@ import type {
 export const MEDICAL_FILE_REVIEW_PERMISSION_ALIASES = [
   'MEDICAL_FILE_REVIEW',
   'HEALTH_REVIEW',
-  'health:review'
+  'health:review',
+  'ADMIN_DASHBOARD_VIEW',
+  'CUSTOMER_SERVICE_TICKET_HANDLE'
 ] as const;
 
 export function normalizeReviewStatus(value: MedicalFileReviewStatusWire | string): MedicalFileReviewStatus | null {
@@ -24,13 +26,6 @@ export function canEnterMedicalFileReview(
   const roleAllowed = roles.includes('ADMIN') || roles.includes('CUSTOMER_SERVICE');
   if (!roleAllowed) return false;
   return MEDICAL_FILE_REVIEW_PERMISSION_ALIASES.some((code) => permissionCodes.includes(code));
-}
-
-export function getLocalCalendarDate(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 export function reviewCommentRequired(decision: MedicalFileReviewDecision) {

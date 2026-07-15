@@ -4,9 +4,9 @@ import { readAuthSession } from '@/api/client';
 import {
   getAdminMedicalFileDetail,
   getAdminMedicalFiles,
+  getMedicalFileReviewPermissions,
   reviewAdminMedicalFile
 } from '@/api/stageTwentyOne';
-import { getAuthPermissions } from '@/api/stageThree';
 import type { RoleCode } from '@/types/stageOne';
 import type { AuthUser } from '@/types/stageTwo';
 import type { MedicalFileType } from '@/types/stageTwenty';
@@ -20,7 +20,6 @@ import type {
 import {
   canEnterMedicalFileReview,
   canReviewMedicalFile,
-  getLocalCalendarDate,
   isCurrentMedicalFileSelection,
   refreshReviewedMedicalFile,
   reviewCommentRequired,
@@ -55,12 +54,8 @@ const decisionOptions: Array<{ value: MedicalFileReviewDecision; label: string; 
 
 const query = ref<AdminMedicalFileQuery>({
   page: 1,
-  size: 20,
-  auditStatus: 'PENDING',
-  fileType: '',
-  keyword: '',
-  dateFrom: '',
-  dateTo: ''
+  size: 10,
+  auditStatus: 'PENDING'
 });
 const records = ref<AdminMedicalFileRecord[]>([]);
 const total = ref(0);
@@ -81,7 +76,8 @@ const decision = ref<MedicalFileReviewDecision>('APPROVED');
 const reviewComment = ref('');
 const extractToArchive = ref(false);
 const selectedExtractedFields = ref<string[]>([]);
-const today = getLocalCalendarDate();
+let listRequestSequence = 0;
+let detailRequestSequence = 0;
 
 const canUsePanel = computed(() => canEnterMedicalFileReview(
   props.authUser?.roles ?? [],
@@ -119,6 +115,12 @@ function formatSize(bytes?: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function recordContext(record: AdminMedicalFileRecord) {
+  return record.elderName
+    ? `${record.elderName} · ${typeLabel(record.fileType)}`
+    : typeLabel(record.fileType);
+}
+
 function businessError(code: number, target: 'LIST' | 'DETAIL' | 'REVIEW') {
   if (code === 401) return '登录状态已失效，请重新登录。';
   if (code === 403) return '当前账号没有病历审核权限。';
@@ -138,13 +140,15 @@ function resetReviewForm(nextDetail: AdminMedicalFileDetail | null) {
 }
 
 async function loadDetail(fileId: string) {
+  const requestSequence = ++detailRequestSequence;
   selectedFileId.value = fileId;
   loadingDetail.value = true;
   detailError.value = '';
   successMessage.value = '';
   const response = await getAdminMedicalFileDetail(fileId);
+  if (requestSequence !== detailRequestSequence
+    || !isCurrentMedicalFileSelection(fileId, selectedFileId.value)) return;
   loadingDetail.value = false;
-  if (!isCurrentMedicalFileSelection(fileId, selectedFileId.value)) return;
   if (response.code !== 0) {
     detail.value = null;
     detailError.value = businessError(response.code, 'DETAIL');
@@ -156,21 +160,33 @@ async function loadDetail(fileId: string) {
 
 async function loadFiles(keepSelection = false, loadSelectedDetail = true) {
   if (!canUsePanel.value) {
+    listRequestSequence += 1;
+    detailRequestSequence += 1;
     records.value = [];
     total.value = 0;
+    selectedFileId.value = '';
+    detail.value = null;
+    loadingList.value = false;
+    loadingDetail.value = false;
+    resetReviewForm(null);
     listError.value = '当前账号没有病历审核权限。';
     return;
   }
+  const requestSequence = ++listRequestSequence;
   loadingList.value = true;
   listError.value = '';
   successMessage.value = '';
   const response = await getAdminMedicalFiles(query.value);
+  if (requestSequence !== listRequestSequence) return;
   loadingList.value = false;
   if (response.code !== 0) {
+    detailRequestSequence += 1;
     records.value = [];
     total.value = 0;
     detail.value = null;
     selectedFileId.value = '';
+    loadingDetail.value = false;
+    resetReviewForm(null);
     listError.value = businessError(response.code, 'LIST');
     return;
   }
@@ -191,33 +207,11 @@ async function loadFiles(keepSelection = false, loadSelectedDetail = true) {
   }
 }
 
-function applyFilters() {
+function setStatus(value: MedicalFileReviewStatus | '') {
+  if (loadingList.value || submitting.value || query.value.auditStatus === value) return;
+  query.value.auditStatus = value;
   query.value.page = 1;
   loadFiles();
-}
-
-function resetFilters() {
-  query.value = {
-    page: 1,
-    size: 20,
-    auditStatus: 'PENDING',
-    fileType: '',
-    keyword: '',
-    dateFrom: '',
-    dateTo: ''
-  };
-  loadFiles();
-}
-
-function setStatus(value: MedicalFileReviewStatus | '') {
-  query.value.auditStatus = value;
-  applyFilters();
-}
-
-function setType(event: { detail: { value: number | string } }) {
-  const option = typeOptions[Number(event.detail.value)];
-  query.value.fileType = option?.value ?? '';
-  applyFilters();
 }
 
 async function changePage(offset: number) {
@@ -275,6 +269,7 @@ async function submitReview() {
       : []
   });
   submitting.value = false;
+  if (!isCurrentMedicalFileSelection(reviewedFileId, selectedFileId.value)) return;
   if (response.code !== 0) {
     const errorMessage = businessError(response.code, 'REVIEW');
     if (response.code === 409) {
@@ -338,18 +333,27 @@ function permissionBusinessError(code: number) {
 }
 
 async function initializeReviewPanel() {
+  listRequestSequence += 1;
+  detailRequestSequence += 1;
   permissionsLoading.value = true;
   permissionsLoaded.value = false;
   permissionError.value = '';
   permissionCodes.value = [];
-  const response = await getAuthPermissions();
+  const response = await getMedicalFileReviewPermissions();
   permissionsLoading.value = false;
   permissionsLoaded.value = true;
   if (response.code !== 0) {
+    records.value = [];
+    total.value = 0;
+    selectedFileId.value = '';
+    detail.value = null;
+    loadingList.value = false;
+    loadingDetail.value = false;
+    resetReviewForm(null);
     permissionError.value = permissionBusinessError(response.code);
     return;
   }
-  permissionCodes.value = response.data.permissions;
+  permissionCodes.value = response.data;
   if (!canUsePanel.value) return;
   await loadFiles(true);
 }
@@ -391,15 +395,9 @@ onMounted(initializeReviewPanel);
             :key="option.label"
             type="button"
             :class="{ active: query.auditStatus === option.value }"
+            :disabled="loadingList || submitting"
             @click="setStatus(option.value)"
           >{{ option.label }}</button>
-        </view>
-        <view class="filter-fields">
-          <label><text>资料类型</text><picker :range="typeOptions" range-key="label" :value="Math.max(0, typeOptions.findIndex((item) => item.value === query.fileType))" @change="setType"><view class="filter-input">{{ typeOptions.find((item) => item.value === query.fileType)?.label }}</view></picker></label>
-          <label><text>长辈姓名</text><input v-model="query.keyword" maxlength="40" placeholder="输入姓名筛选" @confirm="applyFilters" /></label>
-          <label><text>开始日期</text><picker mode="date" start="2000-01-01" :end="query.dateTo || today" :value="query.dateFrom" @change="query.dateFrom = $event.detail.value"><view class="filter-input">{{ query.dateFrom || '不限' }}</view></picker></label>
-          <label><text>结束日期</text><picker mode="date" :start="query.dateFrom || '2000-01-01'" :end="today" :value="query.dateTo" @change="query.dateTo = $event.detail.value"><view class="filter-input">{{ query.dateTo || '不限' }}</view></picker></label>
-          <view class="filter-actions"><button type="button" class="primary-command" @click="applyFilters">查询</button><button type="button" class="secondary-command" @click="resetFilters">重置</button></view>
         </view>
       </view>
 
@@ -418,12 +416,13 @@ onMounted(initializeReviewPanel);
               type="button"
               class="review-list-item"
               :class="{ active: selectedFileId === record.fileId }"
+              :disabled="submitting"
               @click="loadDetail(record.fileId)"
             >
               <view class="item-heading"><text>{{ record.title }}</text><text class="status-badge" :class="statusClass(record.auditStatus)">{{ statusLabel(record.auditStatus) }}</text></view>
-              <text class="item-person">{{ record.elderName }} · {{ typeLabel(record.fileType) }}</text>
+              <text class="item-person">{{ recordContext(record) }}</text>
               <text class="item-date">资料日期：{{ formatDate(record.occurredAt) }}</text>
-              <text class="item-date">上传时间：{{ formatDate(record.createdAt) }}</text>
+              <text v-if="record.createdAt" class="item-date">上传时间：{{ formatDate(record.createdAt) }}</text>
             </button>
           </view>
           <view class="pagination">
@@ -440,19 +439,19 @@ onMounted(initializeReviewPanel);
           <template v-else>
             <section class="detail-summary">
               <view class="detail-heading">
-                <view><text class="detail-title">{{ detail.title }}</text><text class="detail-person">{{ detail.elderName }} · {{ typeLabel(detail.fileType) }}</text></view>
+                <view><text class="detail-title">{{ detail.title }}</text><text class="detail-person">{{ recordContext(detail) }}</text></view>
                 <text class="status-badge" :class="statusClass(detail.auditStatus)">{{ statusLabel(detail.auditStatus) }}</text>
               </view>
               <view class="detail-meta">
                 <view><text>资料发生日期</text><text>{{ formatDate(detail.occurredAt) }}</text></view>
-                <view><text>上传时间</text><text>{{ formatDate(detail.createdAt) }}</text></view>
-                <view><text>上传人</text><text>{{ detail.uploaderName || '家属用户' }}</text></view>
-                <view><text>文件信息</text><text>{{ detail.originalName || '病历资料' }} · {{ formatSize(detail.size) }}</text></view>
+                <view v-if="detail.createdAt"><text>上传时间</text><text>{{ formatDate(detail.createdAt) }}</text></view>
+                <view v-if="detail.uploaderName"><text>上传人</text><text>{{ detail.uploaderName }}</text></view>
+                <view v-if="detail.originalName || detail.size !== undefined"><text>文件信息</text><text>{{ detail.originalName || '病历资料' }} · {{ formatSize(detail.size) }}</text></view>
               </view>
               <view class="preview-actions">
                 <button v-if="detail.previewUrl" type="button" class="primary-command" @click="openAuthorizedUrl(detail.previewUrl)">预览资料</button>
                 <button v-if="detail.downloadUrl" type="button" class="secondary-command" @click="openAuthorizedUrl(detail.downloadUrl)">下载资料</button>
-                <text v-if="!detail.previewUrl && !detail.downloadUrl">当前未提供有效的预览或下载授权，请刷新详情后再试。</text>
+                <text v-if="!detail.previewUrl && !detail.downloadUrl">当前资料暂未提供在线预览，请刷新详情后再试。</text>
               </view>
               <view v-if="detailError" class="message error-message" role="alert">{{ detailError }}</view>
             </section>
@@ -505,11 +504,6 @@ button[disabled] { opacity:.48; }
 .status-filter { display:flex; flex-wrap:wrap; gap:7px; }
 .status-filter button { min-height:36px; padding:0 16px; line-height:1.2; }
 .status-filter button.active { border-color:#168c81; background:#e7f6f3; color:#0e756c; }
-.filter-fields { display:grid; grid-template-columns:160px minmax(180px,1fr) 150px 150px auto; gap:10px; align-items:end; }
-.filter-fields label { display:grid; gap:6px; color:#5f746f; font-size:12px; font-weight:700; }
-.filter-fields input,.filter-input { width:100%; min-height:38px; box-sizing:border-box; padding:0 11px; border:1px solid #ccd9d6; border-radius:4px; background:#fff; color:#19332f; font-size:13px; line-height:38px; }
-.filter-actions { display:flex; align-items:stretch; gap:8px; }
-.filter-actions button { min-width:68px; }
 .message { padding:12px 14px; border:1px solid; font-size:13px; line-height:1.5; }
 .error-message { border-color:#efb8b3; background:#fff3f2; color:#a23b34; }
 .success-message { border-color:#9ed8cf; background:#eaf8f5; color:#0f766e; }
@@ -574,8 +568,6 @@ button[disabled] { opacity:.48; }
 .result-comment text:last-child { font-size:14px; line-height:1.6; white-space:pre-wrap; }
 .error-state button { justify-self:start; }
 @media (max-width:1100px) {
-  .filter-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .filter-actions { grid-column:1/-1; }
   .review-workspace { grid-template-columns:minmax(280px,320px) minmax(360px,1fr); }
 }
 @media (max-width:800px) {
