@@ -31,7 +31,6 @@ const vite = await createServer({
 });
 const rules = await vite.ssrLoadModule('/src/utils/stageTwentyOneRules.ts');
 const stageTwentyOneApi = await vite.ssrLoadModule('/src/api/stageTwentyOne.ts');
-const stageThreeApi = await vite.ssrLoadModule('/src/api/stageThree.ts');
 
 after(async () => {
   await vite.close();
@@ -54,28 +53,34 @@ function takeRequest() {
 
 test('reads permissions from the existing permissions endpoint and denies missing permission data', async () => {
   enqueue(apiSuccess({ roleCode: 'ADMIN', permissions: ['ADMIN_DASHBOARD_VIEW'] }));
-  const response = await stageThreeApi.getAuthPermissions();
+  const response = await stageTwentyOneApi.getMedicalFileReviewPermissions();
   const request = takeRequest();
 
   assert.equal(request.method, 'GET');
   assert.equal(request.url, '/api/v1/auth/permissions');
   assert.equal(response.code, 0);
-  assert.equal(response.data.permissions.includes('health:review'), true);
-  assert.equal(rules.canEnterMedicalFileReview(['ADMIN'], response.data.permissions), true);
+  assert.equal(response.data.includes('ADMIN_DASHBOARD_VIEW'), true);
+  assert.equal(rules.canEnterMedicalFileReview(['ADMIN'], response.data), true);
+  assert.equal(rules.canEnterMedicalFileReview(['ADMIN'], ['ADMIN_DASHBOARD_VIEW']), true);
+  assert.equal(rules.canEnterMedicalFileReview(['CUSTOMER_SERVICE'], ['CUSTOMER_SERVICE_TICKET_HANDLE']), true);
   assert.equal(rules.canEnterMedicalFileReview(['ADMIN'], []), false);
   assert.equal(rules.canEnterMedicalFileReview(['FAMILY'], ['health:review']), false);
+
+  enqueue(apiSuccess({ roleCode: 'ADMIN', permissions: [1] }));
+  const malformed = await stageTwentyOneApi.getMedicalFileReviewPermissions();
+  takeRequest();
+  assert.equal(malformed.code, 502);
 });
 
-test('passes pagination and every active filter to the medical file list endpoint', async () => {
+test('passes only the pagination and status parameters supported by the real backend', async () => {
   enqueue(apiSuccess({
     records: [{
+      medicalFileId: 'medical-file-001',
       fileId: 'file-001',
       elderId: 'elder-001',
-      elderName: '张淑兰',
       fileType: 'PRESCRIPTION',
       title: '门诊处方',
       occurredAt: '2026-07-10',
-      createdAt: '2026-07-12T10:00:00',
       auditStatus: 'PENDING_REVIEW'
     }],
     total: 21,
@@ -85,22 +90,20 @@ test('passes pagination and every active filter to the medical file list endpoin
   const query = {
     page: 2,
     size: 10,
-    auditStatus: 'PENDING',
-    fileType: 'PRESCRIPTION',
-    keyword: '张淑兰',
-    dateFrom: '2026-07-01',
-    dateTo: '2026-07-13'
+    auditStatus: 'PENDING'
   };
   const response = await stageTwentyOneApi.getAdminMedicalFiles(query);
   const request = takeRequest();
 
   assert.equal(request.method, 'GET');
   assert.equal(request.url, '/api/v1/admin/medical-files');
-  assert.deepEqual(request.data, query);
+  assert.deepEqual(request.data, { page: 2, size: 10, auditStatus: 'PENDING' });
   assert.equal(response.data.total, 21);
   assert.equal(response.data.page, 2);
   assert.equal(response.data.size, 10);
   assert.equal(response.data.records[0].auditStatus, 'PENDING');
+  assert.equal(response.data.records[0].elderName, undefined);
+  assert.equal(response.data.records[0].createdAt, undefined);
 });
 
 test('removes inactive filters without dropping pagination parameters', async () => {
@@ -108,11 +111,7 @@ test('removes inactive filters without dropping pagination parameters', async ()
   await stageTwentyOneApi.getAdminMedicalFiles({
     page: 1,
     size: 20,
-    auditStatus: '',
-    fileType: '',
-    keyword: '',
-    dateFrom: '',
-    dateTo: ''
+    auditStatus: ''
   });
   const request = takeRequest();
   assert.deepEqual(request.data, { page: 1, size: 20 });
@@ -120,8 +119,9 @@ test('removes inactive filters without dropping pagination parameters', async ()
 
 test('loads the selected detail through an encoded path and ignores stale detail responses', async () => {
   enqueue(apiSuccess({
+    medicalFileId: 'medical-file-021',
     fileId: 'file/021',
-    elderName: '张淑兰',
+    elderId: 'elder-001',
     fileType: 'EXAMINATION_REPORT',
     title: '心电图报告',
     createdAt: '2026-07-13T09:00:00',
@@ -174,18 +174,9 @@ test('validates review comments and archive extraction completeness', () => {
   assert.equal(rules.validateArchiveExtraction(false, 0, 0), '');
 });
 
-test('formats picker boundaries from local calendar fields instead of UTC ISO dates', () => {
-  const localCalendar = {
-    getFullYear: () => 2026,
-    getMonth: () => 6,
-    getDate: () => 13
-  };
-  assert.equal(rules.getLocalCalendarDate(localCalendar), '2026-07-13');
-});
-
 test('keeps real permission and API errors instead of manufacturing successful data', async () => {
   enqueue({ code: 403, message: 'forbidden', traceId: 'stage-21-test', data: {} }, 403);
-  const denied = await stageThreeApi.getAuthPermissions();
+  const denied = await stageTwentyOneApi.getMedicalFileReviewPermissions();
   takeRequest();
   assert.equal(denied.code, 403);
 
@@ -202,4 +193,11 @@ test('keeps real permission and API errors instead of manufacturing successful d
   });
   takeRequest();
   assert.equal(malformed.code, 502);
+
+  enqueue(apiSuccess({ records: null, total: 1, page: 1, size: 10 }));
+  const malformedList = await stageTwentyOneApi.getAdminMedicalFiles({
+    page: 1, size: 10, auditStatus: 'PENDING'
+  });
+  takeRequest();
+  assert.equal(malformedList.code, 502);
 });

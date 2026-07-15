@@ -8,21 +8,17 @@ export interface AdminMedicalFileQuery {
   page: number;
   size: number;
   auditStatus: MedicalFileReviewStatus | '';
-  fileType: MedicalFileType | '';
-  keyword: string;
-  dateFrom: string;
-  dateTo: string;
 }
 
 export interface AdminMedicalFileRecord {
   medicalFileId: string;
   fileId: string;
   elderId: string;
-  elderName: string;
+  elderName?: string;
   fileType: MedicalFileType;
   title: string;
   occurredAt?: string;
-  createdAt: string;
+  createdAt?: string;
   auditStatus: MedicalFileReviewStatus;
   reviewComment?: string;
   reviewedAt?: string;

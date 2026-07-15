@@ -19,12 +19,17 @@ const adminMedicalFileDetailPath = (fileId: string) =>
 const adminMedicalFileReviewPath = (fileId: string) =>
   `${adminMedicalFileDetailPath(fileId)}/review`;
 
+interface ReviewPermissionWireResponse {
+  roleCode?: string;
+  permissions?: unknown;
+}
+
 interface MedicalFileWireRecord {
   medicalFileId?: string;
-  fileId: string;
+  fileId?: string;
   elderId?: string;
   elderName?: string;
-  fileType: MedicalFileType;
+  fileType?: MedicalFileType;
   title?: string;
   occurredAt?: string;
   createdAt?: string;
@@ -55,16 +60,17 @@ interface MedicalFileReviewWireResult {
 
 function normalizeRecord(record: MedicalFileWireRecord): AdminMedicalFileRecord | null {
   const auditStatus = normalizeReviewStatus(record.auditStatus);
-  if (!record.fileId?.trim() || !auditStatus) return null;
+  const fileId = record.fileId?.trim() || record.medicalFileId?.trim();
+  if (!fileId || !record.fileType || !auditStatus) return null;
   return {
-    medicalFileId: record.medicalFileId?.trim() || record.fileId,
-    fileId: record.fileId,
+    medicalFileId: record.medicalFileId?.trim() || fileId,
+    fileId,
     elderId: record.elderId ?? '',
-    elderName: record.elderName?.trim() || '未命名长辈',
+    elderName: record.elderName?.trim() || undefined,
     fileType: record.fileType,
     title: record.title?.trim() || '未命名病历资料',
     occurredAt: record.occurredAt,
-    createdAt: record.createdAt || record.uploadedAt || '',
+    createdAt: record.createdAt || record.uploadedAt || undefined,
     auditStatus,
     reviewComment: record.reviewComment ?? record.auditOpinion,
     reviewedAt: record.reviewedAt,
@@ -86,10 +92,25 @@ function normalizeDetail(record: MedicalFileWireDetail): AdminMedicalFileDetail 
   };
 }
 
-function cleanQuery(query: AdminMedicalFileQuery) {
-  return Object.fromEntries(
-    Object.entries(query).filter(([, value]) => value !== '')
-  );
+function toBackendQuery(query: AdminMedicalFileQuery) {
+  return {
+    page: query.page,
+    size: query.size,
+    ...(query.auditStatus ? { auditStatus: query.auditStatus } : {})
+  };
+}
+
+export async function getMedicalFileReviewPermissions(): Promise<ApiResponse<string[]>> {
+  const response = await request<ReviewPermissionWireResponse>({
+    method: 'GET',
+    url: '/auth/permissions'
+  });
+  if (response.code !== 0) return { ...response, data: [] };
+  if (!response.data || !Array.isArray(response.data.permissions)
+    || response.data.permissions.some((permission) => typeof permission !== 'string')) {
+    return failure(502, '账号权限响应不完整', [], response.traceId);
+  }
+  return { ...response, data: response.data.permissions };
 }
 
 export async function getAdminMedicalFiles(
@@ -98,9 +119,15 @@ export async function getAdminMedicalFiles(
   const response = await request<PageResult<MedicalFileWireRecord>>({
     method: 'GET',
     url: adminMedicalFilesPath,
-    data: cleanQuery(query)
+    data: toBackendQuery(query)
   });
   if (response.code !== 0) return { ...response, data: { records: [], total: 0, page: query.page, size: query.size } };
+  if (!response.data || !Array.isArray(response.data.records)
+    || !Number.isFinite(response.data.total)
+    || !Number.isFinite(response.data.page)
+    || !Number.isFinite(response.data.size)) {
+    return failure(502, '病历资料列表响应不完整', { records: [], total: 0, page: query.page, size: query.size }, response.traceId);
+  }
   const records = response.data.records.map(normalizeRecord);
   if (records.some((record) => record === null)) {
     return failure(502, '病历资料列表响应不完整', { records: [], total: 0, page: query.page, size: query.size }, response.traceId);
