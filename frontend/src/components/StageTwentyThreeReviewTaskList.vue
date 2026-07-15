@@ -6,7 +6,7 @@ import {
 } from '@/api/stageTwentyThree';
 import {
   archiveHealthReviewTask,
-  getHealthArchiveChangeLogs,
+  getAdminHealthArchiveChangeLogs,
   getHealthReviewTaskDetail
 } from '@/api/stageTwentyFour';
 import type { RoleCode } from '@/types/stageOne';
@@ -163,7 +163,7 @@ async function loadChangeLogs(elderId: string, taskId: string) {
   const sequence = ++historyRequestSequence;
   changeLogs.value = [];
   historyError.value = '';
-  const response = await getHealthArchiveChangeLogs(elderId);
+  const response = await getAdminHealthArchiveChangeLogs(elderId);
   if (sequence !== historyRequestSequence || selectedTaskId.value !== taskId) return;
   if (response.code !== 0) {
     historyError.value = businessError(response.code, 'history');

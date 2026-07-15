@@ -173,7 +173,7 @@ test('accepts phase 21 review tasks that are not backed by a stage 23 suggestion
   assert.equal(response.data.records[0].suggestionId, undefined);
 });
 
-test('reads change logs from the exact elder resource without exposing reviewer data', async () => {
+test('reads user change logs from the exact elder resource without exposing reviewer data', async () => {
   enqueue(apiSuccess({
     records: [{
       changeLogId: 'log-001',
@@ -191,10 +191,17 @@ test('reads change logs from the exact elder resource without exposing reviewer 
   }));
   const response = await api.getHealthArchiveChangeLogs('elder/001');
   const request = takeRequest();
-  assert.equal(request.url, '/api/v1/admin/elders/elder%2F001/health-archive/change-logs');
+  assert.equal(request.url, '/api/v1/elders/elder%2F001/health-archive/change-logs');
   assert.equal(response.data.records[0].fieldLabel, '当前用药');
   assert.equal(response.data.records[0].comment, '资料完整');
   assert.equal('reviewerId' in response.data.records[0], false);
+});
+
+test('keeps the management workbench on the admin change-log resource', async () => {
+  enqueue(apiSuccess([]));
+  await api.getAdminHealthArchiveChangeLogs('elder/001');
+  const request = takeRequest();
+  assert.equal(request.url, '/api/v1/admin/elders/elder%2F001/health-archive/change-logs');
 });
 
 test('requires comments for rejection and supplementation and strips display-only labels', () => {

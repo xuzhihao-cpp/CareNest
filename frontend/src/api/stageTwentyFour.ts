@@ -25,7 +25,9 @@ const reviewTaskDetailPath = (taskId: string) =>
   `/admin/health-review-tasks/${encodeURIComponent(taskId)}`;
 const archiveReviewTaskPath = (taskId: string) =>
   `/admin/health-review-tasks/${encodeURIComponent(taskId)}/archive`;
-const archiveChangeLogsPath = (elderId: string) =>
+const userArchiveChangeLogsPath = (elderId: string) =>
+  `/elders/${encodeURIComponent(elderId)}/health-archive/change-logs`;
+const adminArchiveChangeLogsPath = (elderId: string) =>
   `/admin/elders/${encodeURIComponent(elderId)}/health-archive/change-logs`;
 
 interface HealthReviewFieldWire {
@@ -256,12 +258,12 @@ export async function archiveHealthReviewTask(
   return { ...response, data: { taskId: responseTaskId, status, archiveVersion: response.data.archiveVersion } };
 }
 
-export async function getHealthArchiveChangeLogs(
-  elderId: string
+async function requestHealthArchiveChangeLogs(
+  url: string
 ): Promise<ApiResponse<HealthArchiveChangeLogResult>> {
   const response = await request<HealthArchiveChangeLogWire[] | PageResult<HealthArchiveChangeLogWire>>({
     method: 'GET',
-    url: archiveChangeLogsPath(elderId)
+    url
   });
   if (response.code !== 0) return { ...response, data: { records: [] } };
   const wireRecords = Array.isArray(response.data) ? response.data : response.data?.records;
@@ -273,4 +275,16 @@ export async function getHealthArchiveChangeLogs(
     return failure(502, '健康档案变更记录内容不完整', { records: [] }, response.traceId);
   }
   return { ...response, data: { records: records as HealthArchiveChangeLogRecord[] } };
+}
+
+export function getHealthArchiveChangeLogs(
+  elderId: string
+): Promise<ApiResponse<HealthArchiveChangeLogResult>> {
+  return requestHealthArchiveChangeLogs(userArchiveChangeLogsPath(elderId));
+}
+
+export function getAdminHealthArchiveChangeLogs(
+  elderId: string
+): Promise<ApiResponse<HealthArchiveChangeLogResult>> {
+  return requestHealthArchiveChangeLogs(adminArchiveChangeLogsPath(elderId));
 }

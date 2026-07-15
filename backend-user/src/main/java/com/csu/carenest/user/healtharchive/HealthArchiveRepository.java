@@ -273,6 +273,29 @@ class HealthArchiveRepository {
                 nextId("archive_log"), elderId, changedBy, changeType, beforeJson, afterJson);
     }
 
+    List<ArchiveChangeLogRow> findArchiveChangeLogs(String elderId, int limit) {
+        return jdbcTemplate.query(
+                """
+                SELECT change_log_id AS changeLogId,
+                       change_type AS changeType,
+                       CAST(before_value AS CHAR) AS beforeValue,
+                       CAST(after_value AS CHAR) AS afterValue,
+                       created_at AS changedAt
+                FROM health_archive_change_log
+                WHERE elder_id = ?
+                ORDER BY created_at DESC, change_log_id DESC
+                LIMIT ?
+                """,
+                (resultSet, rowNum) -> new ArchiveChangeLogRow(
+                        resultSet.getString("changeLogId"),
+                        resultSet.getString("changeType"),
+                        resultSet.getString("beforeValue"),
+                        resultSet.getString("afterValue"),
+                        resultSet.getTimestamp("changedAt").toLocalDateTime()),
+                elderId,
+                limit);
+    }
+
     void insertOperationLog(
             String operatorId,
             String operationType,
@@ -330,6 +353,14 @@ class HealthArchiveRepository {
     }
 
     record RiskTagRow(String code, String name) {
+    }
+
+    record ArchiveChangeLogRow(
+            String changeLogId,
+            String changeType,
+            String beforeValue,
+            String afterValue,
+            LocalDateTime changedAt) {
     }
 
     record SerializedMedication(HealthArchiveDtos.MedicationInput input, String timePointsJson) {

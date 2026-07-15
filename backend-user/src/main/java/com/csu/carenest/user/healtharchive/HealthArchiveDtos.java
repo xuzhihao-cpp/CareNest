@@ -119,4 +119,15 @@ public final class HealthArchiveDtos {
 
     public record MedicationCreateResult(int archiveVersion, MedicationItem medication) {
     }
+
+    public record ArchiveChangeLogResponse(
+            String changeLogId,
+            String fieldName,
+            String changeType,
+            String beforeValue,
+            String afterValue,
+            String comment,
+            String archiveVersion,
+            LocalDateTime changedAt) {
+    }
 }

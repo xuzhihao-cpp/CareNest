@@ -28,6 +28,13 @@ public class HealthArchiveController {
         return ApiResponse.success(service.getArchive(authorization, elderId));
     }
 
+    @GetMapping("/health-archive/change-logs")
+    public ApiResponse<java.util.List<HealthArchiveDtos.ArchiveChangeLogResponse>> getArchiveChangeLogs(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable("elderId") String elderId) {
+        return ApiResponse.success(service.getArchiveChangeLogs(authorization, elderId));
+    }
+
     @PutMapping("/health-archive")
     public ApiResponse<HealthArchiveDtos.ArchiveUpdateResult> updateArchive(
             @RequestHeader(value = "Authorization", required = false) String authorization,
