@@ -1,4 +1,4 @@
-export type StageImplementationStatus = 'READY' | 'MOCK_ONLY' | 'PENDING';
+export type StageImplementationStatus = 'READY' | 'PENDING';
 
 export interface StageImplementationMetadata {
   stage: string;
@@ -9,15 +9,15 @@ export interface StageImplementationMetadata {
 export const stageImplementationStatus: StageImplementationMetadata[] = [
   { stage: '6', status: 'READY', backendModule: 'backend-user' },
   { stage: '7', status: 'READY', backendModule: 'backend-user' },
-  { stage: '8', status: 'MOCK_ONLY', backendModule: 'not implemented' },
+  { stage: '8', status: 'READY', backendModule: 'backend-care-admin' },
   { stage: '9', status: 'READY', backendModule: 'backend-user' },
-  { stage: '10', status: 'MOCK_ONLY', backendModule: 'not implemented' },
-  { stage: '11', status: 'MOCK_ONLY', backendModule: 'not implemented' },
-  { stage: '12', status: 'MOCK_ONLY', backendModule: 'not implemented' },
-  { stage: '13', status: 'MOCK_ONLY', backendModule: 'not implemented' },
-  { stage: '14', status: 'MOCK_ONLY', backendModule: 'not implemented' },
-  { stage: '15', status: 'MOCK_ONLY', backendModule: 'not implemented' },
+  { stage: '10', status: 'READY', backendModule: 'backend-care-admin' },
+  { stage: '11', status: 'READY', backendModule: 'backend-care-admin' },
+  { stage: '12', status: 'READY', backendModule: 'backend-care-admin' },
+  { stage: '13', status: 'READY', backendModule: 'backend-care-admin' },
+  { stage: '14', status: 'READY', backendModule: 'backend-care-admin' },
+  { stage: '15', status: 'READY', backendModule: 'backend-care-admin' },
   { stage: '16', status: 'READY', backendModule: 'backend-user' },
-  { stage: '17', status: 'MOCK_ONLY', backendModule: 'not implemented' },
+  { stage: '17', status: 'READY', backendModule: 'backend-care-admin' },
   { stage: '18', status: 'READY', backendModule: 'backend-user' }
 ];

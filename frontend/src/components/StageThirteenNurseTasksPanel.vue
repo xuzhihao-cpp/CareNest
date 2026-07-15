@@ -155,7 +155,7 @@ onMounted(() => {
       </view>
       <view>
         <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || 'mock-13' }}</text>
+        <text class="permission-main">{{ lastTraceId || '暂无追踪信息' }}</text>
         <text class="auth-meta">正式 GET 护理任务列表和详情</text>
       </view>
     </view>
@@ -183,12 +183,6 @@ onMounted(() => {
       <view class="binding-actions">
         <button class="hero-action" type="button" :disabled="loading" @click="loadTasks('normal')">
           <text>读取任务</text>
-        </button>
-        <button class="ghost-action test-action" type="button" @click="loadTasks('empty')">
-          <text>空数据 mock</text>
-        </button>
-        <button class="ghost-action test-action" type="button" @click="loadTasks('error')">
-          <text>错误 mock</text>
         </button>
       </view>
     </view>

@@ -156,7 +156,7 @@ onMounted(() => {
       </view>
       <view>
         <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || 'mock-11' }}</text>
+        <text class="permission-main">{{ lastTraceId || '暂无追踪信息' }}</text>
         <text class="auth-meta">按状态筛选刚创建的订单</text>
       </view>
     </view>
@@ -200,12 +200,6 @@ onMounted(() => {
         </button>
         <button class="ghost-action" type="button" @click="clearFilters">
           <text>清空筛选</text>
-        </button>
-        <button class="ghost-action test-action" type="button" @click="loadOrders('empty')">
-          <text>空数据 mock</text>
-        </button>
-        <button class="ghost-action test-action" type="button" @click="loadOrders('error')">
-          <text>错误 mock</text>
         </button>
       </view>
     </view>

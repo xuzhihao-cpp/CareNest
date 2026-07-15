@@ -9,7 +9,6 @@ import {
   revokeFamilyBinding,
   updateFamilyBindingScopes
 } from '@/api/stageSix';
-import { isMockEnabled } from '@/api/client';
 import { displayScopeLabel } from '@/utils/displayLabels';
 import type { ApiResponse } from '@/types/api';
 import type { RoleCode } from '@/types/stageOne';
@@ -69,7 +68,6 @@ const error = ref('');
 const lastTraceId = ref('');
 const lastResponse = ref<ApiResponse<BindingResponse> | null>(null);
 const endpoints = getStageSixEndpointSummary();
-const mockEnabled = isMockEnabled();
 
 const activeCount = computed(() => records.value.filter((item) => item.bindingStatus === 'ACTIVE').length);
 const pendingCount = computed(() => records.value.filter((item) => item.bindingStatus === 'PENDING').length);
@@ -145,7 +143,7 @@ async function loadBindings(scenario: BindingScenario = 'normal') {
     records.value = response.data.filter((record) => record.bindingStatus !== 'REVOKED');
     error.value = '';
     message.value =
-      scenario === 'empty' ? '已切换为空数据 mock' : scenario === 'normal' ? '绑定列表已加载' : message.value;
+      scenario === 'empty' ? '当前暂无绑定记录' : scenario === 'normal' ? '绑定列表已加载' : message.value;
   } else {
     records.value = [];
     error.value = `${response.code} ${response.message}`;
@@ -215,7 +213,7 @@ watch(records, () => {
       </view>
       <view>
         <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || 'mock-6' }}</text>
+        <text class="permission-main">{{ lastTraceId || '暂无追踪信息' }}</text>
         <text class="auth-meta">统一返回 { code, message, data, traceId }</text>
       </view>
     </view>
@@ -268,12 +266,6 @@ watch(records, () => {
         </button>
         <button class="ghost-action" type="button" @click="loadBindings('normal')">
           <text>刷新绑定</text>
-        </button>
-        <button v-if="mockEnabled" class="ghost-action" type="button" @click="loadBindings('empty')">
-          <text>空数据 mock</text>
-        </button>
-        <button v-if="mockEnabled" class="ghost-action" type="button" @click="loadBindings('error')">
-          <text>错误 mock</text>
         </button>
       </view>
     </view>

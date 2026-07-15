@@ -191,7 +191,7 @@ onMounted(() => {
       </view>
       <view>
         <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || 'mock-8' }}</text>
+        <text class="permission-main">{{ lastTraceId || '暂无追踪信息' }}</text>
         <text class="auth-meta">新增后家属端列表应出现 ON_SHELF 服务</text>
       </view>
     </view>

@@ -4,7 +4,6 @@ import {
   getElderProfile,
   getFamilyElders,
   getStageSevenEndpointSummary,
-  resetStageSevenMockRecords,
   updateElderProfile
 } from '@/api/stageSeven';
 import { getFamilyBindings } from '@/api/stageSix';
@@ -168,7 +167,7 @@ async function loadFamilyElders(scenario: ElderProfileScenario = 'normal') {
     records.value = response.data;
     error.value = '';
     message.value =
-      scenario === 'empty' ? '已切换为空档案 mock' : scenario === 'normal' ? '长辈档案列表已加载' : message.value;
+      scenario === 'empty' ? '当前暂无可显示的档案' : scenario === 'normal' ? '长辈档案列表已加载' : message.value;
     if (records.value.length > 0) {
       applyProfile(records.value[0]);
     } else {
@@ -232,10 +231,6 @@ async function saveProfile() {
   }
 }
 
-async function resetNormalMock() {
-  resetStageSevenMockRecords();
-  await loadFamilyElders('normal');
-}
 
 onMounted(() => {
   loadFamilyPermissions();
@@ -264,7 +259,7 @@ onMounted(() => {
       </view>
       <view>
         <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || 'mock-7' }}</text>
+        <text class="permission-main">{{ lastTraceId || '暂无追踪信息' }}</text>
         <text class="auth-meta">保存后刷新仍可读取 profileVersion</text>
       </view>
     </view>
@@ -290,17 +285,6 @@ onMounted(() => {
           <text class="tag tag-teal">已保存</text>
         </button>
 
-        <view class="binding-actions">
-          <button class="ghost-action test-action" type="button" :disabled="loading" @click="resetNormalMock">
-            <text>正常 mock</text>
-          </button>
-          <button class="ghost-action test-action" type="button" @click="loadFamilyElders('empty')">
-            <text>空数据 mock</text>
-          </button>
-          <button class="ghost-action test-action" type="button" @click="loadFamilyElders('error')">
-            <text>错误 mock</text>
-          </button>
-        </view>
       </view>
 
       <view class="profile-form">

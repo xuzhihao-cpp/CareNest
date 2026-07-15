@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { displayLabel } from '@/utils/displayLabels';
-import { getApiBase, isMockEnabled } from '@/api/client';
-import { mockServerPaths } from '@/api/mockServerPaths';
 import { getHealth, getRoutes, getVersion } from '@/api/stageOne';
 import { getAuthMenus, getCurrentUser, logout } from '@/api/stageTwo';
 import { getAuthPermissions, updateRolePermissions } from '@/api/stageThree';
@@ -71,7 +69,6 @@ const openedAction = ref<HomeQuickAction | null>(null);
 const health = computed<HealthResponse | null>(() => snapshot.value?.health.data ?? null);
 const version = computed<VersionResponse | null>(() => snapshot.value?.version.data ?? null);
 const homeEndpoint = computed(() => getHomeEndpoint(props.roleCode));
-const requestMode = computed(() => (isMockEnabled() ? 'mock' : 'real'));
 const isRoleAllowed = computed(() => !!authUser.value && authUser.value.roles.includes(props.roleCode));
 const visibleRoutes = computed(() => {
   if (!authUser.value) {
@@ -342,12 +339,12 @@ onMounted(async () => {
         </view>
         <view class="permission-grid">
           <view>
-            <text class="section-mini">GET /api/v1/auth/permissions</text>
+            <text class="section-mini">当前权限</text>
             <text class="permission-main">{{ permissionRoleCode ?? '未获取角色' }}</text>
             <text class="auth-meta">{{ permissionMessage || `已加载 ${permissions.length} 项权限` }}</text>
           </view>
           <view>
-            <text class="section-mini">POST /api/v1/admin/roles/{roleId}/permissions</text>
+            <text class="section-mini">角色权限管理</text>
             <text class="permission-main" :class="{ denied: adminPermissionProbe.startsWith('403') }">
               {{ adminPermissionProbe || '待校验' }}
             </text>
@@ -360,24 +357,6 @@ onMounted(async () => {
         <button v-if="canManageRolePermissions" class="ghost-action" type="button">
           <text>保存角色权限</text>
         </button>
-      </view>
-
-      <view class="request-layer-panel glass-panel" aria-label="阶段5请求层">
-        <view class="section-title">
-          <text>⇄</text>
-          <text>请求层与 mock 开关</text>
-        </view>
-        <view class="request-layer-grid">
-          <text>request(method,url,data)</text>
-          <text>API_BASE {{ getApiBase() }}</text>
-          <text>mode {{ requestMode }}</text>
-          <text>mock paths {{ mockServerPaths.length }}</text>
-        </view>
-        <view class="permission-tags">
-          <text class="tag tag-teal">ApiResponse&lt;T&gt;</text>
-          <text class="tag tag-blue">PageResult&lt;T&gt;</text>
-          <text class="tag tag-amber">FileUploadResult</text>
-        </view>
       </view>
 
       <view v-if="!authUser || !isRoleAllowed" class="access-denied glass-panel" aria-label="页面访问拦截">
@@ -397,7 +376,7 @@ onMounted(async () => {
           <text class="hero-title">{{ visualProfile.heroTitle }}</text>
           <text class="hero-meta">{{ visualProfile.heroMeta }}</text>
           <text class="hero-meta stage-four-meta">
-            {{ homeEndpoint }} · 待办 {{ homeSummary?.todoCount ?? 0 }} 项
+            今日待办 {{ homeSummary?.todoCount ?? 0 }} 项
           </text>
         </view>
         <button
@@ -525,7 +504,7 @@ onMounted(async () => {
                 <text>♡</text>
               </view>
               <view>
-                <text class="metric-path">GET /api/v1/health</text>
+                <text class="metric-path">系统状态</text>
                 <text class="metric-value">{{ health?.appName ?? 'CareNest' }}</text>
                 <text class="metric-meta">{{ health?.version ?? '0.1.0' }}</text>
               </view>
@@ -535,7 +514,7 @@ onMounted(async () => {
                 <text>◷</text>
               </view>
               <view>
-                <text class="metric-path">GET /api/v1/version</text>
+                <text class="metric-path">版本信息</text>
                 <text class="metric-value">{{ version?.apiPrefix ?? '/api/v1' }}</text>
                 <text class="metric-meta">{{ version?.gitCommit ?? 'local-kickoff' }}</text>
               </view>
@@ -545,9 +524,9 @@ onMounted(async () => {
                 <text>⌂</text>
               </view>
               <view>
-                <text class="metric-path">GET {{ homeEndpoint }}</text>
+                <text class="metric-path">今日概览</text>
                 <text class="metric-value">todo {{ homeSummary?.todoCount ?? 0 }}</text>
-                <text class="metric-meta">mock-4</text>
+            <text class="metric-meta">实时数据</text>
               </view>
             </view>
           </view>

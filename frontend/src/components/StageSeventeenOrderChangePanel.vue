@@ -5,7 +5,6 @@ import {
   cancelAdminOrder,
   cancelFamilyOrder,
   getStageSeventeenEndpointSummary,
-  resetStageSeventeenMockRecords,
   rescheduleFamilyOrder
 } from '@/api/stageSeventeen';
 import { getFamilyOrders } from '@/api/stageTen';
@@ -182,13 +181,6 @@ async function handleAdminCancel(scenario: StageSeventeenScenario = 'normal') {
   }
 }
 
-async function resetMock() {
-  resetStageSeventeenMockRecords();
-  lastResponse.value = null;
-  message.value = '阶段17演示订单已重置为 WAIT_DISPATCH';
-  error.value = '';
-  await refreshOrders();
-}
 
 async function loadScenario(scenario: StageSeventeenScenario) {
   if (canAdminChange.value) {
@@ -221,7 +213,7 @@ onMounted(() => {
       </view>
       <view>
         <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || 'mock-17' }}</text>
+        <text class="permission-main">{{ lastTraceId || '暂无追踪信息' }}</text>
         <text class="auth-meta">家属校验 ACTIVE 绑定和 ORDER_CREATE scope</text>
       </view>
     </view>
@@ -280,15 +272,6 @@ onMounted(() => {
         <text>管理端取消</text>
       </button>
       <text v-if="canFamilyChange && !canFamilyChangeSelectedOrder" class="field-error">当前生效绑定不包含“代下单”，请等待长辈确认绑定变更后再操作。</text>
-      <button class="ghost-action test-action" type="button" :disabled="loading" @click="resetMock">
-        <text>重置阶段17 mock</text>
-      </button>
-      <button class="ghost-action test-action" type="button" :disabled="loading" @click="loadScenario('empty')">
-        <text>空数据 mock</text>
-      </button>
-      <button class="ghost-action test-action" type="button" :disabled="loading" @click="loadScenario('error')">
-        <text>错误 mock</text>
-      </button>
     </view>
 
     <view v-if="message" class="success-banner">
