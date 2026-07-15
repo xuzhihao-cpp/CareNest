@@ -14,6 +14,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.SqlConfig;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +35,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.username=sa", "spring.datasource.password=",
         "spring.sql.init.mode=never", "spring.data.redis.repositories.enabled=false"})
 @AutoConfigureMockMvc
-@Sql(scripts = {"classpath:phase25-schema.sql", "classpath:phase25-data.sql"})
+@Sql(scripts = {"classpath:phase25-schema.sql", "classpath:phase25-data.sql"},
+        config = @SqlConfig(encoding = "UTF-8"))
 @Transactional
 class Phase25PreServiceSummaryApiTest {
     @Autowired MockMvc mvc;
