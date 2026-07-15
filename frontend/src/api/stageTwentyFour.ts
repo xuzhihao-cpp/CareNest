@@ -1,7 +1,10 @@
 import { failure, request } from '@/api/client';
 import type { ApiResponse, PageResult } from '@/types/api';
 import type { ArchiveVersion } from '@/types/stageNineteen';
-import type { HealthReviewSourceType } from '@/types/stageTwentyThree';
+import type {
+  AdminHealthReviewTaskRecord,
+  HealthReviewSourceType
+} from '@/types/stageTwentyThree';
 import type {
   HealthArchiveChangeLogRecord,
   HealthArchiveChangeLogResult,
@@ -23,7 +26,7 @@ const reviewTaskDetailPath = (taskId: string) =>
 const archiveReviewTaskPath = (taskId: string) =>
   `/admin/health-review-tasks/${encodeURIComponent(taskId)}/archive`;
 const archiveChangeLogsPath = (elderId: string) =>
-  `/elders/${encodeURIComponent(elderId)}/health-archive/change-logs`;
+  `/admin/elders/${encodeURIComponent(elderId)}/health-archive/change-logs`;
 
 interface HealthReviewFieldWire {
   sourceField?: string;
@@ -63,6 +66,16 @@ interface HealthReviewTaskDetailWire {
   };
   fields?: HealthReviewFieldWire[];
   reviewItems?: HealthReviewFieldWire[];
+  suggestions?: Array<{
+    suggestionId?: string;
+    fieldName?: string;
+    oldValue?: unknown;
+    newValue?: unknown;
+    sourceType?: string;
+    sourceId?: string;
+    reason?: string;
+    status?: string;
+  }>;
 }
 
 interface HealthReviewArchiveResultWire {
@@ -108,12 +121,48 @@ function normalizeField(item: HealthReviewFieldWire): HealthReviewFieldDetail | 
   };
 }
 
-function normalizeTaskDetail(value: HealthReviewTaskDetailWire): HealthReviewTaskDetail | null {
+function parseStructuredValue(value: unknown) {
+  if (typeof value !== 'string') return value;
+  const text = value.trim();
+  if (!text || (!text.startsWith('{') && !text.startsWith('['))) return value;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+function suggestionFields(value: HealthReviewTaskDetailWire): HealthReviewFieldDetail[] {
+  const fields: HealthReviewFieldDetail[] = [];
+  for (const suggestion of value.suggestions ?? []) {
+    const fieldName = suggestion.fieldName ?? '';
+    if (!isHealthSuggestionField(fieldName)) continue;
+    const suggestedValue = parseStructuredValue(suggestion.newValue);
+    fields.push({
+      sourceField: fieldName,
+      targetField: fieldName,
+      fieldLabel: healthSuggestionFieldLabel(fieldName),
+      currentValue: parseStructuredValue(suggestion.oldValue),
+      suggestedValue,
+      normalizedValue: suggestedValue,
+      normalizationNote: ''
+    });
+  }
+  return fields;
+}
+
+function normalizeTaskDetail(
+  value: HealthReviewTaskDetailWire,
+  context?: AdminHealthReviewTaskRecord
+): HealthReviewTaskDetail | null {
   const taskId = value.taskId?.trim() || value.reviewTaskId?.trim() || '';
   const status = normalizeHealthReviewStatus(value.status || value.reviewStatus || '');
-  const sourceType = value.evidence?.sourceType || value.sourceType || '';
-  const fields = (value.fields ?? value.reviewItems ?? []).map(normalizeField);
-  const submittedAt = value.submittedAt || value.createdAt || '';
+  const firstSuggestion = value.suggestions?.[0];
+  const sourceType = value.evidence?.sourceType || value.sourceType
+    || firstSuggestion?.sourceType || context?.sourceType || '';
+  const wireFields = value.fields ?? value.reviewItems;
+  const fields = wireFields ? wireFields.map(normalizeField) : suggestionFields(value);
+  const submittedAt = value.submittedAt || value.createdAt || context?.submittedAt || '';
   if (!taskId || !status || !value.elderId?.trim() || !isHealthReviewSourceType(sourceType)
     || !submittedAt || value.archiveVersion === undefined || !fields.length || fields.some((item) => item === null)) {
     return null;
@@ -122,14 +171,17 @@ function normalizeTaskDetail(value: HealthReviewTaskDetailWire): HealthReviewTas
     taskId,
     status,
     elderId: value.elderId,
-    elderName: value.elderName?.trim() || value.elder?.displayName?.trim() || value.elder?.name?.trim() || '未命名长辈',
-    serviceName: value.serviceName?.trim() || value.orderServiceName?.trim() || '健康档案审核',
+    elderName: value.elderName?.trim() || value.elder?.displayName?.trim()
+      || value.elder?.name?.trim() || context?.elderName || '未命名长辈',
+    serviceName: value.serviceName?.trim() || value.orderServiceName?.trim()
+      || context?.serviceName || '健康档案审核',
     submittedAt,
     archiveVersion: value.archiveVersion,
     evidence: {
       sourceType,
       title: value.evidence?.title?.trim() || value.sourceTitle?.trim() || HEALTH_REVIEW_SOURCE_LABELS[sourceType],
-      summary: value.evidence?.summary?.trim() || value.sourceSummary?.trim() || '暂无来源摘要',
+      summary: value.evidence?.summary?.trim() || value.sourceSummary?.trim()
+        || firstSuggestion?.reason?.trim() || context?.sourceSummary || '暂无来源摘要',
       occurredAt: value.evidence?.occurredAt || value.sourceOccurredAt || ''
     },
     fields: fields as HealthReviewFieldDetail[]
@@ -162,14 +214,15 @@ function normalizeChangeLog(value: HealthArchiveChangeLogWire): HealthArchiveCha
 }
 
 export async function getHealthReviewTaskDetail(
-  taskId: string
+  taskId: string,
+  context?: AdminHealthReviewTaskRecord
 ): Promise<ApiResponse<HealthReviewTaskDetail>> {
   const response = await request<HealthReviewTaskDetailWire>({
     method: 'GET',
     url: reviewTaskDetailPath(taskId)
   });
   if (response.code !== 0) return { ...response, data: {} as HealthReviewTaskDetail };
-  const detail = normalizeTaskDetail(response.data);
+  const detail = normalizeTaskDetail(response.data, context);
   return detail
     ? { ...response, data: detail }
     : failure(502, '健康信息审核详情响应不完整', {} as HealthReviewTaskDetail, response.traceId);
@@ -182,7 +235,17 @@ export async function archiveHealthReviewTask(
   const response = await request<HealthReviewArchiveResultWire>({
     method: 'POST',
     url: archiveReviewTaskPath(taskId),
-    data: payload
+    data: {
+      decisions: payload.decisions.map((decision) => ({
+        ...decision,
+        normalizedValue: typeof decision.normalizedValue === 'string'
+          ? decision.normalizedValue
+          : JSON.stringify(decision.normalizedValue),
+        decision: decision.decision === 'APPROVE'
+          ? 'APPROVED'
+          : decision.decision === 'REJECT' ? 'REJECTED' : 'NEED_MORE'
+      }))
+    }
   });
   if (response.code !== 0) return { ...response, data: {} as HealthReviewArchiveResult };
   const responseTaskId = response.data.taskId?.trim() || response.data.reviewTaskId?.trim() || '';

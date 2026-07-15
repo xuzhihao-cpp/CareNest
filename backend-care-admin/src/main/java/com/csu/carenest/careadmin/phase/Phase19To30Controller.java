@@ -25,6 +25,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import java.nio.charset.StandardCharsets;
 
+import java.util.List;
+
 /**
  * 成员3阶段21、23至30接口入口。
  *
@@ -76,6 +78,14 @@ public class Phase19To30Controller {
             @PathVariable("taskId") String taskId) {
         authService.requireAnyRole(authorization, RoleCode.ADMIN, RoleCode.CUSTOMER_SERVICE);
         return ApiResponse.success(phaseService.healthReviewTask(taskId));
+    }
+
+    @GetMapping("/admin/elders/{elderId}/health-archive/change-logs")
+    public ApiResponse<List<HealthArchiveDtos.ArchiveChangeLogResponse>> archiveChangeLogs(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable("elderId") String elderId) {
+        authService.requireAnyRole(authorization, RoleCode.ADMIN, RoleCode.CUSTOMER_SERVICE);
+        return ApiResponse.success(phaseService.archiveChangeLogs(elderId));
     }
 
     @PostMapping("/admin/health-review-tasks/{taskId}/archive")

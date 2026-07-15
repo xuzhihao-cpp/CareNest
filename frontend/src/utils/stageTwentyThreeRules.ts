@@ -73,8 +73,8 @@ const allergySeverityLabels: Record<string, string> = {
 
 export function normalizeHealthReviewStatus(value: string): HealthReviewTaskStatus | null {
   if (value === 'PENDING' || value === 'PENDING_REVIEW') return 'PENDING';
-  if (value === 'IN_REVIEW' || value === 'REVIEWING') return 'IN_REVIEW';
-  if (value === 'ARCHIVED') return 'ARCHIVED';
+  if (value === 'IN_REVIEW' || value === 'REVIEWING' || value === 'NEED_MORE') return 'IN_REVIEW';
+  if (value === 'ARCHIVED' || value === 'APPROVED') return 'ARCHIVED';
   if (value === 'REJECTED') return 'REJECTED';
   return null;
 }

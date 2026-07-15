@@ -60,6 +60,17 @@ public final class HealthArchiveDtos {
     public record ArchiveResponse(String taskId, String status, String archiveVersion) {
     }
 
+    public record ArchiveChangeLogResponse(
+            String changeLogId,
+            String fieldName,
+            String changeType,
+            String beforeValue,
+            String afterValue,
+            String comment,
+            String archiveVersion,
+            String changedAt) {
+    }
+
     public record PreServiceHealthSummary(
             PreServiceElderProfile elderProfile,
             List<RiskTag> riskTags,

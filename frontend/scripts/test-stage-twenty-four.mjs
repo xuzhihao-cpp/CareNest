@@ -100,6 +100,29 @@ test('rejects detail responses without a server normalized value', async () => {
   assert.equal(response.code, 502);
 });
 
+test('adapts the implemented backend task and suggestion detail contract', async () => {
+  enqueue(apiSuccess({
+    taskId: 'task-actual-001', elderId: 'elder-001', status: 'PENDING', archiveVersion: '4',
+    suggestions: [{
+      suggestionId: 'suggestion-actual-001', fieldName: 'riskTags', oldValue: '[]',
+      newValue: '{"tagCode":"FALL_RISK","tagName":"跌倒风险"}', sourceType: 'SERVICE_RECORD',
+      sourceId: 'record-001', reason: '护理服务中发现步态不稳。', status: 'PENDING'
+    }]
+  }));
+  const context = {
+    taskId: 'task-actual-001', status: 'PENDING', elderName: '张淑芬', serviceName: '基础上门护理',
+    sourceType: 'SERVICE_RECORD', sourceSummary: '本次上门护理记录', fieldName: 'riskTags',
+    currentValue: [], suggestedValue: {}, reason: '护理服务中发现步态不稳。',
+    submittedAt: '2026-07-13T10:00:00'
+  };
+  const response = await api.getHealthReviewTaskDetail('task-actual-001', context);
+  takeRequest();
+  assert.equal(response.code, 0);
+  assert.equal(response.data.elderName, '张淑芬');
+  assert.equal(response.data.evidence.sourceType, 'SERVICE_RECORD');
+  assert.equal(response.data.fields[0].normalizedValue.tagName, '跌倒风险');
+});
+
 test('submits the exact per-field archive decisions and keeps the returned version', async () => {
   const payload = {
     decisions: [{
@@ -110,14 +133,20 @@ test('submits the exact per-field archive decisions and keeps the returned versi
       comment: '护理证据充分，同意归档。'
     }]
   };
-  enqueue(apiSuccess({ taskId: 'task-001', status: 'ARCHIVED', archiveVersion: 5 }));
+  enqueue(apiSuccess({ taskId: 'task-001', status: 'APPROVED', archiveVersion: '5' }));
   const response = await api.archiveHealthReviewTask('task/001', payload);
   const request = takeRequest();
   assert.equal(request.method, 'POST');
   assert.equal(request.url, '/api/v1/admin/health-review-tasks/task%2F001/archive');
-  assert.deepEqual(request.data, payload);
+  assert.deepEqual(request.data, {
+    decisions: [{
+      sourceField: 'riskObservation', targetField: 'riskTags',
+      normalizedValue: '{"tagCode":"NIGHT_FALL_RISK","tagName":"夜间跌倒风险"}',
+      decision: 'APPROVED', comment: '护理证据充分，同意归档。'
+    }]
+  });
   assert.equal(response.data.status, 'ARCHIVED');
-  assert.equal(response.data.archiveVersion, 5);
+  assert.equal(response.data.archiveVersion, '5');
 });
 
 test('preserves a real concurrent archive conflict', async () => {
@@ -162,7 +191,7 @@ test('reads change logs from the exact elder resource without exposing reviewer 
   }));
   const response = await api.getHealthArchiveChangeLogs('elder/001');
   const request = takeRequest();
-  assert.equal(request.url, '/api/v1/elders/elder%2F001/health-archive/change-logs');
+  assert.equal(request.url, '/api/v1/admin/elders/elder%2F001/health-archive/change-logs');
   assert.equal(response.data.records[0].fieldLabel, '当前用药');
   assert.equal(response.data.records[0].comment, '资料完整');
   assert.equal('reviewerId' in response.data.records[0], false);

@@ -88,8 +88,23 @@ test('keeps suggestion approval distinct from archive completion', async () => {
   takeRequest();
   assert.equal(response.code, 0);
   assert.equal(response.data.status, 'APPROVED');
-  assert.equal(rules.normalizeHealthReviewStatus('APPROVED'), null);
+  assert.equal(rules.normalizeHealthReviewStatus('APPROVED'), 'ARCHIVED');
   assert.equal(rules.normalizeHealthReviewStatus('ARCHIVED'), 'ARCHIVED');
+});
+
+test('reads raw health-review permissions without inheriting dashboard aliases', async () => {
+  enqueue(apiSuccess({ roleCode: 'ADMIN', permissions: ['ADMIN_DASHBOARD_VIEW'] }));
+  const dashboardOnly = await api.getHealthReviewPermissions();
+  let request = takeRequest();
+  assert.equal(request.url, '/api/v1/auth/permissions');
+  assert.deepEqual(dashboardOnly.data, ['ADMIN_DASHBOARD_VIEW']);
+  assert.equal(rules.canViewHealthReviewTasks(['ADMIN'], dashboardOnly.data), false);
+
+  enqueue(apiSuccess({ roleCode: 'ADMIN', permissions: ['HEALTH_ARCHIVE_REVIEW'] }));
+  const reviewer = await api.getHealthReviewPermissions();
+  request = takeRequest();
+  assert.equal(request.method, 'GET');
+  assert.equal(rules.canViewHealthReviewTasks(['ADMIN'], reviewer.data), true);
 });
 
 test('reads admin tasks with active filters only and normalizes business data', async () => {

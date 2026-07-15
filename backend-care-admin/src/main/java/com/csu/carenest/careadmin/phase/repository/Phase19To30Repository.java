@@ -344,6 +344,28 @@ public class Phase19To30Repository {
                 """, changeLogId, elderId, reviewerId, beforeValue, afterValue);
     }
 
+    public List<Map<String, Object>> findArchiveChangeLogs(String elderId, int limit) {
+        return jdbcTemplate.queryForList("""
+                SELECT change_log_id AS changeLogId,
+                       change_type AS changeType,
+                       JSON_UNQUOTE(JSON_EXTRACT(after_value, '$.targetField')) AS fieldName,
+                       CAST(before_value AS CHAR) AS beforeValue,
+                       CASE
+                         WHEN change_type = 'REVIEW_ARCHIVE'
+                           THEN COALESCE(JSON_UNQUOTE(JSON_EXTRACT(after_value, '$.normalizedValue')),
+                                         CAST(after_value AS CHAR))
+                         ELSE CAST(after_value AS CHAR)
+                       END AS afterValue,
+                       JSON_UNQUOTE(JSON_EXTRACT(after_value, '$.comment')) AS comment,
+                       JSON_UNQUOTE(JSON_EXTRACT(after_value, '$.archiveVersion')) AS archiveVersion,
+                       created_at AS changedAt
+                FROM health_archive_change_log
+                WHERE elder_id = ?
+                ORDER BY created_at DESC, change_log_id DESC
+                LIMIT ?
+                """, elderId, limit);
+    }
+
     public void finishHealthReviewTask(
             String taskId,
             String reviewStatus,
@@ -372,12 +394,17 @@ public class Phase19To30Repository {
 
     /** 同一长辈同名风险标签采用替换语义，避免审核重试产生重复记录。 */
     public void upsertRiskTag(
-            String riskTagId, String elderId, String tagName, String riskLevel, String remark) {
+            String riskTagId,
+            String elderId,
+            String tagCode,
+            String tagName,
+            String riskLevel,
+            String remark) {
         jdbcTemplate.update("DELETE FROM risk_tag WHERE elder_id = ? AND tag_name = ?", elderId, tagName);
         jdbcTemplate.update("""
-                INSERT INTO risk_tag (risk_tag_id, elder_id, tag_name, risk_level, remark)
-                VALUES (?, ?, ?, ?, ?)
-                """, riskTagId, elderId, tagName, riskLevel, remark);
+                INSERT INTO risk_tag (risk_tag_id, elder_id, tag_code, tag_name, risk_level, remark)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, riskTagId, elderId, tagCode, tagName, riskLevel, remark);
     }
 
     public void upsertDisease(

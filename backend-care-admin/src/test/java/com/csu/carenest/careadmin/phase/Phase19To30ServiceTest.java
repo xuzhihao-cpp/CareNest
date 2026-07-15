@@ -171,6 +171,56 @@ class Phase19To30ServiceTest {
     }
 
     @Test
+    void archiveDiseaseSuggestionAcceptsStageNineteenMonitoringStatus() {
+        when(repository.findHealthReviewTaskForUpdate("review_disease"))
+                .thenReturn(Optional.of(new HealthReviewTaskEntity(
+                        "review_disease", "elder_demo", "PENDING", "3", "diseases",
+                        "[{\"diseaseName\":\"高血压\",\"status\":\"ACTIVE\"}]",
+                        "{\"diseaseName\":\"高血压\",\"status\":\"MONITORING\"}",
+                        "SERVICE_RECORD", "record_1", null)));
+        when(repository.currentArchiveVersion("elder_demo")).thenReturn(3);
+
+        HealthArchiveDtos.ArchiveResponse response = service.archiveHealthReviewTask(
+                ADMIN,
+                "review_disease",
+                new HealthArchiveDtos.ArchiveRequest(List.of(
+                        new HealthArchiveDtos.ArchiveDecision(
+                                "diseases", "diseases",
+                                "{\"diseaseName\":\"高血压\",\"status\":\"MONITORING\"}",
+                                "APPROVED", "确认疾病处于持续观察状态"))));
+
+        assertEquals("APPROVED", response.status());
+        verify(repository).upsertDisease(
+                anyString(), eq("elder_demo"), eq("高血压"), eq("MONITORING"), isNull());
+        verify(repository).finishHealthReviewTask(
+                "review_disease", "APPROVED", "admin_demo", "ARCHIVE_REVIEW_APPROVED");
+    }
+
+    @Test
+    void archiveLegacyRiskTextSuppliesRequiredRiskTagCode() {
+        when(repository.findHealthReviewTaskForUpdate("review_risk"))
+                .thenReturn(Optional.of(new HealthReviewTaskEntity(
+                        "review_risk", "elder_demo", "PENDING", "4", "riskTags",
+                        "跌倒风险：MEDIUM", "夜间跌倒风险：HIGH",
+                        "SERVICE_RECORD", "record_1", null)));
+        when(repository.currentArchiveVersion("elder_demo")).thenReturn(4);
+
+        HealthArchiveDtos.ArchiveResponse response = service.archiveHealthReviewTask(
+                ADMIN,
+                "review_risk",
+                new HealthArchiveDtos.ArchiveRequest(List.of(
+                        new HealthArchiveDtos.ArchiveDecision(
+                                "riskTags", "riskTags", "夜间跌倒风险：HIGH",
+                                "APPROVED", "确认风险等级"))));
+
+        assertEquals("APPROVED", response.status());
+        verify(repository).upsertRiskTag(
+                anyString(), eq("elder_demo"), anyString(), eq("夜间跌倒风险"), eq("HIGH"), isNull());
+        verify(repository).finishHealthReviewTask(
+                "review_risk", "APPROVED", "admin_demo", "ARCHIVE_REVIEW_APPROVED");
+    }
+
+    @Test
     void rejectedArchiveDecisionDoesNotModifyArchiveOrVersion() {
         when(repository.findHealthReviewTaskForUpdate("review_2"))
                 .thenReturn(Optional.of(new HealthReviewTaskEntity(
