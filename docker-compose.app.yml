@@ -24,6 +24,11 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin123}
       JWT_SECRET: ${JWT_SECRET:-smart-nursing-local-secret}
       JWT_EXPIRE_HOURS: ${JWT_EXPIRE_HOURS:-24}
+      AI_PROVIDER: ${AI_PROVIDER:-rule}
+      AI_ENDPOINT: ${AI_ENDPOINT:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-qwen-plus}
+      AI_TIMEOUT: ${AI_TIMEOUT:-15s}
       TZ: Asia/Shanghai
     ports:
       - "127.0.0.1:${BACKEND_USER_PORT:-8081}:8081"

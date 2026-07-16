@@ -38,3 +38,9 @@ carenest:
     bucket: ${MINIO_BUCKET:smart-nursing}
     region: ${MINIO_REGION:us-east-1}
     public-endpoint: ${MINIO_PUBLIC_ENDPOINT:http://localhost:9000}
+  ai:
+    provider: ${AI_PROVIDER:rule}
+    endpoint: ${AI_ENDPOINT:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    api-key: ${DASHSCOPE_API_KEY:}
+    model: ${AI_MODEL:qwen-plus}
+    timeout: ${AI_TIMEOUT:15s}
