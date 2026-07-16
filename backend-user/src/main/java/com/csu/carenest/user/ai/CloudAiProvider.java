@@ -35,7 +35,9 @@ public class CloudAiProvider extends AiProvider {
 
     @Override public Result answer(String content) {
         Result safety = classifier.classify(content);
-        if (!"NORMAL".equals(safety.safetyLevel()) || properties.apiKey().isBlank()) return safety;
+        if ("CRITICAL".equals(safety.safetyLevel())) return safety;
+        Result fallback = classifier.classify("");
+        if (properties.apiKey().isBlank()) return fallback;
         try {
             String payload = objectMapper.writeValueAsString(Map.of(
                     "model", properties.model(),
@@ -50,19 +52,19 @@ public class CloudAiProvider extends AiProvider {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("AI provider returned HTTP {}", response.statusCode());
-                return safety;
+                return fallback;
             }
             JsonNode root = objectMapper.readTree(response.body());
             String answer = root.path("choices").path(0).path("message").path("content").asText("").trim();
             var rejection = responseGuard.rejectionReason(answer);
             if (answer.isEmpty() || rejection.isPresent()) {
                 rejection.ifPresent(reason -> log.warn("AI provider response rejected: {}", reason));
-                return safety;
+                return fallback;
             }
             return new Result(answer, "NORMAL", "DAILY_CARE", "NORMAL");
         } catch (Exception exception) {
             log.warn("AI provider call failed: {}", exception.getClass().getSimpleName());
-            return safety;
+            return fallback;
         }
     }
 

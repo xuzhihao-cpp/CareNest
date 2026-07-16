@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -36,16 +37,17 @@ class AiAssistantServiceTest {
     }
 
     @Test
-    void warningCreatesAssistanceTicketWithoutCustomerServiceTicket() {
+    void normalFallbackCreatesNoTickets() {
         when(provider.answer("我可以停药吗"))
-                .thenReturn(new AiProvider.Result("请联系医生确认。", "WARNING", "MEDICAL_GUIDANCE", "NORMAL"));
+                .thenReturn(new AiProvider.Result("请联系医生确认。", "NORMAL", "DAILY_CARE", "NORMAL"));
 
         AiAssistantDtos.MessageResult result = service.message(
                 "Bearer token", "session-1", new AiAssistantDtos.MessageRequest("我可以停药吗", "TEXT", null));
 
-        assertTrue(result.riskFlag());
+        assertFalse(result.riskFlag());
+        assertNull(result.assistanceTicketId());
         assertFalse(result.customerServiceTicketCreated());
-        verify(repository).assistance(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(repository, never()).assistance(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
         verify(repository, never()).customerTicket(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
     }
 
