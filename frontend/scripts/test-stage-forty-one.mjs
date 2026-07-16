@@ -1,4 +1,11 @@
 import { readFileSync } from 'node:fs'
 const source=readFileSync(new URL('../src/api/stageFortyOne.ts',import.meta.url),'utf8')
 for(const value of ['/ai/sessions','/messages','/assistance/tickets','/customer-service/tickets']) if(!source.includes(value)) throw new Error(`missing ${value}`)
+const types=readFileSync(new URL('../src/types/stageFortyOne.ts',import.meta.url),'utf8')
+const component=readFileSync(new URL('../src/components/StageFortyOneAiAssistantPanel.vue',import.meta.url),'utf8')
+if(!types.includes('safetyLevel:AiSafetyLevel')) throw new Error('conversation history is missing safetyLevel')
+if(!component.includes("message.senderRole === 'ASSISTANT' && message.safetyFlag ? message.safetyLevel")) throw new Error('conversation history does not restore assistant safetyLevel')
+if(!component.includes('uni-button:not([disabled])')) throw new Error('H5 history dialog does not include compiled uni-button focus targets')
+if(!component.includes("document.addEventListener('keydown', handleHistoryKeydown)")) throw new Error('H5 history dialog does not install a document keyboard listener')
+if(!component.includes('target instanceof HTMLElement')) throw new Error('H5 history dialog does not resolve uni-button component refs')
 console.log('stage 41 api contract smoke passed')

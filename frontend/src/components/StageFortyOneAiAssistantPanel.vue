@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Bot, CircleAlert, History, Plus, RotateCw, SendHorizontal, ShieldAlert, Sparkles, UserRound, X } from '@lucide/vue';
 import { getFamilyElders } from '@/api/stageSeven';
 import { createAiSession, getAiSessionMessages, listAiSessions, sendAiMessage } from '@/api/stageFortyOne';
@@ -23,9 +23,10 @@ const historyError = ref('');
 const historyRetryTarget = ref<'sessions' | 'messages' | ''>('');
 const historyRetrySessionId = ref('');
 const historyOpen = ref(false);
-const historyTrigger = ref<HTMLButtonElement | null>(null);
+type FocusTarget = HTMLElement | { $el?: HTMLElement } | null;
+const historyTrigger = ref<FocusTarget>(null);
 const historyDrawer = ref<HTMLElement | null>(null);
-const historyCloseButton = ref<HTMLButtonElement | null>(null);
+const historyCloseButton = ref<FocusTarget>(null);
 const sessionsLoading = ref(false);
 const messagesLoading = ref(false);
 const loadingSessionId = ref('');
@@ -64,6 +65,10 @@ function persistActiveSessionId(id: string) {
   if (id) uni.setStorageSync(activeSessionStorageKey(), id);
   else uni.removeStorageSync(activeSessionStorageKey());
 }
+function focusTarget(target: FocusTarget) {
+  const element = target instanceof HTMLElement ? target : target?.$el;
+  element?.focus();
+}
 function formatActivityTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -72,12 +77,12 @@ function formatActivityTime(value: string) {
 }
 function sessionTitle(session: AiSessionSummary) { return session.sessionTitle?.trim() || '新的照护咨询'; }
 function sessionPreview(session: AiSessionSummary) { return session.latestMessagePreview?.trim() || '尚无消息'; }
-function mapConversationMessage(message: { messageId: string; senderRole: 'USER' | 'ASSISTANT'; content: string; safetyFlag: boolean }): ChatMessage {
+function mapConversationMessage(message: { messageId: string; senderRole: 'USER' | 'ASSISTANT'; content: string; safetyFlag: boolean; safetyLevel: AiSafetyLevel }): ChatMessage {
   return {
     id: message.messageId,
     role: message.senderRole === 'USER' ? 'user' : 'assistant',
     content: message.content,
-    safetyLevel: message.safetyFlag ? 'WARNING' : undefined
+    safetyLevel: message.senderRole === 'ASSISTANT' && message.safetyFlag ? message.safetyLevel : undefined
   };
 }
 
@@ -204,19 +209,21 @@ function startNewConversation() {
 async function openHistory() {
   historyOpen.value = true;
   await nextTick();
-  historyCloseButton.value?.focus();
+  document.addEventListener('keydown', handleHistoryKeydown);
+  focusTarget(historyCloseButton.value);
 }
 
 async function closeHistory() {
   const shouldRestoreFocus = historyOpen.value;
   historyOpen.value = false;
+  document.removeEventListener('keydown', handleHistoryKeydown);
   await nextTick();
-  if (shouldRestoreFocus) historyTrigger.value?.focus();
+  if (shouldRestoreFocus) focusTarget(historyTrigger.value);
 }
 
 function historyFocusableElements() {
   return Array.from(historyDrawer.value?.querySelectorAll<HTMLElement>(
-    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    'button:not([disabled]), uni-button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
   ) ?? []).filter((element) => !element.hasAttribute('hidden'));
 }
 
@@ -295,6 +302,8 @@ onMounted(async () => {
   await loadFamilyContext();
   await loadSessions();
 });
+
+onBeforeUnmount(() => document.removeEventListener('keydown', handleHistoryKeydown));
 </script>
 
 <template>
@@ -304,7 +313,7 @@ onMounted(async () => {
         <view class="assistant-mark"><Sparkles :size="22" aria-hidden="true" /></view>
         <view class="header-copy"><text class="ai-title">AI 照护助手</text><text class="availability"><i></i>在线 · 日常照护咨询</text></view>
         <view class="header-actions">
-          <button ref="historyTrigger" type="button" class="icon-button" aria-label="查看历史对话" aria-controls="ai-history-dialog" @click="openHistory"><History :size="20" aria-hidden="true" /></button>
+          <button ref="historyTrigger" type="button" class="icon-button" tabindex="0" aria-label="查看历史对话" aria-controls="ai-history-dialog" @click="openHistory"><History :size="20" aria-hidden="true" /></button>
           <button type="button" class="icon-button new-conversation" aria-label="新建对话" @click="startNewConversation"><Plus :size="21" aria-hidden="true" /></button>
         </view>
       </header>
@@ -349,12 +358,12 @@ onMounted(async () => {
     </view>
 
     <view v-if="historyOpen" class="history-layer" @click.self="closeHistory">
-      <aside id="ai-history-dialog" ref="historyDrawer" class="history-drawer" role="dialog" aria-modal="true" aria-labelledby="ai-history-title" tabindex="-1" @keydown="handleHistoryKeydown">
-        <view class="history-heading"><view><text id="ai-history-title">历史对话</text><text>{{ sessions.length }} 个会话</text></view><button ref="historyCloseButton" type="button" class="icon-button" aria-label="关闭历史对话" @click="closeHistory"><X :size="20" aria-hidden="true" /></button></view>
+      <aside id="ai-history-dialog" ref="historyDrawer" class="history-drawer" role="dialog" aria-modal="true" aria-labelledby="ai-history-title" tabindex="-1">
+        <view class="history-heading"><view><text id="ai-history-title">历史对话</text><text>{{ sessions.length }} 个会话</text></view><button ref="historyCloseButton" type="button" class="icon-button" tabindex="0" aria-label="关闭历史对话" @click="closeHistory"><X :size="20" aria-hidden="true" /></button></view>
         <view v-if="sessionsLoading" class="history-state" role="status">正在加载历史对话</view>
         <view v-else-if="!sessions.length" class="history-state">暂无历史对话</view>
         <view v-else class="session-list">
-          <button v-for="session in sessions" :key="session.sessionId" type="button" class="session-row" :class="{ active: session.sessionId === activeSessionId || session.sessionId === loadingSessionId }" @click="selectSession(session.sessionId)">
+          <button v-for="session in sessions" :key="session.sessionId" type="button" class="session-row" tabindex="0" :class="{ active: session.sessionId === activeSessionId || session.sessionId === loadingSessionId }" @click="selectSession(session.sessionId)">
             <view><text class="session-title">{{ sessionTitle(session) }}</text><text class="session-preview">{{ sessionPreview(session) }}</text></view>
             <text class="session-time">{{ formatActivityTime(session.updatedAt) }}</text>
           </button>

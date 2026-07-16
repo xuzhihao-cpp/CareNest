@@ -134,13 +134,14 @@ class AiConversationHistoryServiceTest {
         when(repository.elderByUser("elder-user"))
                 .thenReturn(Optional.of(new AiAssistantRepository.Elder("elder-1", "Elder", "elder-user")));
         List<AiAssistantDtos.ConversationMessage> messages = List.of(
-                new AiAssistantDtos.ConversationMessage("message-1", "USER", "TEXT", "Question", false, "2026-07-16T10:00:00"),
-                new AiAssistantDtos.ConversationMessage("message-2", "ASSISTANT", "TEXT", "Answer", false, "2026-07-16T10:00:01"));
+                new AiAssistantDtos.ConversationMessage("message-1", "USER", "TEXT", "Question", false, "NORMAL", "2026-07-16T10:00:00"),
+                new AiAssistantDtos.ConversationMessage("message-2", "ASSISTANT", "TEXT", "Answer", true, "CRITICAL", "2026-07-16T10:00:01"));
         when(repository.messages("session-2")).thenReturn(messages);
 
         List<AiAssistantDtos.ConversationMessage> result = service.messages("Bearer elder", "session-2");
 
         assertEquals("ASSISTANT", result.get(1).senderRole());
+        assertEquals("CRITICAL", result.get(1).safetyLevel());
     }
 
     private AiAssistantDtos.SessionSummary summary(String sessionId, String elderId) {

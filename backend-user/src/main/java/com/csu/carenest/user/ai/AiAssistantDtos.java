@@ -19,6 +19,7 @@ public final class AiAssistantDtos {
                                  String sessionTitle, String sessionStatus, String safetyLevel,
                                  String latestMessagePreview, String createdAt, String updatedAt) {}
     public record ConversationMessage(String messageId, String senderRole,
-                                      String messageType, String content, boolean safetyFlag, String createdAt) {}
+                                      String messageType, String content, boolean safetyFlag,
+                                      String safetyLevel, String createdAt) {}
     public record PageResult<T>(List<T> records, long total, int page, int size) {}
 }
