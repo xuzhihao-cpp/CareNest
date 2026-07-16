@@ -24,6 +24,7 @@
     "test:stage30:components": "vitest run --config scripts/vitest-stage-thirty.config.ts",
     "test:stage31": "node --test scripts/test-stage-thirty-one.mjs && vitest run --config scripts/vitest-stage-thirty-one.config.ts",
     "test:stage31:components": "vitest run --config scripts/vitest-stage-thirty-one.config.ts",
+    "test:stage32": "node scripts/test-stage-thirty-two.mjs",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview --host 127.0.0.1 --port 5173"
   },

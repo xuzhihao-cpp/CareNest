@@ -52,3 +52,25 @@
 ## 当前批次
 
 阶段 26-31 数据库基础已完成后，本批次提供护理准入、培训、推荐、偏好护理和服务前注意事项的 MySQL 结构、权限种子、演示数据、Redis 数据规范和验收说明，供成员2、成员3、成员4围绕真实接口继续联调。
+
+## Phase 32-55 Completion Overlay
+
+Current branch: `phase-32-55/member1-db-complete`
+
+Member-1 scope remains database and data standards only. The following phases are complete for member-1 database delivery and ready for backend/frontend members to integrate against:
+
+| phase | database delivery | status |
+| --- | --- | --- |
+| 32-33 | `reminder_task`, `reminder_record`, reminder status/result dictionary and seed records | complete |
+| 34-35 | `care_metric_config`, `care_metric_item`, `metric_score_rule`, `order_metric_checklist`, `order_metric_item` | complete |
+| 36-40 | `care_service_evidence`, `evidence_review_record`, `nurse_metric_record`, `metric_exception_proof`, score/operation trace seed | complete |
+| 41-42 | `ai_assistant_session`, `ai_assistant_message`, `voice_command_log` trace/safety extension | complete |
+| 43-44 | `assistance_ticket`, `customer_service_ticket`, `ticket_message`, `follow_up_record` | complete |
+| 45-46 | `review`, `complaint`, `nurse_appeal` | complete |
+| 47-48 | `nurse_score_change_log` and scoring rule seed over existing `nurse_score` | complete |
+| 49-50 | `training_article`, `article_tag`, `article_recommend_rule`, `nurse_article_reading` | complete |
+| 51 | Follow-up record linked to generated reminder task | complete |
+| 52-53 | `db/statistics/phase-52-53-dashboard-statistics.sql` real-source dashboard aggregates | complete |
+| 54-55 | `db/seed/phase-32-55-demo-data.sql`, `docs/test/member1-phase-32-55-db-check.sql`, `bug_list` acceptance data | complete |
+
+Redis policy for this batch is documented but not implemented as a backend client by member 1. MySQL remains the source of truth for every phase 32-55 workflow.

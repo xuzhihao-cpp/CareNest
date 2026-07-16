@@ -81,3 +81,11 @@
 - 修正 `db/seed/phase-06-09-demo-data.sql`：在绑定关系和服务地址的 `ON DUPLICATE KEY UPDATE` 中补充 `family_id = VALUES(family_id)`，避免旧库重复执行 seed 后继续保留错误 ID。
 - 新增 `db/migration/fix-family-id-demo-data.sql`，用于将已存在数据中的 `family_001` 迁移为 `family-001`。
 - 已更新本地 MySQL 容器 `carenest-mysql`，验证 `elder_family_binding`、`service_address`、`nursing_order` 的 `family_id` 均统一为 `family-001`。
+
+## 2026-07-15 Member 1 Phase 32-55 Complete Database Delivery
+
+- Scope stayed within member-1 database and data standards: MySQL schema, migration entry, demo seed data, dashboard SQL, dictionaries, Redis data policy, verification SQL, and stage-check record.
+- Added phase 32-55 database objects for reminders, care metrics, order metric checklists, evidence review, metric exception proof, AI audit logs, assistance/customer-service tickets, reviews, complaints, nurse appeals, score change logs, training articles, reading records, follow-ups, and final bug tracking.
+- Added `db/statistics/phase-52-53-dashboard-statistics.sql` so dashboard phases aggregate from real business tables instead of fake summary tables.
+- Added `docs/dictionary/phase-32-55-complete-data-dictionary.md`, `docs/test/member1-phase-32-55-db-check.sql`, and `docs/stage-check/member1-phase-32-55.md` to freeze statuses, permissions, Redis key policy, sensitive-data boundaries, and acceptance checks.
+- This entry does not claim backend endpoints, frontend pages, Redis client code, or MinIO object creation are complete.

@@ -1,5 +1,6 @@
 package com.csu.carenest.careadmin.phase;
 
+import com.csu.carenest.careadmin.attention.Phase31AttentionService;
 import com.csu.carenest.careadmin.auth.CurrentUser;
 import com.csu.carenest.careadmin.auth.RoleCode;
 import com.csu.carenest.careadmin.common.BusinessRuleException;
@@ -57,18 +58,21 @@ public class CareAdminPhaseService {
     private final RedisCacheService cacheService;
     private final RedisLockService lockService;
     private final HomeCacheInvalidator homeCacheInvalidator;
+    private final Phase31AttentionService attentionService;
 
     public CareAdminPhaseService(
             JdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper,
             RedisCacheService cacheService,
             RedisLockService lockService,
-            HomeCacheInvalidator homeCacheInvalidator) {
+            HomeCacheInvalidator homeCacheInvalidator,
+            Phase31AttentionService attentionService) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.cacheService = cacheService;
         this.lockService = lockService;
         this.homeCacheInvalidator = homeCacheInvalidator;
+        this.attentionService = attentionService;
     }
 
     public HomeSummaryResponse nurseWorkbenchSummary(CurrentUser currentUser) {
@@ -364,6 +368,11 @@ public class CareAdminPhaseService {
         String currentOrderStatus = string(order, "order_status");
         if (COMPLETED.equals(targetStatus) && CANCELED.equals(currentOrderStatus)) {
             throw new ConflictException();
+        }
+
+        if (SERVING.equals(targetStatus)) {
+            // 阶段31后端强制门禁：开始服务前必须确认当前护理可见的全部必确认事项。
+            attentionService.requireAllRequiredAcknowledged(orderId, taskId, string(task, "nurse_id"));
         }
 
         String timeColumn = switch (targetStatus) {
