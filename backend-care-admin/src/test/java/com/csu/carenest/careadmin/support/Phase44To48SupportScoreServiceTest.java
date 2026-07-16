@@ -23,42 +23,19 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 验证阶段43-48最容易越权或重复计分的核心业务规则。 */
-class Phase43To48SupportScoreServiceTest {
+/** 验证阶段44-48最容易越权或重复计分的核心业务规则。 */
+class Phase44To48SupportScoreServiceTest {
 
     private static final CurrentUser ADMIN = new CurrentUser("admin_1", List.of(RoleCode.ADMIN));
 
     @Test
-    void ticketMutationMustMatchOriginalElderAndUrgentTicketNeedsFollowUp() {
-        Phase43To46SupportRepository repository = mock(Phase43To46SupportRepository.class);
-        Phase43To46SupportService service = new Phase43To46SupportService(
-                repository, new ObjectMapper(), mock(Phase47To48ScoreService.class));
-        when(repository.hasPermission("admin_1", "CUSTOMER_SERVICE_TICKET_HANDLE")).thenReturn(true);
-        when(repository.findTicket("ticket_1")).thenReturn(Optional.of(
-                new Phase43To46SupportRepository.TicketContext(
-                        "ticket_1", "elder_1", "URGENT", "PENDING", null)));
-
-        SupportDtos.TicketRequest wrongElder = new SupportDtos.TicketRequest(
-                "elder_2", "咨询", "URGENT", "处理说明", "MANUAL");
-        assertThrows(BusinessRuleException.class,
-                () -> service.reply(ADMIN, "ticket_1", wrongElder));
-
-        SupportDtos.TicketRequest correctElder = new SupportDtos.TicketRequest(
-                "elder_1", "咨询", "URGENT", "处理说明", "MANUAL");
-        when(repository.countFollowUps("ticket_1")).thenReturn(0);
-        assertThrows(BusinessRuleException.class,
-                () -> service.close(ADMIN, "ticket_1", correctElder));
-        verify(repository, never()).closeTicket(anyString(), anyString());
-    }
-
-    @Test
     void appealReviewCannotReplaceOriginalTarget() {
-        Phase43To46SupportRepository repository = mock(Phase43To46SupportRepository.class);
-        Phase43To46SupportService service = new Phase43To46SupportService(
+        Phase44To46SupportRepository repository = mock(Phase44To46SupportRepository.class);
+        Phase44To46SupportService service = new Phase44To46SupportService(
                 repository, new ObjectMapper(), mock(Phase47To48ScoreService.class));
         when(repository.hasPermission("admin_1", "NURSE_APPEAL_REVIEW")).thenReturn(true);
         when(repository.findAppeal("appeal_1")).thenReturn(Optional.of(
-                new Phase43To46SupportRepository.AppealContext(
+                new Phase44To46SupportRepository.AppealContext(
                         "appeal_1", "nurse_1", "METRIC", "metric_1", "PENDING")));
 
         SupportDtos.AppealRequest request = new SupportDtos.AppealRequest(

@@ -10,21 +10,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 阶段43-46客服、投诉和护理申诉冻结字段。 */
+/** 阶段44-46回访、投诉和护理申诉冻结字段。 */
 public final class SupportDtos {
 
     private SupportDtos() {
-    }
-
-    public record TicketRequest(
-            @NotBlank @Size(max = 32) String elderId,
-            @NotBlank @Size(max = 64) String category,
-            @NotBlank String priority,
-            @NotBlank @Size(max = 500) String description,
-            @NotBlank String sourceType) {
-    }
-
-    public record TicketResponse(String ticketId, String status) {
     }
 
     public record FollowUpRequest(

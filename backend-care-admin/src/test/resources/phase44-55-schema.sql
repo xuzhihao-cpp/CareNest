@@ -43,11 +43,6 @@ CREATE TABLE customer_service_ticket (
   ticket_status VARCHAR(32), description VARCHAR(500), source_type VARCHAR(32),
   resolved_at TIMESTAMP, closed_at TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-CREATE TABLE ticket_message (
-  message_id VARCHAR(32) PRIMARY KEY, ticket_id VARCHAR(32), sender_id VARCHAR(32),
-  sender_role VARCHAR(64), message_type VARCHAR(32), content VARCHAR(1000),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 CREATE TABLE follow_up_record (
   follow_up_id VARCHAR(32) PRIMARY KEY, elder_id VARCHAR(32), ticket_id VARCHAR(32),
   order_id VARCHAR(32), follow_up_type VARCHAR(32), content VARCHAR(1000),

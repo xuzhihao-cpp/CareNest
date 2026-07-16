@@ -4,15 +4,12 @@ import com.csu.carenest.careadmin.common.BusinessRuleException;
 
 import java.util.Locale;
 
-/** 成员1数据字典中阶段43-46的固定枚举。 */
+/** 成员1数据字典中阶段44-46的固定枚举。 */
 final class SupportEnums {
 
     private SupportEnums() {
     }
 
-    enum TicketPriority { NORMAL, URGENT }
-    enum TicketStatus { PENDING, PROCESSING, RESOLVED, CLOSED }
-    enum TicketSource { AI, REMINDER, MANUAL }
     enum FollowUpType { PHONE, ONLINE, HOME, AI, CUSTOMER_SERVICE }
     enum ComplaintStatus { PENDING, PROCESSING, RESOLVED, REJECTED }
     enum AppealStatus { PENDING, APPROVED, REJECTED }

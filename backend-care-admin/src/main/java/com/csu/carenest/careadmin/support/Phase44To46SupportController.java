@@ -15,47 +15,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** 阶段43-46成员3后端接口；长辈人工协助入口仍由成员2负责。 */
+/** 阶段44-46成员3后端接口；阶段43客服工单功能不在本次交付范围内。 */
 @RestController
 @RequestMapping("/api/v1")
-public class Phase43To46SupportController {
+public class Phase44To46SupportController {
 
     private final AuthService authService;
-    private final Phase43To46SupportService supportService;
+    private final Phase44To46SupportService supportService;
 
-    public Phase43To46SupportController(AuthService authService, Phase43To46SupportService supportService) {
+    public Phase44To46SupportController(AuthService authService, Phase44To46SupportService supportService) {
         this.authService = authService;
         this.supportService = supportService;
-    }
-
-    @PostMapping("/customer-service/tickets")
-    public ApiResponse<SupportDtos.TicketResponse> createTicket(
-            @RequestHeader("Authorization") String authorization,
-            @Valid @RequestBody SupportDtos.TicketRequest request) {
-        return ApiResponse.success(supportService.createTicket(
-                authService.requireCurrentUser(authorization), request));
-    }
-
-    @GetMapping("/admin/customer-service/tickets")
-    public ApiResponse<List<SupportDtos.TicketResponse>> tickets(
-            @RequestHeader("Authorization") String authorization) {
-        return ApiResponse.success(supportService.tickets(adminUser(authorization)));
-    }
-
-    @PostMapping("/admin/customer-service/tickets/{ticketId}/reply")
-    public ApiResponse<SupportDtos.TicketResponse> reply(
-            @RequestHeader("Authorization") String authorization,
-            @PathVariable("ticketId") String ticketId,
-            @Valid @RequestBody SupportDtos.TicketRequest request) {
-        return ApiResponse.success(supportService.reply(adminUser(authorization), ticketId, request));
-    }
-
-    @PostMapping("/admin/customer-service/tickets/{ticketId}/close")
-    public ApiResponse<SupportDtos.TicketResponse> close(
-            @RequestHeader("Authorization") String authorization,
-            @PathVariable("ticketId") String ticketId,
-            @Valid @RequestBody SupportDtos.TicketRequest request) {
-        return ApiResponse.success(supportService.close(adminUser(authorization), ticketId, request));
     }
 
     @PostMapping("/admin/customer-service/tickets/{ticketId}/follow-up")

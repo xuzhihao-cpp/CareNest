@@ -21,22 +21,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/** 阶段43-46客服工单、回访、投诉和申诉事务服务。 */
+/** 阶段44-46回访、投诉和申诉事务服务。 */
 @Service
-public class Phase43To46SupportService {
+public class Phase44To46SupportService {
 
-    private static final String TICKET_PERMISSION = "CUSTOMER_SERVICE_TICKET_HANDLE";
     private static final String FOLLOW_UP_PERMISSION = "FOLLOW_UP_MANAGE";
     private static final String COMPLAINT_PERMISSION = "COMPLAINT_HANDLE";
     private static final String APPEAL_PERMISSION = "NURSE_APPEAL_REVIEW";
     private static final Set<String> REVIEWABLE_ORDER_STATUSES = Set.of("WAIT_CONFIRM", "COMPLETED");
 
-    private final Phase43To46SupportRepository repository;
+    private final Phase44To46SupportRepository repository;
     private final ObjectMapper objectMapper;
     private final Phase47To48ScoreService scoreService;
 
-    public Phase43To46SupportService(
-            Phase43To46SupportRepository repository,
+    public Phase44To46SupportService(
+            Phase44To46SupportRepository repository,
             ObjectMapper objectMapper,
             Phase47To48ScoreService scoreService) {
         this.repository = repository;
@@ -45,69 +44,10 @@ public class Phase43To46SupportService {
     }
 
     @Transactional
-    public SupportDtos.TicketResponse createTicket(CurrentUser user, SupportDtos.TicketRequest request) {
-        requireTicketCreateAccess(user, request.elderId());
-        SupportEnums.TicketPriority priority = SupportEnums.parse(
-                SupportEnums.TicketPriority.class, request.priority());
-        SupportEnums.TicketSource source = SupportEnums.parse(
-                SupportEnums.TicketSource.class, request.sourceType());
-        String ticketId = nextId("ticket");
-        repository.insertTicket(
-                ticketId, request.elderId().trim(), user.userId(), request.category().trim(),
-                priority.name(), request.description().trim(), source.name());
-        log(user, "CREATE_CUSTOMER_SERVICE_TICKET", "CUSTOMER_SERVICE_TICKET", ticketId,
-                null, Map.of("status", "PENDING", "priority", priority.name()));
-        return new SupportDtos.TicketResponse(ticketId, "PENDING");
-    }
-
-    @Transactional(readOnly = true)
-    public List<SupportDtos.TicketResponse> tickets(CurrentUser user) {
-        requirePermission(user, TICKET_PERMISSION);
-        return repository.findTickets();
-    }
-
-    @Transactional
-    public SupportDtos.TicketResponse reply(
-            CurrentUser user, String ticketId, SupportDtos.TicketRequest request) {
-        requirePermission(user, TICKET_PERMISSION);
-        Phase43To46SupportRepository.TicketContext ticket = requireTicket(ticketId);
-        requireMatchingElder(ticket, request.elderId());
-        if (repository.moveTicketToProcessing(ticketId, user.userId()) == 0) {
-            throw new ConflictException();
-        }
-        repository.insertMessage(
-                nextId("message"), ticketId, user.userId(), user.primaryRole(),
-                "TEXT", request.description().trim());
-        log(user, "REPLY_CUSTOMER_SERVICE_TICKET", "CUSTOMER_SERVICE_TICKET", ticketId,
-                Map.of("status", ticket.status()), Map.of("status", "PROCESSING"));
-        return new SupportDtos.TicketResponse(ticketId, "PROCESSING");
-    }
-
-    @Transactional
-    public SupportDtos.TicketResponse close(
-            CurrentUser user, String ticketId, SupportDtos.TicketRequest request) {
-        requirePermission(user, TICKET_PERMISSION);
-        Phase43To46SupportRepository.TicketContext ticket = requireTicket(ticketId);
-        requireMatchingElder(ticket, request.elderId());
-        if ("URGENT".equals(ticket.priority()) && repository.countFollowUps(ticketId) == 0) {
-            throw new BusinessRuleException();
-        }
-        if (repository.closeTicket(ticketId, user.userId()) == 0) {
-            throw new ConflictException();
-        }
-        repository.insertMessage(
-                nextId("message"), ticketId, user.userId(), user.primaryRole(),
-                "SYSTEM", request.description().trim());
-        log(user, "CLOSE_CUSTOMER_SERVICE_TICKET", "CUSTOMER_SERVICE_TICKET", ticketId,
-                Map.of("status", ticket.status()), Map.of("status", "CLOSED"));
-        return new SupportDtos.TicketResponse(ticketId, "CLOSED");
-    }
-
-    @Transactional
     public SupportDtos.FollowUpResponse addFollowUp(
             CurrentUser user, String ticketId, SupportDtos.FollowUpRequest request) {
         requirePermission(user, FOLLOW_UP_PERMISSION);
-        Phase43To46SupportRepository.TicketContext ticket = requireTicket(ticketId);
+        Phase44To46SupportRepository.TicketContext ticket = requireTicket(ticketId);
         if ("CLOSED".equals(ticket.status())) {
             throw new ConflictException();
         }
@@ -140,7 +80,7 @@ public class Phase43To46SupportService {
     @Transactional
     public SupportDtos.ReviewComplaintResponse submitReview(
             CurrentUser user, String orderId, SupportDtos.ReviewComplaintRequest request) {
-        Phase43To46SupportRepository.OrderReviewContext order = requireReviewOrder(user, orderId);
+        Phase44To46SupportRepository.OrderReviewContext order = requireReviewOrder(user, orderId);
         if (request.rating() == null) {
             throw new BusinessRuleException();
         }
@@ -184,7 +124,7 @@ public class Phase43To46SupportService {
     public SupportDtos.ReviewComplaintResponse handleComplaint(
             CurrentUser user, String complaintId, SupportDtos.ReviewComplaintRequest request) {
         requirePermission(user, COMPLAINT_PERMISSION);
-        Phase43To46SupportRepository.ComplaintContext complaint = repository.findComplaint(complaintId)
+        Phase44To46SupportRepository.ComplaintContext complaint = repository.findComplaint(complaintId)
                 .orElseThrow(NotFoundException::new);
         String status = "RESOLVED";
         if (request.reasonType() != null && !request.reasonType().isBlank()) {
@@ -243,7 +183,7 @@ public class Phase43To46SupportService {
     public SupportDtos.AppealResponse reviewAppeal(
             CurrentUser user, String appealId, SupportDtos.AppealRequest request) {
         requirePermission(user, APPEAL_PERMISSION);
-        Phase43To46SupportRepository.AppealContext appeal = repository.findAppeal(appealId)
+        Phase44To46SupportRepository.AppealContext appeal = repository.findAppeal(appealId)
                 .orElseThrow(NotFoundException::new);
         if (!"PENDING".equals(appeal.status())) {
             throw new ConflictException();
@@ -271,35 +211,16 @@ public class Phase43To46SupportService {
         return new SupportDtos.AppealResponse(appealId, decision.name(), adjustment);
     }
 
-    private void requireTicketCreateAccess(CurrentUser user, String elderId) {
-        if ((user.hasRole(RoleCode.ADMIN) || user.hasRole(RoleCode.CUSTOMER_SERVICE))
-                && repository.hasPermission(user.userId(), TICKET_PERMISSION)) {
-            return;
-        }
-        if ((user.hasRole(RoleCode.ELDER) || user.hasRole(RoleCode.FAMILY))
-                && repository.canAccessElder(user.userId(), elderId.trim())) {
-            return;
-        }
-        throw new ForbiddenException();
-    }
-
-    private Phase43To46SupportRepository.TicketContext requireTicket(String ticketId) {
+    private Phase44To46SupportRepository.TicketContext requireTicket(String ticketId) {
         if (ticketId == null || ticketId.isBlank()) {
             throw new BusinessRuleException();
         }
         return repository.findTicket(ticketId.trim()).orElseThrow(NotFoundException::new);
     }
 
-    private void requireMatchingElder(
-            Phase43To46SupportRepository.TicketContext ticket, String elderId) {
-        if (!ticket.elderId().equals(elderId.trim())) {
-            throw new BusinessRuleException();
-        }
-    }
-
-    private Phase43To46SupportRepository.OrderReviewContext requireReviewOrder(
+    private Phase44To46SupportRepository.OrderReviewContext requireReviewOrder(
             CurrentUser user, String orderId) {
-        Phase43To46SupportRepository.OrderReviewContext order = repository.findOrderForReview(orderId)
+        Phase44To46SupportRepository.OrderReviewContext order = repository.findOrderForReview(orderId)
                 .orElseThrow(NotFoundException::new);
         if (!REVIEWABLE_ORDER_STATUSES.contains(order.orderStatus())) {
             throw new ConflictException();

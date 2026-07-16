@@ -8,13 +8,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/** 阶段43-46数据访问层。 */
+/** 阶段44-46数据访问层。 */
 @Repository
-public class Phase43To46SupportRepository {
+public class Phase44To46SupportRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public Phase43To46SupportRepository(JdbcTemplate jdbcTemplate) {
+    public Phase44To46SupportRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -28,59 +28,14 @@ public class Phase43To46SupportRepository {
                 """, userId, permissionCode) > 0;
     }
 
-    public boolean canAccessElder(String userId, String elderId) {
-        return count("SELECT COUNT(*) FROM elder_profile WHERE elder_id=? AND user_id=?", elderId, userId) > 0
-                || count("""
-                        SELECT COUNT(*) FROM elder_family_binding
-                        WHERE elder_id=? AND family_id=? AND binding_status='ACTIVE'
-                        """, elderId, userId) > 0;
-    }
-
-    public void insertTicket(
-            String ticketId, String elderId, String requesterId, String category,
-            String priority, String description, String sourceType) {
-        jdbcTemplate.update("""
-                INSERT INTO customer_service_ticket
-                  (ticket_id, elder_id, requester_id, category, priority,
-                   ticket_status, description, source_type)
-                VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)
-                """, ticketId, elderId, requesterId, category, priority, description, sourceType);
-    }
-
     public Optional<TicketContext> findTicket(String ticketId) {
         List<TicketContext> rows = jdbcTemplate.query("""
-                SELECT ticket_id, elder_id, priority, ticket_status, assigned_to
+                SELECT ticket_id, elder_id, ticket_status
                 FROM customer_service_ticket WHERE ticket_id=?
                 """, (rs, rowNum) -> new TicketContext(
                 rs.getString("ticket_id"), rs.getString("elder_id"),
-                rs.getString("priority"), rs.getString("ticket_status"),
-                rs.getString("assigned_to")), ticketId);
+                rs.getString("ticket_status")), ticketId);
         return rows.stream().findFirst();
-    }
-
-    public List<SupportDtos.TicketResponse> findTickets() {
-        return jdbcTemplate.query("""
-                SELECT ticket_id,ticket_status FROM customer_service_ticket
-                ORDER BY CASE priority WHEN 'URGENT' THEN 0 ELSE 1 END,created_at,ticket_id
-                """, (rs, rowNum) -> new SupportDtos.TicketResponse(
-                rs.getString("ticket_id"), rs.getString("ticket_status")));
-    }
-
-    public int moveTicketToProcessing(String ticketId, String assignedTo) {
-        return jdbcTemplate.update("""
-                UPDATE customer_service_ticket
-                SET ticket_status='PROCESSING',assigned_to=COALESCE(assigned_to,?)
-                WHERE ticket_id=? AND ticket_status IN ('PENDING','PROCESSING')
-                """, assignedTo, ticketId);
-    }
-
-    public int closeTicket(String ticketId, String assignedTo) {
-        return jdbcTemplate.update("""
-                UPDATE customer_service_ticket
-                SET ticket_status='CLOSED',assigned_to=COALESCE(assigned_to,?),
-                    closed_at=CURRENT_TIMESTAMP
-                WHERE ticket_id=? AND ticket_status IN ('PENDING','PROCESSING','RESOLVED')
-                """, assignedTo, ticketId);
     }
 
     public void updateTicketStatus(String ticketId, String status, String assignedTo) {
@@ -90,20 +45,6 @@ public class Phase43To46SupportRepository {
                     resolved_at=CASE WHEN ?='RESOLVED' THEN CURRENT_TIMESTAMP ELSE resolved_at END
                 WHERE ticket_id=?
                 """, status, assignedTo, status, ticketId);
-    }
-
-    public void insertMessage(
-            String messageId, String ticketId, String senderId,
-            String senderRole, String messageType, String content) {
-        jdbcTemplate.update("""
-                INSERT INTO ticket_message
-                  (message_id,ticket_id,sender_id,sender_role,message_type,content)
-                VALUES (?,?,?,?,?,?)
-                """, messageId, ticketId, senderId, senderRole, messageType, content);
-    }
-
-    public int countFollowUps(String ticketId) {
-        return count("SELECT COUNT(*) FROM follow_up_record WHERE ticket_id=?", ticketId);
     }
 
     public void insertTicketFollowUp(
@@ -342,9 +283,7 @@ public class Phase43To46SupportRepository {
         return result == null ? 0 : result;
     }
 
-    public record TicketContext(
-            String ticketId, String elderId, String priority,
-            String status, String assignedTo) {
+    public record TicketContext(String ticketId, String elderId, String status) {
     }
 
     public record OrderReviewContext(

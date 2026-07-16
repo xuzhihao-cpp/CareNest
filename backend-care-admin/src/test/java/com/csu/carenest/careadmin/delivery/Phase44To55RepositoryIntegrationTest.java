@@ -5,8 +5,8 @@ import com.csu.carenest.careadmin.auth.RoleCode;
 import com.csu.carenest.careadmin.score.Phase47To48ScoreRepository;
 import com.csu.carenest.careadmin.score.Phase47To48ScoreService;
 import com.csu.carenest.careadmin.score.ScoreDtos;
-import com.csu.carenest.careadmin.support.Phase43To46SupportRepository;
-import com.csu.carenest.careadmin.support.Phase43To46SupportService;
+import com.csu.carenest.careadmin.support.Phase44To46SupportRepository;
+import com.csu.carenest.careadmin.support.Phase44To46SupportService;
 import com.csu.carenest.careadmin.support.SupportDtos;
 import com.csu.carenest.careadmin.training.Phase49To50TrainingRepository;
 import com.csu.carenest.careadmin.training.Phase49To50TrainingService;
@@ -31,15 +31,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
-/** 使用真实 Repository SQL 串联验证阶段43-55的成员3数据流。 */
-class Phase43To55RepositoryIntegrationTest {
+/** 使用真实 Repository SQL 串联验证阶段44-55的成员3数据流。 */
+class Phase44To55RepositoryIntegrationTest {
 
     private static final CurrentUser ADMIN = new CurrentUser("admin_1", List.of(RoleCode.ADMIN));
     private static final CurrentUser NURSE = new CurrentUser("nurse_1", List.of(RoleCode.NURSE));
     private static final CurrentUser FAMILY = new CurrentUser("family_1", List.of(RoleCode.FAMILY));
 
     private JdbcTemplate jdbcTemplate;
-    private Phase43To46SupportService supportService;
+    private Phase44To46SupportService supportService;
     private Phase47To48ScoreService scoreService;
     private Phase49To50TrainingService trainingService;
     private Phase51To55DeliveryService deliveryService;
@@ -50,14 +50,14 @@ class Phase43To55RepositoryIntegrationTest {
         dataSource.setURL("jdbc:h2:mem:" + UUID.randomUUID()
                 + ";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;NON_KEYWORDS=REQUIRED");
         new ResourceDatabasePopulator(
-                new ClassPathResource("phase43-55-schema.sql"),
-                new ClassPathResource("phase43-55-data.sql")).execute(dataSource);
+                new ClassPathResource("phase44-55-schema.sql"),
+                new ClassPathResource("phase44-55-data.sql")).execute(dataSource);
         jdbcTemplate = new JdbcTemplate(dataSource);
         ObjectMapper objectMapper = new ObjectMapper();
         scoreService = new Phase47To48ScoreService(
                 new Phase47To48ScoreRepository(jdbcTemplate), objectMapper);
-        supportService = new Phase43To46SupportService(
-                new Phase43To46SupportRepository(jdbcTemplate), objectMapper, scoreService);
+        supportService = new Phase44To46SupportService(
+                new Phase44To46SupportRepository(jdbcTemplate), objectMapper, scoreService);
         trainingService = new Phase49To50TrainingService(
                 new Phase49To50TrainingRepository(jdbcTemplate), objectMapper);
         deliveryService = new Phase51To55DeliveryService(
@@ -66,22 +66,16 @@ class Phase43To55RepositoryIntegrationTest {
     }
 
     @Test
-    void ticketFollowUpReviewAndCloseUseFrozenStatusChain() {
+    void ticketFollowUpAndReviewUseFrozenStatusChain() {
         SupportDtos.FollowUpResponse followUp = supportService.addFollowUp(
                 ADMIN, "ticket_1", new SupportDtos.FollowUpRequest(
                         "PHONE", "Family contacted", null, "RESOLVED"));
-        SupportDtos.TicketResponse closed = supportService.close(
-                ADMIN, "ticket_1", new SupportDtos.TicketRequest(
-                        "elder_1", "CONSULT", "URGENT", "Closed after follow-up", "MANUAL"));
         SupportDtos.ReviewComplaintResponse review = supportService.submitReview(
                 FAMILY, "order_1", new SupportDtos.ReviewComplaintRequest(
                         5, List.of("PROFESSIONAL"), "Good service", null, List.of("file_family")));
 
         assertEquals("RESOLVED", followUp.ticketStatus());
-        assertEquals("CLOSED", closed.status());
         assertNotNull(review.reviewId());
-        assertEquals(1, jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM ticket_message WHERE ticket_id='ticket_1'", Integer.class));
     }
 
     @Test

@@ -1,4 +1,4 @@
-# 成员3阶段43-55护理端与管理端后端 API
+# 成员3阶段44-55护理端与管理端后端 API
 
 ## 通用约定
 
@@ -7,14 +7,10 @@
 - 返回结构沿用全局 `ApiResponse<T>`，业务数据位于 `data`。
 - 状态值严格使用成员1冻结的数据字典，不新增数据库状态。
 
-## 阶段43-46 客服、评价投诉与申诉
+## 阶段44-46 回访、评价投诉与申诉
 
 | 方法 | 路径 | 角色/权限 | 说明 |
 | --- | --- | --- | --- |
-| POST | `/api/v1/customer-service/tickets` | 长辈、家属或有客服权限的管理人员 | 创建客服工单 |
-| GET | `/api/v1/admin/customer-service/tickets` | `CUSTOMER_SERVICE_TICKET_HANDLE` | 查询客服工单 |
-| POST | `/api/v1/admin/customer-service/tickets/{ticketId}/reply` | `CUSTOMER_SERVICE_TICKET_HANDLE` | 回复并推进至 `PROCESSING` |
-| POST | `/api/v1/admin/customer-service/tickets/{ticketId}/close` | `CUSTOMER_SERVICE_TICKET_HANDLE` | 关闭工单；紧急工单必须先有回访 |
 | POST | `/api/v1/admin/customer-service/tickets/{ticketId}/follow-up` | `FOLLOW_UP_MANAGE` | 添加工单回访 |
 | GET | `/api/v1/admin/customer-service/tickets/{ticketId}/follow-ups` | `FOLLOW_UP_MANAGE` | 查询工单回访 |
 | POST | `/api/v1/family/orders/{orderId}/reviews` | `FAMILY` | 提交服务评价 |
@@ -25,7 +21,7 @@
 | GET | `/api/v1/nurse/appeals` | `NURSE` 或有审核权限的管理人员 | 查询本人或全部申诉 |
 | POST | `/api/v1/admin/nurse-appeals/{appealId}/review` | `NURSE_APPEAL_REVIEW` | 审核申诉并重算评分 |
 
-状态：工单 `PENDING/PROCESSING/RESOLVED/CLOSED`，投诉 `PENDING/PROCESSING/RESOLVED/REJECTED`，申诉 `PENDING/APPROVED/REJECTED`。
+状态：投诉 `PENDING/PROCESSING/RESOLVED/REJECTED`，申诉 `PENDING/APPROVED/REJECTED`。
 
 冻结请求没有单独的申诉审核结果字段，因此审核接口用 `targetType` 承载 `APPROVED/REJECTED`，并要求 `targetId` 与原申诉目标一致。评价标签、投诉原因和附件 ID 在不修改成员1表结构的前提下，以结构化 JSON 保存到既有内容字段。
 
@@ -62,6 +58,7 @@
 
 ## 明确未实现
 
+- 阶段43客服工单创建、列表、回复和关闭功能已按要求删除。
 - 阶段41-42没有成员3任务。
 - 未实现 `/api/v1/elder/assistance-tickets`，该入口属于成员2。
 - 未实现独立的长辈提醒创建接口和长辈随访查询接口。
