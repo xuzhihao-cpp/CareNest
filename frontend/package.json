@@ -18,6 +18,7 @@
     "test:stage25": "node --test scripts/test-stage-twenty-five.mjs",
     "test:stage32": "node scripts/test-stage-thirty-two.mjs",
     "test:stage41": "node scripts/test-stage-forty-one.mjs",
+    "test:elder-care-ui": "node scripts/test-elder-care-shell.mjs",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview --host 127.0.0.1 --port 5173"
   },
@@ -25,6 +26,7 @@
     "@dcloudio/uni-app": "3.0.0-alpha-5020120260706001",
     "@dcloudio/uni-components": "3.0.0-alpha-5020120260706001",
     "@dcloudio/uni-h5": "3.0.0-alpha-5020120260706001",
+    "@lucide/vue": "^1.24.0",
     "vue": "^3.4.38"
   },
   "devDependencies": {

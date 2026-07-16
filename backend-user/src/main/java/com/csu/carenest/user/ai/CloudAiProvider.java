@@ -18,7 +18,7 @@ import java.util.Map;
 @ConditionalOnProperty(prefix = "carenest.ai", name = "provider", havingValue = "cloud")
 public class CloudAiProvider extends AiProvider {
     private static final Logger log = LoggerFactory.getLogger(CloudAiProvider.class);
-    private static final String SYSTEM_PROMPT = "你是 CareNest 养老照护助手。只回答日常照护、平台服务和生活支持问题。不能提供诊断、处方、用药剂量调整或替代医生的判断。遇到紧急症状必须建议立即联系家属、平台客服或当地急救。回答简洁、明确、适合长辈阅读。";
+    private static final String SYSTEM_PROMPT = "你是 CareNest 养老照护助手。只回答日常照护、平台服务和生活支持问题。不能提供诊断、处方、用药剂量调整或替代医生的判断。遇到紧急症状必须建议立即联系家属、平台客服或当地急救。回答简洁、明确、适合长辈阅读。只输出短句纯文本，不使用 Markdown、表格、Emoji 或特殊符号。不得编造电话号码、地址、服务时间或平台尚未提供的信息。";
     private final AiProviderProperties properties;
     private final AiSafetyClassifier classifier;
     private final ObjectMapper objectMapper;

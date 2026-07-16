@@ -37,6 +37,8 @@ class CloudAiProviderTest {
             assertTrue(requestBody.get().contains("qwen-plus"));
             assertTrue(requestBody.get().contains("上门护理前需要准备什么"));
             assertTrue(requestBody.get().contains("不能提供诊断"));
+            assertTrue(requestBody.get().contains("纯文本"));
+            assertTrue(requestBody.get().contains("不得编造电话号码"));
         } finally {
             server.stop(0);
         }
