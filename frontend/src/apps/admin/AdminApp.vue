@@ -71,7 +71,7 @@ async function loadPermissions() {
   permissionError.value = '';
   const response = await getPreferredNursePermissions();
   permissions.value = response.code === 0 ? response.data : [];
-  if (response.code !== 0) permissionError.value = '账号权限暂时无法读取，护理推荐、派单和服务前注意事项审阅入口已关闭。';
+  if (response.code !== 0) permissionError.value = '账号权限暂时无法读取，护理推荐、派单、服务前注意事项审阅和护理质控入口已关闭。';
 }
 async function loadOverview() {
   if (!user.value) return;
@@ -92,6 +92,10 @@ async function initialize() {
   const requestedView = page?.options?.view;
   if (requestedView === 'training') {
     view.value = 'training';
+    return;
+  }
+  if (requestedView === 'care-metrics') {
+    view.value = 'care-metrics';
     return;
   }
   if (requestedView === 'qualifications') {
@@ -162,6 +166,7 @@ onMounted(initialize);
 .admin-app { min-height:100vh; display:grid; grid-template-columns:224px minmax(0,1fr); background:#f4f7f6; color:#18312d; }.admin-nav { display:flex; flex-direction:column; padding:26px 16px; background:#123d39; color:#eaf5f1; }.brand { display:flex; align-items:center; gap:10px; padding:0 10px 34px; font-size:22px; font-weight:700; }.brand-mark { display:grid; place-items:center; width:30px; height:30px; border-radius:7px; background:#34b3a5; color:#103a36; }.nav-group { display:grid; gap:6px; }.nav-group button { justify-content:flex-start; margin:0; padding:12px 14px; border:0; border-radius:6px; background:transparent; color:#b9d3cf; text-align:left; font-size:14px; }.nav-group button.active { background:#245a55; color:#fff; font-weight:700; }.nav-user { margin-top:auto; display:grid; gap:9px; padding:14px 10px 0; border-top:1px solid rgba(236,255,250,.15); color:#c3dad5; font-size:13px; }.nav-user button { width:max-content; margin:0; padding:0; border:0; background:transparent; color:#79cfc5; font-size:13px; }.admin-main { min-width:0; padding:30px 38px 56px; }.admin-top { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:28px; }.eyebrow,.page-title { display:block; }.eyebrow { color:#23877d; font-size:11px; font-weight:700; letter-spacing:1.6px; }.page-title { margin-top:8px; font-size:30px; font-weight:700; }.today { color:#748681; font-size:14px; }.overview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }.metric,.overview-note,.admin-access { display:grid; gap:8px; padding:22px; border:1px solid #dce7e4; border-radius:8px; background:#fff; }.metric text,.metric small { color:#6e817d; font-size:13px; }.metric strong { color:#173c37; font-size:34px; }.overview-error { grid-column:1 / -1; padding:14px 16px; border:1px solid #f0b8b3; border-radius:6px; background:#fff2f0; color:#a53630; }.overview-note { grid-column:1 / -1; grid-template-columns:1fr auto; align-items:center; }.overview-note text { color:#23877d; font-size:13px; font-weight:700; }.overview-note strong { grid-column:1; font-size:18px; }.overview-note button { grid-column:2; grid-row:1 / 3; margin:0; border:0; border-radius:6px; background:#147d72; color:#fff; padding:11px 16px; }.admin-main :deep(.glass-panel) { border-radius:8px; box-shadow:none; }.admin-main :deep(.stage-eight-panel),.admin-main :deep(.stage-eleven-panel),.admin-main :deep(.stage-twelve-panel),.admin-main :deep(.stage-fifteen-panel),.admin-main :deep(.stage-seventeen-panel),.admin-main :deep(.stage-eighteen-panel),.admin-main :deep(.medical-review-panel),.admin-main :deep(.health-review-panel) { margin-bottom:18px; }
 .admin-main :deep(.qualification-review-workbench) { margin-bottom:18px; }
 .admin-main :deep(.training-review-workbench) { margin-bottom:18px; }
+.admin-main :deep(.care-metric-admin-panel) { margin-bottom:18px; }
 .admin-permission-note { margin-bottom:18px; padding:14px 16px; border-left:4px solid #c98e34; background:#fff8e8; color:#755417; font-size:13px; line-height:1.6; }
 @media (max-width:800px) { .admin-app { grid-template-columns:1fr; }.admin-nav { padding:16px; }.brand { padding-bottom:16px; }.nav-group { grid-template-columns:repeat(3,minmax(0,1fr)); overflow:auto; }.nav-group button { white-space:nowrap; }.nav-user { display:none; }.admin-main { padding:22px 16px 40px; }.overview { grid-template-columns:1fr; }.overview-note { grid-column:auto; }.admin-top { align-items:center; }.today { display:none; } }
 </style>

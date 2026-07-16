@@ -25,6 +25,7 @@
     "test:stage31": "node --test scripts/test-stage-thirty-one.mjs && vitest run --config scripts/vitest-stage-thirty-one.config.ts",
     "test:stage31:components": "vitest run --config scripts/vitest-stage-thirty-one.config.ts",
     "test:stage32": "node scripts/test-stage-thirty-two.mjs",
+    "test:stage34-40": "node --test scripts/test-stage-thirty-four-to-forty.mjs",
     "test:stage49": "node --test scripts/test-stage-forty-nine.mjs",
     "test:stage50": "node --test scripts/test-stage-fifty.mjs",
     "test:stage51": "node --test scripts/test-stage-fifty-one.mjs",
