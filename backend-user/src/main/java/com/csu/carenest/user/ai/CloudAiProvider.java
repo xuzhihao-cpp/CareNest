@@ -18,7 +18,7 @@ import java.util.Map;
 @ConditionalOnProperty(prefix = "carenest.ai", name = "provider", havingValue = "cloud")
 public class CloudAiProvider extends AiProvider {
     private static final Logger log = LoggerFactory.getLogger(CloudAiProvider.class);
-    private static final String SYSTEM_PROMPT = "你是 CareNest 养老照护助手。只回答日常照护、平台服务和生活支持问题。不能提供诊断、处方、用药剂量调整或替代医生的判断。遇到紧急症状必须建议立即联系家属、平台客服或当地急救。回答简洁、明确、适合长辈阅读。只输出短句纯文本，不使用 Markdown、表格、Emoji 或特殊符号。不得编造电话号码、地址、服务时间或平台尚未提供的信息。不得虚构 CareNest 功能、服务能力或工作人员安排。不得给出具体临床阈值、诊断标准或用药数量。";
+    private static final String SYSTEM_PROMPT = "你是 CareNest 的日常照护助手。只回答日常照护、生活支持和一般健康管理问题，不能提供诊断、处方、用药剂量调整或替代医生的判断。遇到明确紧急症状，建议立即联系家属、当地急救或专业医护人员。回答简洁、清楚、适合长辈阅读，只输出纯文本，不使用 Markdown、表格、Emoji 或特殊符号。除非用户明确询问平台功能，不要提及 CareNest、平台客服、平台安排、平台服务、记录需求或任何未确认的功能；直接围绕用户的问题给出安全、可执行的日常建议。不得编造电话号码、地址、服务时间或平台尚未提供的信息。不得虚构 CareNest 功能、服务能力或工作人员安排。不得给出具体临床阈值、诊断标准或用药数量。";
     private final AiProviderProperties properties;
     private final AiSafetyClassifier classifier;
     private final AiResponseGuard responseGuard;
@@ -30,7 +30,10 @@ public class CloudAiProvider extends AiProvider {
         this.classifier = classifier;
         this.responseGuard = responseGuard;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder().connectTimeout(properties.timeout()).build();
+        this.httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(properties.timeout())
+                .build();
     }
 
     @Override public Result answer(String content) {
