@@ -87,7 +87,21 @@ export function qualificationSkillDictionaryErrorMessage(code: number) {
 }
 
 export function sanitizeMaskedId(value: string) {
-  return value.replace(/[^\d*]/g, '').slice(0, 18);
+  const characters = value.toUpperCase().replace(/[^\dX]/g, '');
+  let result = '';
+  for (const character of characters) {
+    if (result.length < 3 && /\d/.test(character)) {
+      result += character;
+    } else if (result.length === 3 && /[\dX]/.test(character)) {
+      result += character;
+    }
+    if (result.length === 4) break;
+  }
+  return result;
+}
+
+export function maskIdentityLastFour(value: string) {
+  return `${'*'.repeat(14)}${value.toUpperCase()}`;
 }
 
 export function sanitizeCertificateNo(value: string) {
@@ -100,7 +114,7 @@ export function sanitizeRealName(value: string) {
 
 export function validateQualificationForm(input: {
   realName: string;
-  idNoMasked: string;
+  idNoLastFour: string;
   certificateNo: string;
   serviceSkillCodes: string[];
   availableSkillCodes: string[];
@@ -109,7 +123,7 @@ export function validateQualificationForm(input: {
   const realName = input.realName.trim();
   if (realName.length < 2 || realName.length > 32) return '请填写 2 至 32 个字符的真实姓名。';
   if (!/^[\p{L}][\p{L}·. '\-]{1,31}$/u.test(realName)) return '姓名仅支持中文、字母及常用姓名分隔符。';
-  if (!/^\*{14}\d{4}$/.test(input.idNoMasked)) return '脱敏证件号应为 14 个星号加证件号后 4 位。';
+  if (!/^\d{3}[\dX]$/.test(input.idNoLastFour)) return '请填写证件号后 4 位，末位可以是数字或 X。';
   if (!/^[A-Z0-9][A-Z0-9-]{3,39}$/.test(input.certificateNo)) return '证书号应为 4 至 40 位字母、数字或短横线。';
   if (!input.availableSkillCodes.length) return '护理技能字典暂不可用，当前无法提交。';
   if (!input.serviceSkillCodes.length) return '请至少选择一项护理技能。';

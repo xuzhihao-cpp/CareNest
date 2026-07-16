@@ -82,4 +82,18 @@ public class AuthService {
         }
         throw new ForbiddenException();
     }
+
+    public void requirePermission(CurrentUser currentUser, String permissionCode) {
+        Integer permissionCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM user_role ur
+                JOIN sys_role r ON r.role_id = ur.role_id AND r.enabled = 1
+                JOIN role_permission rp ON rp.role_id = r.role_id
+                JOIN sys_permission p ON p.permission_id = rp.permission_id AND p.enabled = 1
+                WHERE ur.user_id = ? AND p.permission_code = ?
+                """, Integer.class, currentUser.userId(), permissionCode);
+        if (permissionCount == null || permissionCount == 0) {
+            throw new ForbiddenException();
+        }
+    }
 }

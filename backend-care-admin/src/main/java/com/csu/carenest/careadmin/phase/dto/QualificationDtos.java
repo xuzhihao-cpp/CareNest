@@ -21,7 +21,32 @@ public final class QualificationDtos {
             @NotEmpty List<@NotBlank String> serviceSkillCodes) {
     }
 
-    public record ApplicationResponse(String applicationId, String auditStatus) {
+    public record CertificateFile(
+            String fileId,
+            String originalName,
+            String mimeType,
+            long size,
+            boolean previewable) {
+    }
+
+    public record ApplicationResponse(
+            String applicationId,
+            String nurseId,
+            String nurseName,
+            String auditStatus,
+            String realName,
+            String idNoMasked,
+            String certificateNoMasked,
+            List<CertificateFile> certificateFiles,
+            List<String> serviceSkillCodes,
+            String reviewComment,
+            String submittedAt,
+            String reviewedAt) {
+
+        public ApplicationResponse(String applicationId, String auditStatus) {
+            this(applicationId, null, null, auditStatus, null, null, null,
+                    List.of(), List.of(), null, null, null);
+        }
     }
 
     public record QualificationReviewRequest(@NotBlank String auditStatus, String reviewComment) {
@@ -37,6 +62,21 @@ public final class QualificationDtos {
             String remark) {
     }
 
-    public record TrainingResponse(String nurseId, String trainingStatus, String expiredAt) {
+    public record TrainingResponse(
+            String nurseId,
+            String nurseName,
+            String qualificationStatus,
+            String trainingStatus,
+            String trainingBatch,
+            String passedAt,
+            String expiredAt,
+            String remark) {
+
+        public TrainingResponse(String nurseId, String trainingStatus, String expiredAt) {
+            this(nurseId, null, null, trainingStatus, null, null, expiredAt, null);
+        }
+    }
+
+    public record SkillOption(String value, String label, int sort) {
     }
 }

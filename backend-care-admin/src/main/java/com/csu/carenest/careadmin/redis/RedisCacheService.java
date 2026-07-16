@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class RedisCacheService {
@@ -54,6 +55,17 @@ public class RedisCacheService {
             redisTemplate.delete(keys);
         } catch (DataAccessException ignored) {
             // A later read will safely rebuild the cache from MySQL.
+        }
+    }
+
+    public void evictByPrefix(String prefix) {
+        try {
+            Set<String> keys = redisTemplate.keys(prefix + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+        } catch (DataAccessException ignored) {
+            // Cache invalidation must never replace MySQL business truth.
         }
     }
 }
