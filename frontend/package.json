@@ -16,6 +16,14 @@
     "test:stage23": "node --test scripts/test-stage-twenty-three.mjs",
     "test:stage24": "node --test scripts/test-stage-twenty-four.mjs",
     "test:stage25": "node --test scripts/test-stage-twenty-five.mjs",
+    "test:stage26": "node --test scripts/test-stage-twenty-six.mjs",
+    "test:stage27": "node --test scripts/test-stage-twenty-seven.mjs",
+    "test:stage28": "node --test scripts/test-stage-twenty-eight.mjs",
+    "test:stage29": "node --test scripts/test-stage-twenty-nine.mjs",
+    "test:stage30": "node --test scripts/test-stage-thirty.mjs && vitest run --config scripts/vitest-stage-thirty.config.ts",
+    "test:stage30:components": "vitest run --config scripts/vitest-stage-thirty.config.ts",
+    "test:stage31": "node --test scripts/test-stage-thirty-one.mjs && vitest run --config scripts/vitest-stage-thirty-one.config.ts",
+    "test:stage31:components": "vitest run --config scripts/vitest-stage-thirty-one.config.ts",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview --host 127.0.0.1 --port 5173"
   },
@@ -28,9 +36,13 @@
   "devDependencies": {
     "@dcloudio/types": "^3.4.31",
     "@dcloudio/vite-plugin-uni": "3.0.0-alpha-5020120260706001",
+    "@vitejs/plugin-vue": "5.2.4",
+    "@vue/test-utils": "^2.4.11",
+    "happy-dom": "^20.10.6",
     "openapi-typescript": "7.13.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.2",
+    "vitest": "2.1.9",
     "vue-tsc": "^2.0.29"
   }
 }

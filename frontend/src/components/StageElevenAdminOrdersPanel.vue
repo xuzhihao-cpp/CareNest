@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { displayLabel } from '@/utils/displayLabels';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import StageTwentyNineRecommendationPanel from '@/components/StageTwentyNineRecommendationPanel.vue';
+import StageThirtyAdminPreferenceSummary from '@/components/StageThirtyAdminPreferenceSummary.vue';
+import StageThirtyOneAttentionPanel from '@/components/StageThirtyOneAttentionPanel.vue';
+import { createLatestRequestGate } from '@/utils/latestRequestGate';
 import {
   getAdminOrderDetail,
-  getAdminOrders,
-  getStageElevenEndpointSummary
+  getAdminOrders
 } from '@/api/stageEleven';
 import type { ApiResponse } from '@/types/api';
 import type { RoleCode } from '@/types/stageOne';
@@ -17,44 +19,61 @@ import type {
   AdminOrderStatus
 } from '@/types/stageEleven';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   roleCode: RoleCode;
   authUser: AuthUser | null;
-}>();
+  canViewRecommendations: boolean;
+  canReviewAttentionNotices?: boolean;
+}>(), {
+  canReviewAttentionNotices: false
+});
 
-const statusOptions: Array<{ value: AdminOrderStatus | ''; label: string }> = [
+const adminStatusOptions: Array<{ value: AdminOrderStatus | ''; label: string }> = [
   { value: 'WAIT_DISPATCH', label: '待派单' },
   { value: '', label: '全部' },
   { value: 'DISPATCHED', label: '已派单' },
+  { value: 'ACCEPTED', label: '护理员已接单' },
+  { value: 'ON_THE_WAY', label: '正在前往' },
   { value: 'SERVING', label: '服务中' },
   { value: 'WAIT_REPORT', label: '待报告' },
   { value: 'WAIT_CONFIRM', label: '待确认' },
   { value: 'COMPLETED', label: '已完成' },
   { value: 'CANCELED', label: '已取消' }
 ];
+const reviewStatusOptions: Array<{ value: AdminOrderStatus | ''; label: string }> = [
+  { value: '', label: '全部可审阅' },
+  ...adminStatusOptions.filter((item) => item.value && !['WAIT_DISPATCH', 'CANCELED'].includes(item.value))
+];
+const statusOptions = computed(() => props.roleCode === 'CUSTOMER_SERVICE'
+  ? reviewStatusOptions
+  : adminStatusOptions);
 
 const query = ref<AdminOrderQuery>({
   page: 1,
   size: 10,
-  orderStatus: 'WAIT_DISPATCH',
+  orderStatus: props.roleCode === 'CUSTOMER_SERVICE' ? '' : 'WAIT_DISPATCH',
   keyword: '',
   dateFrom: '',
   dateTo: ''
 });
 const records = ref<AdminOrderRecord[]>([]);
 const selectedDetail = ref<AdminOrderRecord | null>(null);
+const selectedOrderId = ref('');
 const loading = ref(false);
 const message = ref('');
 const error = ref('');
-const lastTraceId = ref('');
-const lastResponse = ref<ApiResponse<AdminOrderPageResult> | null>(null);
-const endpoints = getStageElevenEndpointSummary();
+const listRequestGate = createLatestRequestGate<string>();
+const detailRequestGate = createLatestRequestGate<string>();
 
-const canUsePanel = computed(() => props.roleCode === 'ADMIN' && props.authUser?.roles.includes('ADMIN'));
-const waitDispatchCount = computed(() => records.value.filter((item) => item.orderStatus === 'WAIT_DISPATCH').length);
-
+const canUsePanel = computed(() => (
+  props.roleCode === 'ADMIN' && props.authUser?.roles.includes('ADMIN')
+) || (
+  props.roleCode === 'CUSTOMER_SERVICE'
+  && props.authUser?.roles.includes('CUSTOMER_SERVICE')
+  && props.canReviewAttentionNotices
+));
 function statusLabel(value: AdminOrderStatus) {
-  return statusOptions.find((item) => item.value === value)?.label ?? value;
+  return adminStatusOptions.find((item) => item.value === value)?.label ?? '状态待同步';
 }
 
 function statusClass(value: AdminOrderStatus) {
@@ -76,17 +95,31 @@ function statusClass(value: AdminOrderStatus) {
   return 'tag-blue';
 }
 
+function attentionReviewAvailable(status: AdminOrderStatus) {
+  return !['WAIT_DISPATCH', 'CANCELED'].includes(status);
+}
+
 function applyPageResponse(response: ApiResponse<AdminOrderPageResult>, successText: string) {
-  lastResponse.value = response;
-  lastTraceId.value = response.traceId;
   if (response.code === 0) {
-    records.value = response.data.records;
+    const visibleRecords = props.roleCode === 'CUSTOMER_SERVICE'
+      ? response.data.records.filter((item) => attentionReviewAvailable(item.orderStatus))
+      : response.data.records;
+    records.value = visibleRecords;
     error.value = '';
     message.value = successText;
-    selectedDetail.value = response.data.records[0] ?? null;
+    const nextDetail = visibleRecords.find((item) => item.orderId === selectedOrderId.value)
+      ?? visibleRecords[0]
+      ?? null;
+    if (nextDetail?.orderId !== selectedOrderId.value) {
+      detailRequestGate.invalidate();
+    }
+    selectedOrderId.value = nextDetail?.orderId ?? '';
+    selectedDetail.value = nextDetail;
   } else {
     records.value = [];
+    selectedOrderId.value = '';
     selectedDetail.value = null;
+    detailRequestGate.invalidate();
     message.value = '';
     error.value = `${response.code} ${response.message}`;
   }
@@ -96,8 +129,14 @@ async function loadOrders(scenario: AdminOrderScenario = 'normal') {
   if (!canUsePanel.value) {
     return;
   }
+  const requestKey = JSON.stringify(query.value);
+  const requestTicket = listRequestGate.begin(`${scenario}:${requestKey}`);
   loading.value = true;
   const response = await getAdminOrders(query.value, scenario);
+  const currentKey = `${scenario}:${JSON.stringify(query.value)}`;
+  if (!listRequestGate.isCurrent(requestTicket, currentKey)) {
+    return;
+  }
   loading.value = false;
   applyPageResponse(
     response,
@@ -106,13 +145,24 @@ async function loadOrders(scenario: AdminOrderScenario = 'normal') {
 }
 
 async function loadDetail(orderId: string) {
+  const requestTicket = detailRequestGate.begin(orderId);
+  selectedOrderId.value = orderId;
+  selectedDetail.value = records.value.find((item) => item.orderId === orderId) ?? null;
   const response = await getAdminOrderDetail(orderId);
-  lastResponse.value = response;
-  lastTraceId.value = response.traceId;
+  if (!detailRequestGate.isCurrent(requestTicket, selectedOrderId.value)) {
+    return;
+  }
   if (response.code === 0) {
-    selectedDetail.value = response.data.records[0] ?? null;
-    message.value = '';
-    error.value = '';
+    const detail = response.data.records.find((item) => item.orderId === orderId) ?? null;
+    if (detail) {
+      selectedDetail.value = detail;
+      message.value = '';
+      error.value = '';
+    } else {
+      selectedDetail.value = null;
+      message.value = '';
+      error.value = '订单详情响应不完整，请刷新后重试';
+    }
   } else {
     selectedDetail.value = null;
     message.value = '';
@@ -140,29 +190,17 @@ function clearFilters() {
 onMounted(() => {
   loadOrders();
 });
+
+onBeforeUnmount(() => {
+  listRequestGate.invalidate();
+  detailRequestGate.invalidate();
+});
 </script>
 
 <template>
   <view class="stage-eleven-panel glass-panel" aria-label="阶段11管理端订单列表">
     <view class="section-title">
       <text>订单查询</text>
-    </view>
-
-    <view class="stage-eleven-summary">
-      <view>
-        <text class="section-mini">records / WAIT_DISPATCH / page</text>
-        <text class="permission-main">{{ records.length }} / {{ waitDispatchCount }} / {{ query.page }}</text>
-        <text class="auth-meta">管理端只筛选查看，不直接改状态</text>
-      </view>
-      <view>
-        <text class="section-mini">traceId</text>
-        <text class="permission-main">{{ lastTraceId || '暂无追踪信息' }}</text>
-        <text class="auth-meta">按状态筛选刚创建的订单</text>
-      </view>
-    </view>
-
-    <view class="stage-eleven-endpoints">
-      <text v-for="item in endpoints" :key="item" class="tag tag-blue">{{ item }}</text>
     </view>
 
     <view class="admin-order-filters">
@@ -241,7 +279,7 @@ onMounted(() => {
         <view class="contract-response">
           <text class="section-mini">订单详情</text>
           <text v-if="selectedDetail" class="permission-main">
-            {{ selectedDetail.serviceName || '护理服务' }} · {{ displayLabel(selectedDetail.orderStatus) }}
+            {{ selectedDetail.serviceName || '护理服务' }} · {{ statusLabel(selectedDetail.orderStatus) }}
           </text>
           <text v-if="selectedDetail" class="auth-meta">
             预约时间：{{ selectedDetail.scheduledStart }}{{ selectedDetail.contactName ? ` · 联系人：${selectedDetail.contactName}` : '' }}
@@ -250,20 +288,35 @@ onMounted(() => {
         </view>
         <view v-if="selectedDetail" class="status-log-list">
           <view v-for="log in selectedDetail.statusLogs" :key="log.statusLogId" class="status-log-row">
-            <text class="flow-label">{{ displayLabel(log.fromStatus || 'INIT') }} → {{ displayLabel(log.toStatus) }}</text>
-            <text class="flow-time">{{ log.changedBy }} · {{ log.changeReason }}</text>
+            <text class="flow-label">{{ log.fromStatus ? statusLabel(log.fromStatus) : '订单已创建' }} → {{ statusLabel(log.toStatus) }}</text>
+            <text class="flow-time">{{ log.changeReason || '订单状态已更新' }}</text>
           </view>
         </view>
+        <StageThirtyAdminPreferenceSummary v-if="selectedDetail && canViewRecommendations" :order="selectedDetail" />
+        <StageTwentyNineRecommendationPanel
+          v-if="selectedDetail && canViewRecommendations"
+          mode="order"
+          :order-id="selectedDetail.orderId"
+        />
+        <view v-else-if="selectedDetail" class="recommendation-access-note">当前账号无权查看护理推荐信息。</view>
+        <StageThirtyOneAttentionPanel
+          v-if="selectedDetail && canReviewAttentionNotices && attentionReviewAvailable(selectedDetail.orderStatus)"
+          :key="selectedDetail.orderId"
+          :order-id="selectedDetail.orderId"
+          :task-status="selectedDetail.orderStatus"
+          read-only
+        />
+        <view
+          v-else-if="selectedDetail && attentionReviewAvailable(selectedDetail.orderStatus)"
+          class="recommendation-access-note"
+        >当前账号无权审阅服务前注意事项。</view>
       </view>
     </view>
 
-    <view v-if="lastResponse" class="contract-response">
-      <text class="section-mini">最近一次管理端订单响应 DTO</text>
-      <text>{{ lastResponse.code }} / {{ lastResponse.message }} / {{ lastResponse.traceId }}</text>
-      <text v-if="lastResponse.code === 0">
-        records {{ lastResponse.data.records.length }} · total {{ lastResponse.data.total }} · page
-        {{ lastResponse.data.page }} · size {{ lastResponse.data.size }}
-      </text>
-    </view>
   </view>
 </template>
+
+<style scoped>
+.recommendation-access-note { padding:14px 16px; border-left:4px solid #c98e34; background:#fff8e8; color:#755417; font-size:13px; line-height:1.6; }
+.stage-eleven-panel :deep(.attention-panel) { margin-top:18px; padding:20px; border:1px solid #d5e3df; background:#fbfdfc; }
+</style>

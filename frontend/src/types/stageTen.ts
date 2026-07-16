@@ -26,6 +26,8 @@ export interface FamilyOrderResponse {
   servicePrice?: number;
   contactName?: string;
   contactPhone?: string;
+  preferredNurseName?: string;
+  preferredNurseReason?: string;
   remark: string;
 }
 

@@ -434,15 +434,18 @@ onMounted(async () => {
       />
 
       <StageElevenAdminOrdersPanel
-        v-if="props.roleCode === 'ADMIN'"
+        v-if="props.roleCode === 'ADMIN' || (props.roleCode === 'CUSTOMER_SERVICE' && permissionSet.has('CARE_ATTENTION_REVIEW'))"
         :role-code="props.roleCode"
         :auth-user="authUser"
+        :can-view-recommendations="permissionSet.has('NURSE_RECOMMEND_VIEW')"
+        :can-review-attention-notices="permissionSet.has('CARE_ATTENTION_REVIEW')"
       />
 
       <StageTwelveDispatchPanel
         v-if="props.roleCode === 'ADMIN' || props.roleCode === 'NURSE'"
         :role-code="props.roleCode"
         :auth-user="authUser"
+        :can-view-recommendations="permissionSet.has('NURSE_RECOMMEND_VIEW')"
       />
 
       <StageThirteenNurseTasksPanel

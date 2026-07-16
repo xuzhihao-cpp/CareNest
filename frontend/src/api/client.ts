@@ -75,8 +75,25 @@ export async function request<T>(options: RequestOptions<T>): Promise<ApiRespons
 
   const session = readAuthSession();
 
+  if (options.signal?.aborted) {
+    return failure(499, '请求已取消', {} as T, `frontend-${Date.now()}`);
+  }
+
   return new Promise<ApiResponse<T>>((resolve) => {
-    uni.request({
+    let settled = false;
+    let requestTask: { abort: () => void } | null = null;
+    const finish = (response: ApiResponse<T>) => {
+      if (settled) return;
+      settled = true;
+      options.signal?.removeEventListener('abort', abortRequest);
+      resolve(response);
+    };
+    const abortRequest = () => {
+      requestTask?.abort();
+      finish(failure(499, '请求已取消', {} as T, `frontend-${Date.now()}`));
+    };
+
+    requestTask = uni.request({
       url: `${API_BASE}${options.url}`,
       method: options.method,
       data: options.data as string | Record<string, unknown> | ArrayBuffer | undefined,
@@ -90,19 +107,19 @@ export async function request<T>(options: RequestOptions<T>): Promise<ApiRespons
         const responseData = parseResponsePayload(response.data);
         if (isApiResponse<T>(responseData)) {
           if (USE_MOCK && options.mockFallback && options.mock && responseData.code !== 0) {
-            resolve(options.mock);
+            finish(options.mock);
             return;
           }
-          resolve(responseData);
+          finish(responseData);
           return;
         }
 
         if (USE_MOCK && options.mockFallback && options.mock) {
-          resolve(options.mock);
+          finish(options.mock);
           return;
         }
 
-        resolve(
+        finish(
           failure(
             response.statusCode >= 400 ? response.statusCode : 500,
             '接口响应格式错误',
@@ -112,12 +129,23 @@ export async function request<T>(options: RequestOptions<T>): Promise<ApiRespons
         );
       },
       fail: () => {
-        if (USE_MOCK && options.mockFallback && options.mock) {
-          resolve(options.mock);
+        if (options.signal?.aborted) {
+          finish(failure(499, '请求已取消', {} as T, `frontend-${Date.now()}`));
           return;
         }
-        resolve(failure(500, '接口请求失败', {} as T, `frontend-${Date.now()}`));
+        if (USE_MOCK && options.mockFallback && options.mock) {
+          finish(options.mock);
+          return;
+        }
+        finish(failure(500, '接口请求失败', {} as T, `frontend-${Date.now()}`));
       }
     });
+
+    if (settled) return;
+    if (options.signal?.aborted) {
+      abortRequest();
+    } else {
+      options.signal?.addEventListener('abort', abortRequest, { once: true });
+    }
   });
 }
