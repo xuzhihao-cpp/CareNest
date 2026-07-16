@@ -18,15 +18,17 @@ import java.util.Map;
 @ConditionalOnProperty(prefix = "carenest.ai", name = "provider", havingValue = "cloud")
 public class CloudAiProvider extends AiProvider {
     private static final Logger log = LoggerFactory.getLogger(CloudAiProvider.class);
-    private static final String SYSTEM_PROMPT = "你是 CareNest 养老照护助手。只回答日常照护、平台服务和生活支持问题。不能提供诊断、处方、用药剂量调整或替代医生的判断。遇到紧急症状必须建议立即联系家属、平台客服或当地急救。回答简洁、明确、适合长辈阅读。只输出短句纯文本，不使用 Markdown、表格、Emoji 或特殊符号。不得编造电话号码、地址、服务时间或平台尚未提供的信息。";
+    private static final String SYSTEM_PROMPT = "你是 CareNest 养老照护助手。只回答日常照护、平台服务和生活支持问题。不能提供诊断、处方、用药剂量调整或替代医生的判断。遇到紧急症状必须建议立即联系家属、平台客服或当地急救。回答简洁、明确、适合长辈阅读。只输出短句纯文本，不使用 Markdown、表格、Emoji 或特殊符号。不得编造电话号码、地址、服务时间或平台尚未提供的信息。不得虚构 CareNest 功能、服务能力或工作人员安排。不得给出具体临床阈值、诊断标准或用药数量。";
     private final AiProviderProperties properties;
     private final AiSafetyClassifier classifier;
+    private final AiResponseGuard responseGuard;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    public CloudAiProvider(AiProviderProperties properties, AiSafetyClassifier classifier, ObjectMapper objectMapper) {
+    public CloudAiProvider(AiProviderProperties properties, AiSafetyClassifier classifier, AiResponseGuard responseGuard, ObjectMapper objectMapper) {
         this.properties = properties;
         this.classifier = classifier;
+        this.responseGuard = responseGuard;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder().connectTimeout(properties.timeout()).build();
     }
@@ -52,8 +54,9 @@ public class CloudAiProvider extends AiProvider {
             }
             JsonNode root = objectMapper.readTree(response.body());
             String answer = root.path("choices").path(0).path("message").path("content").asText("").trim();
-            if (answer.isEmpty() || containsUnsupportedPlatformClaim(answer)) {
-                if (!answer.isEmpty()) log.warn("AI provider response rejected by platform-claim guard");
+            var rejection = responseGuard.rejectionReason(answer);
+            if (answer.isEmpty() || rejection.isPresent()) {
+                rejection.ifPresent(reason -> log.warn("AI provider response rejected: {}", reason));
                 return safety;
             }
             return new Result(answer, "NORMAL", "DAILY_CARE", "NORMAL");
@@ -68,14 +71,4 @@ public class CloudAiProvider extends AiProvider {
         return URI.create(base.endsWith("/chat/completions") ? base : base + "/chat/completions");
     }
 
-    private boolean containsUnsupportedPlatformClaim(String answer) {
-        String compact = answer.replaceAll("\\s+", "");
-        return compact.contains("24小时")
-                || compact.contains("二十四小时")
-                || compact.contains("全天在线")
-                || compact.contains("全程陪伴")
-                || compact.contains("客服电话")
-                || compact.contains("随时协助")
-                || compact.matches("(?s).*400[-—－]?[0-9xX].*");
-    }
 }
