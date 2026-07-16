@@ -32,3 +32,5 @@ carenest:
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
     region: ${MINIO_REGION:us-east-1}
+  demo-data:
+    seed-pattern: ${DEMO_DATA_SEED_PATTERN:file:./db/seed/*.sql}
