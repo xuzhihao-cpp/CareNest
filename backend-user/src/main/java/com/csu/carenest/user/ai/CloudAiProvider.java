@@ -52,7 +52,11 @@ public class CloudAiProvider extends AiProvider {
             }
             JsonNode root = objectMapper.readTree(response.body());
             String answer = root.path("choices").path(0).path("message").path("content").asText("").trim();
-            return answer.isEmpty() ? safety : new Result(answer, "NORMAL", "DAILY_CARE", "NORMAL");
+            if (answer.isEmpty() || containsUnsupportedPlatformClaim(answer)) {
+                if (!answer.isEmpty()) log.warn("AI provider response rejected by platform-claim guard");
+                return safety;
+            }
+            return new Result(answer, "NORMAL", "DAILY_CARE", "NORMAL");
         } catch (Exception exception) {
             log.warn("AI provider call failed: {}", exception.getClass().getSimpleName());
             return safety;
@@ -62,5 +66,16 @@ public class CloudAiProvider extends AiProvider {
     private URI endpoint() {
         String base = properties.endpoint().replaceAll("/+$", "");
         return URI.create(base.endsWith("/chat/completions") ? base : base + "/chat/completions");
+    }
+
+    private boolean containsUnsupportedPlatformClaim(String answer) {
+        String compact = answer.replaceAll("\\s+", "");
+        return compact.contains("24小时")
+                || compact.contains("二十四小时")
+                || compact.contains("全天在线")
+                || compact.contains("全程陪伴")
+                || compact.contains("客服电话")
+                || compact.contains("随时协助")
+                || compact.matches("(?s).*400[-—－]?[0-9xX].*");
     }
 }

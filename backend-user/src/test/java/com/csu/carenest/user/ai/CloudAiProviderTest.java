@@ -56,4 +56,30 @@ class CloudAiProviderTest {
         assertEquals("URGENT", result.priority());
         assertTrue(result.answer().contains("急救"));
     }
+
+    @Test
+    void rejectsUnsupportedPlatformPromisesFromCloudResponse() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/chat/completions", exchange -> {
+            byte[] body = "{\"choices\":[{\"message\":{\"content\":\"CareNest会全程陪伴，平台客服24小时在线，请拨打400-XXX-XXXX。\"}}]}"
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            AiProviderProperties properties = new AiProviderProperties(
+                    "cloud", "http://127.0.0.1:" + server.getAddress().getPort(), "test-key", "qwen-plus", Duration.ofSeconds(2));
+            CloudAiProvider provider = new CloudAiProvider(properties, new AiSafetyClassifier(), new ObjectMapper());
+
+            AiProvider.Result result = provider.answer("平台可以提供哪些帮助？");
+
+            assertFalse(result.answer().contains("24小时"));
+            assertFalse(result.answer().contains("400-"));
+            assertFalse(result.answer().contains("全程陪伴"));
+        } finally {
+            server.stop(0);
+        }
+    }
 }

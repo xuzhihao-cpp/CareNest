@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 public class AiSafetyClassifier {
     public AiProvider.Result classify(String content) {
         String text = content == null ? "" : content.toLowerCase();
-        if (contains(text, "胸痛", "胸口", "呼吸困难", "喘不上气", "昏迷", "意识不清", "自杀", "轻生", "摔倒受伤")) {
+        if (contains(text, "胸痛", "胸口", "呼吸困难", "喘不上气", "昏迷", "意识不清", "死亡", "死了", "不想活", "活不下去", "自杀", "轻生", "摔倒受伤")) {
             return new AiProvider.Result("当前描述可能存在紧急风险。请立即联系家属、平台客服或拨打当地急救电话；我已为你提交紧急协助工单。", "CRITICAL", "EMERGENCY", "URGENT");
         }
         if (contains(text, "药", "剂量", "加量", "减量", "诊断", "处方", "治疗", "血压", "症状")) {
