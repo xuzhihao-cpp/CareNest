@@ -20,6 +20,17 @@ CREATE TABLE IF NOT EXISTS nurse_profile (
   CONSTRAINT ck_nurse_profile_status CHECK (profile_status IN ('ACTIVE','INACTIVE'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Nurse profile and admission summary';
 
+CREATE TABLE IF NOT EXISTS nurse_skill_dictionary (
+  skill_code VARCHAR(64) NOT NULL COMMENT 'Stable nurse skill code',
+  skill_name VARCHAR(128) NOT NULL COMMENT 'Chinese business display name',
+  sort INT NOT NULL DEFAULT 0 COMMENT 'Display order',
+  enabled TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Whether the option can be selected',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time',
+  PRIMARY KEY (skill_code),
+  KEY idx_nurse_skill_dictionary_enabled (enabled, sort)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Selectable nurse service skill dictionary';
+
 SET @has_file_asset_owner_idx := (
   SELECT COUNT(*) FROM information_schema.statistics
   WHERE table_schema = DATABASE()

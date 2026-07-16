@@ -71,6 +71,9 @@ VALUES
 
 DELETE FROM health_update_suggestion WHERE suggestion_id = 'suggestion_001';
 DELETE FROM health_info_review_task WHERE review_task_id = 'review_task_019_001';
+-- The suggestion and its review task reference each other during seed creation.
+-- Both rows are inserted in this transaction before foreign-key checks resume.
+SET FOREIGN_KEY_CHECKS = 0;
 INSERT INTO health_update_suggestion
   (suggestion_id, elder_id, order_id, field_name, old_value, new_value, source_type, source_id, reason, suggestion_status, created_by, review_task_id)
 VALUES
@@ -80,6 +83,8 @@ INSERT INTO health_info_review_task
   (review_task_id, suggestion_id, task_type, order_id, elder_id, field_name, old_value, new_value, source_type, source_id, review_status, created_by)
 VALUES
   ('review_task_019_001', 'suggestion_001', 'HEALTH_UPDATE', 'order_001', 'elder_001', 'riskTags', JSON_ARRAY(JSON_OBJECT('tagCode','FALL_RISK','tagName','跌倒风险')), JSON_OBJECT('tagCode','NIGHT_FALL_RISK','tagName','夜间跌倒风险'), 'SERVICE_RECORD', 'service_record_001', 'PENDING', 'nurse-001');
+
+SET FOREIGN_KEY_CHECKS = 1;
 
 INSERT INTO operation_log
   (log_id, operator_id, role_code, operation_type, biz_type, biz_id, after_value, trace_id)

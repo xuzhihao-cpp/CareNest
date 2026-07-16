@@ -26,6 +26,7 @@ import {
   qualificationFileSize,
   qualificationNurseStatusLabel,
   qualificationTrainingErrorMessage,
+  maskIdentityLastFour,
   sanitizeCertificateNo,
   sanitizeMaskedId,
   sanitizeRealName,
@@ -64,8 +65,20 @@ const error = ref('');
 const notice = ref('');
 const trainingError = ref('');
 const realName = ref('');
-const idNoMasked = ref('');
+const idNoLastFour = ref('');
 const certificateNo = ref('');
+
+const qualificationRetryStorage = {
+  getStorageSync(key: string) {
+    return uni.getStorageSync(key);
+  },
+  setStorageSync(key: string, value: unknown) {
+    uni.setStorageSync(key, value);
+  },
+  removeStorageSync(key: string) {
+    uni.removeStorageSync(key);
+  }
+};
 
 const currentStatus = computed<QualificationAuditStatus | null>(() => current.value?.auditStatus ?? null);
 const canPrepareApplication = computed(() => currentVerified.value && canSubmitQualification(currentStatus.value));
@@ -115,11 +128,11 @@ function currentUserId() {
 }
 
 function persistUploadedDrafts() {
-  writeQualificationRetryFiles(uni, currentUserId(), files.value);
+  writeQualificationRetryFiles(qualificationRetryStorage, currentUserId(), files.value);
 }
 
 function restoreUploadedDrafts() {
-  const restored = readQualificationRetryFiles(uni, currentUserId());
+  const restored = readQualificationRetryFiles(qualificationRetryStorage, currentUserId());
   files.value = restored.map((file, index) => ({
     clientKey: `restored-${index}-${file.fileId}`,
     path: '',
@@ -136,13 +149,13 @@ function restoreUploadedDrafts() {
 function clearDrafts(clearPersisted = false) {
   files.value.forEach(releaseDraft);
   files.value = [];
-  if (clearPersisted) clearQualificationRetryFiles(uni, currentUserId());
+  if (clearPersisted) clearQualificationRetryFiles(qualificationRetryStorage, currentUserId());
 }
 
 function prefillFromCurrent(record: QualificationApplicationRecord) {
   if (!canSubmitQualification(record.auditStatus)) return;
   realName.value = record.realName;
-  idNoMasked.value = record.idNoMasked;
+  idNoLastFour.value = sanitizeMaskedId(record.idNoMasked.slice(-4));
   selectedSkillCodes.value = record.serviceSkillCodes.filter((code) => skills.value.some((skill) => skill.value === code));
   certificateNo.value = '';
 }
@@ -180,7 +193,7 @@ async function loadContext(options?: { preserveNotice?: boolean }) {
     current.value = currentResponse.data;
     currentVerified.value = true;
     if (reconcileQualificationRetryFiles(
-      uni, currentUserId(), currentResponse.data.auditStatus
+      qualificationRetryStorage, currentUserId(), currentResponse.data.auditStatus
     )) clearDrafts(false);
     prefillFromCurrent(currentResponse.data);
   } else if (currentResponse.code === 404) {
@@ -204,16 +217,33 @@ function refreshContext() {
   void loadContext();
 }
 
+function inputEventValue(event: Event) {
+  const detailValue = (event as unknown as { detail?: { value?: unknown } }).detail?.value;
+  if (typeof detailValue === 'string') return detailValue;
+  return (event.target as HTMLInputElement | null)?.value ?? '';
+}
+
+function syncInputValue(event: Event, value: string) {
+  const input = event.target as HTMLInputElement | null;
+  if (input && typeof input.value === 'string' && input.value !== value) input.value = value;
+}
+
 function onRealNameInput(event: Event) {
-  realName.value = sanitizeRealName((event.target as HTMLInputElement).value);
+  const value = sanitizeRealName(inputEventValue(event));
+  syncInputValue(event, value);
+  realName.value = value;
 }
 
 function onMaskedIdInput(event: Event) {
-  idNoMasked.value = sanitizeMaskedId((event.target as HTMLInputElement).value);
+  const value = sanitizeMaskedId(inputEventValue(event));
+  syncInputValue(event, value);
+  idNoLastFour.value = value;
 }
 
 function onCertificateNoInput(event: Event) {
-  certificateNo.value = sanitizeCertificateNo((event.target as HTMLInputElement).value);
+  const value = sanitizeCertificateNo(inputEventValue(event));
+  syncInputValue(event, value);
+  certificateNo.value = value;
 }
 
 function toggleSkill(code: string) {
@@ -325,7 +355,7 @@ async function submitApplication() {
   if (!permissionReady.value || !canSubmitByPermission.value || !canPrepareApplication.value) return;
   const validationError = validateQualificationForm({
     realName: realName.value,
-    idNoMasked: idNoMasked.value,
+    idNoLastFour: idNoLastFour.value,
     certificateNo: certificateNo.value,
     serviceSkillCodes: selectedSkillCodes.value,
     availableSkillCodes: skills.value.map((item) => item.value),
@@ -361,7 +391,7 @@ async function submitApplication() {
 
   const response = await submitQualificationApplication({
     realName: realName.value.trim(),
-    idNoMasked: idNoMasked.value,
+    idNoMasked: maskIdentityLastFour(idNoLastFour.value),
     certificateNo: certificateNo.value,
     certificateFileIds: files.value.map((file) => file.uploadedFileId),
     serviceSkillCodes: Array.from(new Set(selectedSkillCodes.value))
@@ -434,7 +464,7 @@ onUnmounted(() => files.value.forEach(releaseDraft));
     <view v-if="canPrepareApplication" class="application-form">
       <view class="form-heading"><text>{{ current ? '重新整理资质材料' : '填写资质申请' }}</text><text>带 * 的内容为必填项</text></view>
       <label class="field"><text>真实姓名 *</text><input :value="realName" maxlength="32" placeholder="与证件姓名保持一致" @input="onRealNameInput" /></label>
-      <label class="field"><text>脱敏证件号 *</text><input :value="idNoMasked" maxlength="18" placeholder="例如：**************1234" @input="onMaskedIdInput" /><small>仅填写 14 个星号和证件号后 4 位，不要输入完整证件号。</small></label>
+      <label class="field"><text>证件号后四位 *</text><input :value="idNoLastFour" maxlength="4" placeholder="例如：1234 或 123X" @input="onMaskedIdInput" /><small>只需填写证件号最后四位，系统会自动隐藏前面的内容。</small></label>
       <label class="field"><text>护理证书号 *</text><input :value="certificateNo" maxlength="40" placeholder="填写证书上的编号" @input="onCertificateNoInput" /></label>
 
       <view class="field"><text>护理技能 *</text><view v-if="skills.length" class="skill-options"><button v-for="skill in skills" :key="skill.value" type="button" :class="{ selected: selectedSkillCodes.includes(skill.value) }" :disabled="submitting" @click="toggleSkill(skill.value)">{{ skill.label }}</button></view><view v-else class="inline-empty">护理技能暂不可选，请稍后刷新。</view></view>

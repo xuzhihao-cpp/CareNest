@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -43,6 +44,7 @@ public final class HealthArchiveDtos {
             String elderId,
             String status,
             String archiveVersion,
+            LocalDateTime submittedAt,
             List<SuggestionItem> suggestions) {
     }
 

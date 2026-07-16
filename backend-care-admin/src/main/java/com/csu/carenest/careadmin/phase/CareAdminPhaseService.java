@@ -285,16 +285,52 @@ public class CareAdminPhaseService {
         }
         String orderId = nextId("order");
         int duration = integer(service, "duration_minutes");
+        LocalDateTime scheduledEnd = scheduledStart.plusMinutes(duration);
+        Map<String, Object> preference = null;
+        if (hasText(request.preferredNurseId())) {
+            preference = requireRow("""
+                    SELECT recommendation_log_id, request_key, nurse_id, recommend_reason
+                    FROM nurse_recommendation_log
+                    WHERE order_id IS NULL AND created_by = ? AND elder_id = ?
+                      AND service_id = ? AND address_id = ? AND scheduled_start_at = ?
+                      AND nurse_id = ? AND available = 1
+                    ORDER BY created_at DESC LIMIT 1
+                    """, currentUser.userId(), request.elderId(), request.serviceId(),
+                    request.addressId(), scheduledStart, request.preferredNurseId());
+            if (!nurseEligibleForOrder(
+                    request.preferredNurseId(), request.serviceId(), scheduledStart, scheduledEnd, "")) {
+                throw new BusinessRuleException();
+            }
+        }
         String addressSnapshot = string(address, "region_code") + " " + string(address, "detail_address");
         jdbcTemplate.update("""
                 INSERT INTO nursing_order
                   (order_id, elder_id, family_id, service_id, address_id, service_address_snapshot, order_status,
                    scheduled_start_at, scheduled_end_at, service_price_cent, contact_name,
-                   contact_phone, remark, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   contact_phone, remark, preferred_nurse_id, preferred_nurse_reason,
+                   preferred_recommendation_log_id, preferred_selected_at, preferred_selected_by, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        IF(? IS NULL, NULL, CURRENT_TIMESTAMP), ?, ?)
                 """, orderId, request.elderId(), currentUser.userId(), request.serviceId(), request.addressId(), addressSnapshot,
-                WAIT_DISPATCH, scheduledStart, scheduledStart.plusMinutes(duration), integer(service, "price_cent"),
-                string(address, "contact_name"), string(address, "contact_phone"), request.remark(), currentUser.userId());
+                WAIT_DISPATCH, scheduledStart, scheduledEnd, integer(service, "price_cent"),
+                string(address, "contact_name"), string(address, "contact_phone"), request.remark(),
+                preference == null ? null : string(preference, "nurse_id"),
+                preference == null ? null : string(preference, "recommend_reason"),
+                preference == null ? null : string(preference, "recommendation_log_id"),
+                preference == null ? null : string(preference, "recommendation_log_id"),
+                preference == null ? null : currentUser.userId(), currentUser.userId());
+        if (preference != null) {
+            jdbcTemplate.update("""
+                    UPDATE nurse_recommendation_log
+                    SET order_id = ?
+                    WHERE request_key = ? AND order_id IS NULL
+                    """, orderId, string(preference, "request_key"));
+            jdbcTemplate.update("""
+                    UPDATE nurse_recommendation_log
+                    SET selected_at = CURRENT_TIMESTAMP, selected_by = ?
+                    WHERE recommendation_log_id = ? AND order_id = ?
+                    """, currentUser.userId(), string(preference, "recommendation_log_id"), orderId);
+        }
         saveStatusLog(orderId, null, WAIT_DISPATCH, currentUser.userId(), "CREATE_FAMILY_ORDER");
         saveOperationLog(currentUser, "CREATE_FAMILY_ORDER", "NURSING_ORDER", orderId, null, request);
         Map<String, Object> createdOrder = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
@@ -308,6 +344,12 @@ public class CareAdminPhaseService {
             Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
             requireStatus(order, WAIT_DISPATCH);
             requireRoleUser(request.nurseId(), "NURSE");
+            if (!nurseEligibleForOrder(
+                    request.nurseId(), string(order, "service_id"),
+                    toLocalDateTime(order.get("scheduled_start_at")),
+                    toLocalDateTime(order.get("scheduled_end_at")), orderId)) {
+                throw new BusinessRuleException();
+            }
             String taskId = nextId("task");
             try {
                 jdbcTemplate.update("""
@@ -695,6 +737,8 @@ public class CareAdminPhaseService {
                         rs.getInt("service_price_cent"),
                         rs.getString("contact_name"),
                         rs.getString("contact_phone"),
+                        rs.getString("preferred_nurse_name"),
+                        rs.getString("preferred_nurse_reason"),
                         rs.getString("remark")
                 ), queryArgs.toArray());
         return new PageData<>(records, total == null ? 0 : total, page, size);
@@ -706,7 +750,9 @@ public class CareAdminPhaseService {
                        si.service_name, o.address_id,
                        COALESCE(o.service_address_snapshot, CONCAT(sa.region_code, ' ', sa.detail_address)) AS service_address,
                        o.scheduled_start_at, o.scheduled_end_at,
-                       o.service_price_cent, o.contact_name, o.contact_phone, o.remark
+                       o.service_price_cent, o.contact_name, o.contact_phone,
+                       preferred_user.display_name AS preferred_nurse_name,
+                       o.preferred_nurse_reason, o.remark
                 """ + orderFromSql();
     }
 
@@ -716,6 +762,7 @@ public class CareAdminPhaseService {
                 JOIN service_item si ON si.service_id = o.service_id
                 JOIN elder_profile e ON e.elder_id = o.elder_id
                 LEFT JOIN service_address sa ON sa.address_id = o.address_id
+                LEFT JOIN sys_user preferred_user ON preferred_user.user_id = o.preferred_nurse_id
                 """;
     }
 
@@ -735,6 +782,8 @@ public class CareAdminPhaseService {
                 integer(row, "service_price_cent"),
                 string(row, "contact_name"),
                 string(row, "contact_phone"),
+                string(row, "preferred_nurse_name"),
+                string(row, "preferred_nurse_reason"),
                 string(row, "remark")
         );
     }
@@ -767,6 +816,48 @@ public class CareAdminPhaseService {
                 WHERE family_id = ? AND elder_id = ? AND binding_status = 'ACTIVE'
                   AND JSON_CONTAINS(scope_codes, JSON_QUOTE(?))
                 """, Integer.class, familyId, elderId, scopeCode);
+        return count != null && count > 0;
+    }
+
+    private boolean nurseEligibleForOrder(
+            String nurseId,
+            String serviceId,
+            LocalDateTime scheduledStart,
+            LocalDateTime scheduledEnd,
+            String excludedOrderId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM nurse_profile np
+                JOIN sys_user u ON u.user_id = np.nurse_id AND u.account_status = 'ENABLED'
+                JOIN nurse_training_record ntr ON ntr.nurse_id = np.nurse_id
+                  AND ntr.created_at = (
+                    SELECT MAX(latest_training.created_at)
+                    FROM nurse_training_record latest_training
+                    WHERE latest_training.nurse_id = np.nurse_id
+                  )
+                WHERE np.nurse_id = ?
+                  AND np.qualification_status = 'APPROVED'
+                  AND np.training_status = 'APPROVED'
+                  AND np.can_take_order = 1
+                  AND np.profile_status = 'ACTIVE'
+                  AND ntr.training_status = 'APPROVED'
+                  AND ntr.expired_at > CURRENT_TIMESTAMP
+                  AND EXISTS (
+                    SELECT 1 FROM nurse_service_skill skill
+                    WHERE skill.nurse_id = np.nurse_id AND skill.service_id = ? AND skill.enabled = 1
+                  )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM nurse_task busy_task
+                    JOIN nursing_order busy_order ON busy_order.order_id = busy_task.order_id
+                    WHERE busy_task.nurse_id = np.nurse_id
+                      AND busy_task.task_status IN ('DISPATCHED','ACCEPTED','ON_THE_WAY','SERVING')
+                      AND busy_order.order_id <> ?
+                      AND busy_order.order_status NOT IN ('COMPLETED','CANCELED','REJECTED')
+                      AND busy_order.scheduled_start_at < ?
+                      AND busy_order.scheduled_end_at > ?
+                  )
+                """, Integer.class, nurseId, serviceId,
+                excludedOrderId == null ? "" : excludedOrderId, scheduledEnd, scheduledStart);
         return count != null && count > 0;
     }
 
@@ -1073,6 +1164,16 @@ public class CareAdminPhaseService {
 
     private LocalDateTime parseNullableDateTime(String value) {
         return hasText(value) ? parseDateTime(value) : null;
+    }
+
+    private LocalDateTime toLocalDateTime(Object value) {
+        if (value instanceof Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+        return parseDateTime(value == null ? "" : value.toString());
     }
 
     private String writeJson(Object value) {

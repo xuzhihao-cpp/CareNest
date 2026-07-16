@@ -55,7 +55,7 @@ export interface QualificationSkillOption {
 export interface QualificationTrainingOverview {
   nurseName: string;
   qualificationStatus: QualificationAuditStatus;
-  trainingStatus: string;
+  trainingStatus: QualificationAuditStatus | 'EXPIRED';
   trainingBatch: string;
   passedAt: string;
   expiredAt: string;

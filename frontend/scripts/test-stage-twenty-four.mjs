@@ -123,6 +123,23 @@ test('adapts the implemented backend task and suggestion detail contract', async
   assert.equal(response.data.fields[0].normalizedValue.tagName, '跌倒风险');
 });
 
+test('reads an archived task after it leaves the pending list', async () => {
+  enqueue(apiSuccess({
+    taskId: 'task-archived-001', elderId: 'elder-001', status: 'APPROVED', archiveVersion: '5',
+    submittedAt: '2026-07-13T10:00:00',
+    suggestions: [{
+      suggestionId: 'suggestion-archived-001', fieldName: 'medications', oldValue: '[]',
+      newValue: '{"medicationName":"阿司匹林"}', sourceType: 'SERVICE_RECORD',
+      sourceId: 'record-001', reason: '服务记录建议补充用药。', status: 'APPROVED'
+    }]
+  }));
+  const response = await api.getHealthReviewTaskDetail('task-archived-001');
+  takeRequest();
+  assert.equal(response.code, 0);
+  assert.equal(response.data.status, 'ARCHIVED');
+  assert.equal(response.data.submittedAt, '2026-07-13T10:00:00');
+});
+
 test('submits the exact per-field archive decisions and keeps the returned version', async () => {
   const payload = {
     decisions: [{

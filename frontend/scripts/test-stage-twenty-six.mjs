@@ -130,11 +130,14 @@ test('enforces masked identity, dictionary skills, files and duplicate-state rul
     mimeType: 'application/pdf', uploadedFileId: '', progress: 0, uploadState: 'READY', uploadError: ''
   };
   const valid = {
-    realName: '李明', idNoMasked: '**************1234', certificateNo: 'CERT-2026',
+    realName: '李明', idNoLastFour: '1234', certificateNo: 'CERT-2026',
     serviceSkillCodes: ['BASIC_CARE'], availableSkillCodes: ['BASIC_CARE'], files: [draft]
   };
   assert.equal(rules.validateQualificationForm(valid), '');
-  assert.match(rules.validateQualificationForm({ ...valid, idNoMasked: '430101200001011234' }), /脱敏证件号/);
+  assert.match(rules.validateQualificationForm({ ...valid, idNoLastFour: '12X4' }), /后 4 位/);
+  assert.equal(rules.validateQualificationForm({ ...valid, idNoLastFour: '123X' }), '');
+  assert.equal(rules.sanitizeMaskedId('12a3x9'), '123X');
+  assert.equal(rules.maskIdentityLastFour('123X'), '**************123X');
   assert.match(rules.validateQualificationForm({ ...valid, serviceSkillCodes: ['FREE_TEXT'] }), /技能已发生变化/);
   assert.match(rules.validateQualificationForm({ ...valid, files: [] }), /至少上传/);
   assert.equal(rules.canSubmitQualification(null), true);

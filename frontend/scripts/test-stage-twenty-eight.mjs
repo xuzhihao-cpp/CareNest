@@ -70,6 +70,20 @@ test('reads the current nurse rich training model and rejects the legacy minimal
   assert.equal(malformed.code, 502);
 });
 
+test('reads each admin training state and preserves a not-yet-trained response', async () => {
+  enqueue(success(richTraining));
+  const trained = await api.getAdminTrainingStatus('nurse-valid-028');
+  let request = requests.shift();
+  assert.equal(request.url, '/api/v1/admin/nurses/nurse-valid-028/training-status');
+  assert.equal(trained.data.trainingStatus, 'APPROVED');
+
+  enqueue({ code: 404, message: 'not found', traceId: 'stage-28-test', data: {} }, 404);
+  const notStarted = await api.getAdminTrainingStatus('nurse-new-028');
+  request = requests.shift();
+  assert.equal(request.url, '/api/v1/admin/nurses/nurse-new-028/training-status');
+  assert.equal(notStarted.code, 404);
+});
+
 test('submits the selected nurse training review with the exact frozen payload', async () => {
   const payload = {
     status: 'APPROVED',
@@ -142,6 +156,7 @@ test('computes expired display state and formal-order eligibility without writin
   const expiredAt = '2026-07-15T12:00:00';
   assert.equal(rules.effectiveTrainingDisplayStatus('APPROVED', expiredAt, beforeExpiry), 'APPROVED');
   assert.equal(rules.effectiveTrainingDisplayStatus('APPROVED', expiredAt, atExpiry), 'EXPIRED');
+  assert.equal(rules.trainingStatusLabel('APPROVED'), '通过');
   assert.equal(rules.trainingStatusLabel('EXPIRED'), '培训已过期');
   assert.equal(rules.canAcceptFormalOrders({
     qualificationStatus: 'APPROVED', trainingStatus: 'APPROVED', expiredAt, now: beforeExpiry
@@ -174,10 +189,21 @@ test('wires approved-list selection, nurse eligibility and hides technical IDs',
   assert.match(component, /selectedNurseId\.value === nurseId/);
   assert.match(component, /expiryFieldsForTrainingStatus/);
   assert.match(component, /本次提交结果/);
+  assert.match(component, /getAdminTrainingStatus/);
+  assert.match(component, /loadTrainingListStates/);
+  assert.match(component, /NOT_STARTED/);
+  assert.match(component, /待培训/);
+  assert.match(component, /training-chip/);
+  assert.doesNotMatch(component, /class="qualification-chip"/);
+  assert.match(component, /当前培训状态/);
   assert.doesNotMatch(component, /最新结果/);
   assert.doesNotMatch(component, /response\.code === 409[\s\S]{0,180}loadApprovedNurses/);
-  assert.match(component, /type="date"/);
-  assert.match(component, /type="time"/);
+  assert.match(component, /mode="date" fields="month"/);
+  assert.match(component, /mode="selector"[^>]*trainingBatchCodes/);
+  assert.match(component, /批次编号：\{\{ trainingBatch \}\}/);
+  assert.doesNotMatch(component, /<input[^>]*v-model="trainingBatch"/);
+  assert.match(component, /mode="date"[^>]*changeExpiryDate/);
+  assert.match(component, /mode="time"[^>]*changeExpiryTime/);
   assert.doesNotMatch(component, /value: 'EXPIRED'/);
   assert.doesNotMatch(template, /placeholder="[^"]*(?:nurseId|护理编号)/);
   assert.doesNotMatch(template, />[^<{]*(?:API|DTO|nurseId|applicationId|fileId)[^<{]*</);
@@ -185,5 +211,5 @@ test('wires approved-list selection, nurse eligibility and hides technical IDs',
   assert.match(nursePanel, /可接正式订单/);
   assert.match(adminApp, /StageTwentyEightTrainingReviewWorkbench/);
   assert.doesNotMatch(apiSource, /mock|fallback/i);
-  assert.doesNotMatch(apiSource, /method:\s*'GET'[\s\S]*\/admin\/nurses\/\$\{encodeURIComponent\(nurseId\)\}/);
+  assert.match(apiSource, /method:\s*'GET'[\s\S]*\/admin\/nurses\/\$\{encodeURIComponent\(nurseId\.trim\(\)\)\}\/training-status/);
 });
