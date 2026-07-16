@@ -15,5 +15,10 @@ public final class AiAssistantDtos {
     public record AssistanceTicket(String ticketId, String elderId, String elderName, String category,
                                     String priority, String ticketStatus, String description,
                                     String sourceType, String createdAt) {}
+    public record SessionSummary(String sessionId, String elderId, String elderName,
+                                 String sessionTitle, String sessionStatus, String safetyLevel,
+                                 String latestMessagePreview, String createdAt, String updatedAt) {}
+    public record ConversationMessage(String messageId, String senderRole,
+                                      String messageType, String content, boolean safetyFlag, String createdAt) {}
     public record PageResult<T>(List<T> records, long total, int page, int size) {}
 }
