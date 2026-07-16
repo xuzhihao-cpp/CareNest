@@ -7,6 +7,7 @@ import { getNurseTasks } from '@/api/stageThirteen';
 import { acceptNurseTask, updateNurseTaskStatus } from '@/api/stageTwelve';
 import StageTwentyThreeSuggestionPanel from '@/components/StageTwentyThreeSuggestionPanel.vue';
 import StageTwentyFivePreServiceSummary from '@/components/StageTwentyFivePreServiceSummary.vue';
+import StageTwentySixQualificationPanel from '@/components/StageTwentySixQualificationPanel.vue';
 import type { AuthUser } from '@/types/stageTwo';
 import type { NurseTaskDetailRecord } from '@/types/stageThirteen';
 import type { NurseTaskStatus } from '@/types/stageTwelve';
@@ -19,7 +20,8 @@ const recordsLoading = ref(false);
 const recentRecordId = ref('');
 const selectedTaskId = ref('');
 const summaryTaskId = ref('');
-const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'health-summary'>('tasks');
+const attentionRefreshKey = ref(0);
+const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'qualification' | 'health-summary'>('tasks');
 const isEditingRecord = ref(false);
 const suggestionOrderId = ref('');
 const loading = ref(false);
@@ -230,24 +232,55 @@ function taskForRecord(record: CareExecutionRecord) {
 function nextTaskAction(task: NurseTaskDetailRecord) {
   if (task.taskStatus === 'DISPATCHED') return { label: '接单', targetStatus: 'ACCEPTED' as NurseTaskStatus };
   if (task.taskStatus === 'ACCEPTED') return { label: '开始前往', targetStatus: 'ON_THE_WAY' as NurseTaskStatus };
-  if (task.taskStatus === 'ON_THE_WAY') return { label: '开始服务', targetStatus: 'SERVING' as NurseTaskStatus };
+  if (task.taskStatus === 'ON_THE_WAY') return { label: '服务前核对并开始', targetStatus: 'SERVING' as NurseTaskStatus };
   return { label: '结束服务', targetStatus: 'COMPLETED' as NurseTaskStatus };
 }
 
-async function progressTask(targetStatus: NurseTaskStatus) {
-  if (!selectedTask.value) return;
+async function transitionTask(task: NurseTaskDetailRecord, targetStatus: NurseTaskStatus) {
   loading.value = true;
   error.value = '';
-  const task = selectedTask.value;
   const response = targetStatus === 'ACCEPTED'
     ? await acceptNurseTask(task.taskId, { nurseId: task.nurseId, dispatchRemark: '护理员已接单', targetStatus })
     : await updateNurseTaskStatus(task.taskId, { nurseId: task.nurseId, dispatchRemark: '', targetStatus });
   loading.value = false;
   if (response.code !== 0) {
-    error.value = `${response.code} ${response.message}`;
-    return;
+    if (targetStatus === 'SERVING' && (response.code === 409 || response.code === 422)) {
+      error.value = '服务前核对状态已经变化，请根据最新注意事项重新确认。';
+      attentionRefreshKey.value += 1;
+      await loadTasks();
+    } else {
+      error.value = response.message || '任务状态暂时无法更新，请稍后重试。';
+    }
+    return false;
   }
   notice.value = `任务已更新为${label(response.data.orderStatus)}`;
+  await loadTasks();
+  return true;
+}
+
+async function handlePrimaryTaskAction(task: NurseTaskDetailRecord) {
+  selectedTaskId.value = task.taskId;
+  const action = nextTaskAction(task);
+  if (action.targetStatus === 'SERVING') {
+    openHealthSummary(task);
+    return;
+  }
+  await transitionTask(task, action.targetStatus);
+}
+
+async function startServiceAfterAttention() {
+  const task = summaryTask.value;
+  if (!task || task.taskStatus !== 'ON_THE_WAY') {
+    error.value = '当前任务状态已变化，请返回任务列表刷新后重试。';
+    attentionRefreshKey.value += 1;
+    return;
+  }
+  const succeeded = await transitionTask(task, 'SERVING');
+  if (succeeded) closeHealthSummary();
+}
+
+async function refreshAfterAttentionConflict() {
+  attentionRefreshKey.value += 1;
   await loadTasks();
 }
 
@@ -312,10 +345,10 @@ onMounted(loadTasks);
         <text class="header-title">{{ user?.displayName || '护理工作台' }}</text>
         <text class="header-date">{{ new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }) }}</text>
       </view>
-      <button v-if="activeTab !== 'health-summary'" class="refresh-button" type="button" :disabled="loading" @click="loadTasks">刷新</button>
+      <button v-if="activeTab !== 'health-summary' && activeTab !== 'qualification'" class="refresh-button" type="button" :disabled="loading" @click="loadTasks">刷新</button>
     </view>
 
-    <view v-if="activeTab !== 'health-summary'" class="summary-strip">
+    <view v-if="activeTab !== 'health-summary' && activeTab !== 'qualification'" class="summary-strip">
       <view class="summary-item"><text>{{ activeServiceTasks.length }}</text><text>服务中</text></view>
       <view class="summary-item"><text>{{ pendingRecordTasks.length }}</text><text>待填写</text></view>
       <view class="summary-item"><text>{{ completedCount }}</text><text>已完成</text></view>
@@ -328,6 +361,7 @@ onMounted(loadTasks);
       <button :class="{ active: activeTab === 'tasks' }" type="button" @click="activeTab = 'tasks'">我的任务</button>
       <button :class="{ active: activeTab === 'records' }" type="button" @click="openRecords">服务记录</button>
       <button :class="{ active: activeTab === 'suggestions' }" type="button" @click="openSuggestions()">档案建议</button>
+      <button :class="{ active: activeTab === 'qualification' }" type="button" @click="activeTab = 'qualification'">准入资格</button>
     </view>
 
     <view v-if="activeTab === 'tasks'" class="task-board">
@@ -338,8 +372,8 @@ onMounted(loadTasks);
           <view class="task-card-top"><text class="task-service">{{ task.serviceName || '上门护理服务' }}</text><text class="status-chip" :class="`status-${task.taskStatus.toLowerCase()}`">{{ label(task.taskStatus) }}</text></view>
           <text class="task-person">服务对象 {{ task.elderName || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
           <view class="task-card-actions">
-            <button v-if="preServiceSummaryStatuses.includes(task.taskStatus)" class="secondary-action health-summary-entry" type="button" :disabled="loading" @click="openHealthSummary(task)">查看健康摘要</button>
-            <button class="primary-action" type="button" :disabled="loading" @click="selectedTaskId = task.taskId; progressTask(nextTaskAction(task).targetStatus)">{{ nextTaskAction(task).label }}</button>
+            <button v-if="preServiceSummaryStatuses.includes(task.taskStatus) && task.taskStatus !== 'ON_THE_WAY'" class="secondary-action health-summary-entry" type="button" :disabled="loading" @click="openHealthSummary(task)">查看健康摘要</button>
+            <button class="primary-action" type="button" :disabled="loading" @click="handlePrimaryTaskAction(task)">{{ nextTaskAction(task).label }}</button>
           </view>
         </view>
       </view>
@@ -384,8 +418,15 @@ onMounted(loadTasks);
       :service-name="summaryTask.serviceName || '上门护理服务'"
       :scheduled-start="summaryTask.scheduledStart"
       :elder-name="summaryTask.elderName"
+      :task-status="summaryTask.taskStatus"
+      :attention-refresh-key="attentionRefreshKey"
+      :starting-service="loading"
       @close="closeHealthSummary"
+      @start-service="startServiceAfterAttention"
+      @attention-conflict="refreshAfterAttentionConflict"
     />
+
+    <StageTwentySixQualificationPanel v-else-if="activeTab === 'qualification'" />
 
     <view v-else-if="activeTab === 'records' && isEditingRecord && recordableTask" class="record-panel">
       <view class="record-editor-heading"><view><text>填写服务记录</text><text>{{ recordableTask.serviceName || '上门护理服务' }} · {{ taskTime(recordableTask.scheduledStart) }}</text></view><button class="text-action" type="button" @click="openRecords">返回记录列表</button></view>
@@ -446,7 +487,7 @@ onMounted(loadTasks);
 .summary-item { flex: 1; text-align: center; border-right: 1rpx solid rgba(255,255,255,.25); }
 .summary-item:last-child { border: 0; }.summary-item text:first-child { display: block; font-size: 38rpx; font-weight: 700; }.summary-item text:last-child { display: block; margin-top: 4rpx; font-size: 22rpx; opacity: .82; }
 .notice { margin-bottom: 16rpx; padding: 18rpx 20rpx; border-radius: 8rpx; font-size: 25rpx; }.success { background: #def4ed; color: #0b6259; }.error { background: #fff0ef; color: #b33b32; }
-.tabbar { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; margin-bottom:24rpx; overflow:hidden; border:1rpx solid #ccdcd8; border-radius:8rpx; background:#fff; }.tabbar button { display:inline-flex; align-items:center; justify-content:center; min-height:88rpx; margin:0; padding:0 12rpx; border:0; border-right:1rpx solid #dce6e3; border-radius:0; background:#fff; color:#667b76; font-size:27rpx; line-height:1.2; }.tabbar button:last-child { border-right:0; }.tabbar button.active { border-bottom:4rpx solid #0f766e; background:#eaf6f2; color:#0f766e; font-weight:700; }
+.tabbar { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; margin-bottom:24rpx; overflow:hidden; border:1rpx solid #ccdcd8; border-radius:8rpx; background:#fff; }.tabbar button { display:inline-flex; align-items:center; justify-content:center; min-height:82rpx; margin:0; padding:0 12rpx; border:0; border-right:1rpx solid #dce6e3; border-bottom:1rpx solid #dce6e3; border-radius:0; background:#fff; color:#667b76; font-size:26rpx; line-height:1.2; }.tabbar button:nth-child(2n) { border-right:0; }.tabbar button:nth-last-child(-n+2) { border-bottom:0; }.tabbar button.active { box-shadow:inset 0 -4rpx #0f766e; background:#eaf6f2; color:#0f766e; font-weight:700; }
 .task-card, .record-panel, .empty-card, .action-sheet { margin-bottom: 16rpx; padding: 24rpx; background: #fff; border: 1rpx solid #e2ebea; border-radius: 10rpx; box-shadow: 0 4rpx 12rpx rgba(23, 55, 52, .05); }.task-card.selected { border-color: #0f766e; box-shadow: 0 0 0 2rpx rgba(15,118,110,.12); }
 .task-service { font-size: 31rpx; font-weight: 700; }.task-person, .task-time, .task-remark, .action-meta { display: block; margin-top: 12rpx; color: #657774; font-size: 25rpx; }.task-remark { padding-top: 12rpx; border-top: 1rpx solid #edf1f0; }
 .task-board { display: grid; gap: 20rpx; }.task-section { display: grid; gap: 12rpx; }.task-section-heading { display: flex; align-items: baseline; justify-content: space-between; padding: 4rpx 4rpx; color: #23443f; font-size: 30rpx; font-weight: 700; }.task-section-heading text:last-child { color: #71837f; font-size: 23rpx; font-weight: 400; }.task-section .task-card { margin: 0; }.task-card-actions { display: flex; flex-wrap: wrap; gap: 14rpx; margin-top: 18rpx; }.task-card-actions .primary-action, .task-card-actions .secondary-action { flex:1; min-width:190rpx; min-height:88rpx; height:88rpx; padding:0 22rpx; line-height:1.2; }

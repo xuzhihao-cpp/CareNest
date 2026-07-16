@@ -124,7 +124,8 @@ test('wires a read-only mobile summary and invalidates stale order responses', a
   assert.match(nurseApp, /查看健康摘要/);
   assert.match(nurseApp, /summaryTaskId\.value = ''/);
   assert.match(nurseApp, /\['DISPATCHED', 'ACCEPTED', 'ON_THE_WAY'\]/);
-  assert.match(nurseApp, /v-if="preServiceSummaryStatuses\.includes\(task\.taskStatus\)"/);
+  assert.match(nurseApp, /v-if="preServiceSummaryStatuses\.includes\(task\.taskStatus\)[^"]*"/);
+  assert.match(nurseApp, /task\.taskStatus === 'ON_THE_WAY'[\s\S]*服务前核对并开始/);
   assert.doesNotMatch(nurseApp, /service-name="[^\n"]*serviceId/);
 
   const template = component.split('<template>')[1]?.split('<style')[0] ?? '';

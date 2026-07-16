@@ -44,6 +44,9 @@ export interface AdminOrderRecord {
   contactName?: string;
   contactPhone?: string;
   remark?: string;
+  preferredNurseId?: string;
+  preferredNurseName?: string;
+  preferredNurseReason?: string;
   statusLogs: OrderStatusLogRecord[];
 }
 

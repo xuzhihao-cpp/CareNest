@@ -1,37 +1,42 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import StageThirtyAdminPreferenceSummary from '@/components/StageThirtyAdminPreferenceSummary.vue';
 import { getAdminOrders } from '@/api/stageEleven';
+import { getOrderRecommendations } from '@/api/stageTwentyNine';
 import { dispatchAdminOrder, getStageTwelveNurseTasks } from '@/api/stageTwelve';
 import type { RoleCode } from '@/types/stageOne';
 import type { AuthUser } from '@/types/stageTwo';
 import type { AdminOrderRecord } from '@/types/stageEleven';
 import type { DispatchRequest, NurseTaskRecord, NurseTaskStatus } from '@/types/stageTwelve';
+import type { NurseRecommendationRecord } from '@/types/stageTwentyNine';
+import { createLatestRequestGate } from '@/utils/latestRequestGate';
 
 const props = defineProps<{
   roleCode: RoleCode;
   authUser: AuthUser | null;
+  canViewRecommendations: boolean;
 }>();
 
-const nurseOptions = [
-  { nurseId: 'nurse-001', nurseName: '护理演示账号' },
-  { nurseId: 'nurse-002', nurseName: '李护士' },
-  { nurseId: 'nurse-003', nurseName: '王护士' }
-];
-
 const dispatchForm = ref<DispatchRequest>({
-  nurseId: nurseOptions[0].nurseId,
+  nurseId: '',
   dispatchRemark: '',
   targetStatus: 'DISPATCHED'
 });
 const pendingOrders = ref<AdminOrderRecord[]>([]);
 const taskOrders = ref<AdminOrderRecord[]>([]);
 const tasks = ref<NurseTaskRecord[]>([]);
+const nurseOptions = ref<NurseRecommendationRecord[]>([]);
 const selectedOrderId = ref('');
 const loading = ref(false);
+const nurseLoading = ref(false);
+const nurseError = ref('');
 const message = ref('');
 const error = ref('');
+const nurseRequestGate = createLatestRequestGate<string>();
 
-const canAdminDispatch = computed(() => props.roleCode === 'ADMIN' && props.authUser?.roles.includes('ADMIN'));
+const canAdminDispatch = computed(() => props.roleCode === 'ADMIN'
+  && props.authUser?.roles.includes('ADMIN')
+  && props.canViewRecommendations);
 const selectedOrder = computed(() => pendingOrders.value.find((order) => order.orderId === selectedOrderId.value) ?? null);
 const orderById = computed(() => new Map(taskOrders.value.map((order) => [order.orderId, order])));
 
@@ -71,7 +76,29 @@ function taskElder(task: NurseTaskRecord) {
 }
 
 function taskNurse(task: NurseTaskRecord) {
-  return task.nurseName || nurseOptions.find((item) => item.nurseId === task.nurseId)?.nurseName || '护理员';
+  return task.nurseName || '护理员信息待同步';
+}
+
+async function loadNurseOptions(orderId: string) {
+  const ticket = nurseRequestGate.begin(orderId);
+  nurseOptions.value = [];
+  nurseError.value = '';
+  dispatchForm.value.nurseId = '';
+  if (!orderId) return;
+  nurseLoading.value = true;
+  const response = await getOrderRecommendations(orderId);
+  if (!nurseRequestGate.isCurrent(ticket, selectedOrderId.value)) return;
+  nurseLoading.value = false;
+  if (response.code !== 0) {
+    nurseError.value = '当前订单的可派护理名单暂时无法读取，请稍后刷新。';
+    return;
+  }
+  nurseOptions.value = response.data.nurses.filter((item) => item.available);
+}
+
+function selectPendingOrder(orderId: string) {
+  selectedOrderId.value = orderId;
+  void loadNurseOptions(orderId);
 }
 
 async function refresh() {
@@ -96,11 +123,16 @@ async function refresh() {
   if (!pendingOrders.value.some((order) => order.orderId === selectedOrderId.value)) {
     selectedOrderId.value = pendingOrders.value[0]?.orderId ?? '';
   }
+  await loadNurseOptions(selectedOrderId.value);
 }
 
 async function handleDispatch() {
   if (!selectedOrder.value) {
     error.value = '请先选择一笔待派订单。';
+    return;
+  }
+  if (!dispatchForm.value.nurseId) {
+    error.value = '请选择一名当前可派的护理员。';
     return;
   }
   loading.value = true;
@@ -111,12 +143,14 @@ async function handleDispatch() {
     error.value = response.code === 409 ? '该订单状态已变化，请刷新订单列表。' : response.message;
     return;
   }
-  message.value = `已将“${selectedOrder.value.serviceName || '上门护理服务'}”安排给${nurseOptions.find((item) => item.nurseId === dispatchForm.value.nurseId)?.nurseName || '护理员'}。`;
+  message.value = `已将“${selectedOrder.value.serviceName || '上门护理服务'}”安排给${nurseOptions.value.find((item) => item.nurseId === dispatchForm.value.nurseId)?.nurseName || '护理员'}。`;
   dispatchForm.value.dispatchRemark = '';
   await refresh();
 }
 
 onMounted(refresh);
+
+onBeforeUnmount(() => nurseRequestGate.invalidate());
 </script>
 
 <template>
@@ -139,7 +173,7 @@ onMounted(refresh);
           class="admin-order-row dispatch-order-card"
           :class="{ active: selectedOrderId === order.orderId }"
           type="button"
-          @click="selectedOrderId = order.orderId"
+          @click="selectPendingOrder(order.orderId)"
         >
           <view><text class="flow-label">{{ order.serviceName || '上门护理服务' }}</text><text class="flow-time">服务对象：{{ order.contactName || '长辈' }}</text><text class="flow-time">预约时间：{{ formatTime(order.scheduledStart) }}</text></view>
           <text class="tag tag-amber">待派单</text>
@@ -150,15 +184,19 @@ onMounted(refresh);
         <view class="dispatch-list-heading"><text>安排护理员</text><text v-if="selectedOrder">已选订单</text></view>
         <view v-if="selectedOrder" class="selected-order-summary"><text>{{ selectedOrder.serviceName || '上门护理服务' }}</text><text>服务对象：{{ selectedOrder.contactName || '长辈' }}</text><text v-if="selectedOrder.contactPhone">联系电话：{{ selectedOrder.contactPhone }}</text><text v-if="selectedOrder.serviceAddress">服务地址：{{ selectedOrder.serviceAddress }}</text><text>预约时间：{{ formatTime(selectedOrder.scheduledStart) }}</text><text v-if="selectedOrder.remark">服务备注：{{ selectedOrder.remark }}</text></view>
         <view v-else class="empty-state compact-empty">请从左侧选择一笔待派订单。</view>
+        <StageThirtyAdminPreferenceSummary v-if="selectedOrder" :order="selectedOrder" />
 
         <view class="field">
           <text>选择护理员</text>
+          <view v-if="nurseLoading" class="empty-state compact-empty">正在读取当前可派护理员...</view>
+          <view v-else-if="nurseError" class="error-banner" role="alert">{{ nurseError }}</view>
+          <view v-else-if="selectedOrder && nurseOptions.length === 0" class="empty-state compact-empty">当前订单暂无可派护理员。</view>
           <view class="nurse-choice-grid">
             <button v-for="nurse in nurseOptions" :key="nurse.nurseId" class="choice-button" :class="{ active: dispatchForm.nurseId === nurse.nurseId }" type="button" @click="dispatchForm.nurseId = nurse.nurseId">{{ nurse.nurseName }}</button>
           </view>
         </view>
         <label class="field"><text>派单备注</text><input v-model.trim="dispatchForm.dispatchRemark" class="input" maxlength="100" placeholder="可填写服务提醒或交接事项" /></label>
-        <button class="hero-action dispatch-submit" type="button" :disabled="loading || !selectedOrder" @click="handleDispatch">确认派单</button>
+        <button class="hero-action dispatch-submit" type="button" :disabled="loading || nurseLoading || !selectedOrder || !dispatchForm.nurseId" @click="handleDispatch">确认派单</button>
       </view>
     </view>
 

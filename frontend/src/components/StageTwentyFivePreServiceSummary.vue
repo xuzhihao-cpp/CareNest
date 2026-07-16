@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { readAuthSession } from '@/api/client';
 import { getPreServiceHealthSummary } from '@/api/stageTwentyFive';
+import StageThirtyOneAttentionPanel from '@/components/StageThirtyOneAttentionPanel.vue';
 import type { PreServiceHealthSummary } from '@/types/stageTwentyFive';
 import {
   ALLERGY_SEVERITY_LABELS,
@@ -21,9 +22,16 @@ const props = defineProps<{
   serviceName: string;
   scheduledStart: string;
   elderName?: string;
+  taskStatus: string;
+  attentionRefreshKey?: number;
+  startingService?: boolean;
 }>();
 
-const emit = defineEmits<{ (event: 'close'): void }>();
+const emit = defineEmits<{
+  close: [];
+  startService: [];
+  attentionConflict: [];
+}>();
 
 const summary = ref<PreServiceHealthSummary | null>(null);
 const loading = ref(false);
@@ -258,6 +266,15 @@ onBeforeUnmount(() => {
         </view>
         <view v-else class="section-empty">暂无与本次护理相关的近期服务摘要。</view>
       </section>
+
+      <StageThirtyOneAttentionPanel
+        :order-id="orderId"
+        :task-status="taskStatus"
+        :refresh-key="attentionRefreshKey"
+        :starting="startingService"
+        @start-service="emit('startService')"
+        @state-conflict="emit('attentionConflict')"
+      />
 
       <view class="read-only-note">本页信息仅用于本次护理服务前核对，不能在此修改健康档案。</view>
     </template>
