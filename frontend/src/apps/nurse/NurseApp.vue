@@ -8,6 +8,7 @@ import { acceptNurseTask, updateNurseTaskStatus } from '@/api/stageTwelve';
 import StageTwentyThreeSuggestionPanel from '@/components/StageTwentyThreeSuggestionPanel.vue';
 import StageTwentyFivePreServiceSummary from '@/components/StageTwentyFivePreServiceSummary.vue';
 import StageTwentySixQualificationPanel from '@/components/StageTwentySixQualificationPanel.vue';
+import StageThirtyFiveToFortyNursePanel from '@/components/StageThirtyFiveToFortyNursePanel.vue';
 import type { AuthUser } from '@/types/stageTwo';
 import type { NurseTaskDetailRecord } from '@/types/stageThirteen';
 import type { NurseTaskStatus } from '@/types/stageTwelve';
@@ -21,7 +22,7 @@ const recentRecordId = ref('');
 const selectedTaskId = ref('');
 const summaryTaskId = ref('');
 const attentionRefreshKey = ref(0);
-const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'qualification' | 'health-summary'>('tasks');
+const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'qualification' | 'health-summary' | 'quality'>('tasks');
 const isEditingRecord = ref(false);
 const suggestionOrderId = ref('');
 const loading = ref(false);
@@ -202,6 +203,14 @@ function openSuggestions(task?: NurseTaskDetailRecord) {
   error.value = '';
 }
 
+function openQuality(task?: NurseTaskDetailRecord) {
+  if (task) selectedTaskId.value = task.taskId;
+  summaryTaskId.value = '';
+  activeTab.value = 'quality';
+  isEditingRecord.value = false;
+  error.value = '';
+}
+
 function openHealthSummary(task: NurseTaskDetailRecord) {
   if (!preServiceSummaryStatuses.includes(task.taskStatus)) {
     error.value = '健康摘要仅供服务开始前核对。';
@@ -361,6 +370,7 @@ onMounted(loadTasks);
       <button :class="{ active: activeTab === 'tasks' }" type="button" @click="activeTab = 'tasks'">我的任务</button>
       <button :class="{ active: activeTab === 'records' }" type="button" @click="openRecords">服务记录</button>
       <button :class="{ active: activeTab === 'suggestions' }" type="button" @click="openSuggestions()">档案建议</button>
+      <button :class="{ active: activeTab === 'quality' }" type="button" @click="openQuality()">质量留证</button>
       <button :class="{ active: activeTab === 'qualification' }" type="button" @click="activeTab = 'qualification'">准入资格</button>
     </view>
 
@@ -373,6 +383,7 @@ onMounted(loadTasks);
           <text class="task-person">服务对象 {{ task.elderName || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
           <view class="task-card-actions">
             <button v-if="preServiceSummaryStatuses.includes(task.taskStatus) && task.taskStatus !== 'ON_THE_WAY'" class="secondary-action health-summary-entry" type="button" :disabled="loading" @click="openHealthSummary(task)">查看健康摘要</button>
+            <button class="secondary-action" type="button" :disabled="loading" @click="openQuality(task)">质量留证</button>
             <button class="primary-action" type="button" :disabled="loading" @click="handlePrimaryTaskAction(task)">{{ nextTaskAction(task).label }}</button>
           </view>
         </view>
@@ -383,13 +394,23 @@ onMounted(loadTasks);
         <view v-for="task in pendingRecordTasks" :key="task.taskId" class="task-card">
           <view class="task-card-top"><text class="task-service">{{ task.serviceName || '上门护理服务' }}</text><text class="status-chip status-wait_report">待填写记录</text></view>
           <text class="task-person">服务对象 {{ task.elderName || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
-          <button class="primary-action record-entry-action" type="button" :disabled="loading" @click="openRecordEditor(task)">填写服务记录</button>
+          <view class="task-card-actions">
+            <button class="secondary-action" type="button" :disabled="loading" @click="openQuality(task)">质量留证</button>
+            <button class="primary-action" type="button" :disabled="loading" @click="openRecordEditor(task)">填写服务记录</button>
+          </view>
         </view>
       </view>
       <view class="task-section">
         <view class="task-section-heading"><text>等待确认</text><text>{{ waitingConfirmTasks.length }} 项</text></view>
         <view v-if="waitingConfirmTasks.length === 0" class="record-empty">暂无等待长辈或家属确认的报告</view>
-        <view v-for="task in waitingConfirmTasks" :key="task.taskId" class="task-card"><view class="task-card-top"><text class="task-service">{{ task.serviceName || '上门护理服务' }}</text><text class="status-chip">等待确认</text></view><text class="task-time">{{ taskTime(task.scheduledStart) }}</text><button class="secondary-action suggestion-entry" type="button" @click="openSuggestions(task)">建议更新健康档案</button></view>
+        <view v-for="task in waitingConfirmTasks" :key="task.taskId" class="task-card">
+          <view class="task-card-top"><text class="task-service">{{ task.serviceName || '上门护理服务' }}</text><text class="status-chip">等待确认</text></view>
+          <text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
+          <view class="task-card-actions">
+            <button class="secondary-action" type="button" @click="openQuality(task)">质量留证</button>
+            <button class="secondary-action" type="button" @click="openSuggestions(task)">建议更新健康档案</button>
+          </view>
+        </view>
       </view>
       <view class="task-section">
         <view class="task-section-heading"><text>已完成</text><text>{{ completedTasks.length }} 项</text></view>
@@ -399,6 +420,7 @@ onMounted(loadTasks);
           <text class="task-person">服务对象 {{ task.elderName || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
           <view class="task-card-actions">
             <button class="secondary-action" type="button" @click="openRecordsForTask(task)">查看服务记录</button>
+            <button class="secondary-action" type="button" @click="openQuality(task)">质量留证</button>
             <button v-if="task.orderStatus === 'WAIT_REPORT'" class="primary-action" type="button" :disabled="loading" @click="generateReportForTask(task)">生成服务报告</button>
             <button class="secondary-action" type="button" @click="openSuggestions(task)">建议更新健康档案</button>
           </view>
@@ -427,6 +449,12 @@ onMounted(loadTasks);
     />
 
     <StageTwentySixQualificationPanel v-else-if="activeTab === 'qualification'" />
+
+    <StageThirtyFiveToFortyNursePanel
+      v-else-if="activeTab === 'quality'"
+      :task="selectedTask"
+      @refresh-tasks="loadTasks"
+    />
 
     <view v-else-if="activeTab === 'records' && isEditingRecord && recordableTask" class="record-panel">
       <view class="record-editor-heading"><view><text>填写服务记录</text><text>{{ recordableTask.serviceName || '上门护理服务' }} · {{ taskTime(recordableTask.scheduledStart) }}</text></view><button class="text-action" type="button" @click="openRecords">返回记录列表</button></view>
