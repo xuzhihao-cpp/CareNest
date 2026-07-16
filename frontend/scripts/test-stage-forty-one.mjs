@@ -8,4 +8,7 @@ if(!component.includes("message.senderRole === 'ASSISTANT' && message.safetyFlag
 if(!component.includes('uni-button:not([disabled])')) throw new Error('H5 history dialog does not include compiled uni-button focus targets')
 if(!component.includes("document.addEventListener('keydown', handleHistoryKeydown)")) throw new Error('H5 history dialog does not install a document keyboard listener')
 if(!component.includes('target instanceof HTMLElement')) throw new Error('H5 history dialog does not resolve uni-button component refs')
+if(!component.includes('sendRequestToken += 1;\n  loading.value = false;\n  error.value =')) throw new Error('session switching does not invalidate an in-flight send')
+if(!component.includes('if (!familyReady) return;')) throw new Error('family history loads without a selected elder')
+if(!component.includes('carenest_ai_selected_elder_FAMILY')) throw new Error('family elder selection is not persisted')
 console.log('stage 41 api contract smoke passed')

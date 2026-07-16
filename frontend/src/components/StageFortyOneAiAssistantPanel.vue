@@ -57,6 +57,15 @@ function activeSessionStorageKey() {
   const elderScope = props.roleCode === 'FAMILY' ? selectedElderId.value || 'unselected' : props.elderId || 'self';
   return `carenest_ai_active_session_${props.roleCode}_${elderScope}`;
 }
+function selectedElderStorageKey() { return 'carenest_ai_selected_elder_FAMILY'; }
+function readStoredElderId() {
+  const stored = uni.getStorageSync(selectedElderStorageKey());
+  return typeof stored === 'string' ? stored : '';
+}
+function persistSelectedElderId(id: string) {
+  if (id) uni.setStorageSync(selectedElderStorageKey(), id);
+  else uni.removeStorageSync(selectedElderStorageKey());
+}
 function readStoredSessionId() {
   const stored = uni.getStorageSync(activeSessionStorageKey());
   return typeof stored === 'string' ? stored : '';
@@ -115,6 +124,9 @@ async function selectSession(id: string) {
     void closeHistory();
     return;
   }
+  sendRequestToken += 1;
+  loading.value = false;
+  error.value = '';
   await loadSessionMessages(id);
 }
 
@@ -146,19 +158,31 @@ async function loadSessions() {
 }
 
 async function loadFamilyContext() {
-  if (props.roleCode !== 'FAMILY') return;
+  if (props.roleCode !== 'FAMILY') return true;
   const context = createRequestContext();
   const response = await getFamilyElders();
   if (!isCurrentElderContext(context)) return;
   if (response.code !== 0) {
     historyError.value = `无法加载长辈列表：${response.message}`;
     historyRetryTarget.value = 'sessions';
-    return;
+    return false;
   }
   familyElders.value = response.data;
-  if (!familyElders.value.some((elder) => elder.elderId === selectedElderId.value)) {
-    selectedElderId.value = familyElders.value[0]?.elderId ?? '';
+  if (!familyElders.value.length) {
+    selectedElderId.value = '';
+    persistSelectedElderId('');
+    historyError.value = '暂无可咨询的已绑定长辈';
+    historyRetryTarget.value = 'sessions';
+    return false;
   }
+  const storedElderId = readStoredElderId();
+  if (!familyElders.value.some((elder) => elder.elderId === selectedElderId.value)) {
+    selectedElderId.value = familyElders.value.some((elder) => elder.elderId === storedElderId)
+      ? storedElderId
+      : familyElders.value[0].elderId;
+  }
+  persistSelectedElderId(selectedElderId.value);
+  return true;
 }
 
 async function selectElder(elderId: string) {
@@ -168,6 +192,7 @@ async function selectElder(elderId: string) {
   messageRequestToken += 1;
   sendRequestToken += 1;
   selectedElderId.value = elderId;
+  persistSelectedElderId(elderId);
   sessions.value = [];
   activeSessionId.value = '';
   conversation.value = [];
@@ -188,7 +213,10 @@ async function retryHistory() {
     await loadSessionMessages(historyRetrySessionId.value);
     return;
   }
-  if (props.roleCode === 'FAMILY' && familyElders.value.length === 0) await loadFamilyContext();
+  if (props.roleCode === 'FAMILY' && familyElders.value.length === 0) {
+    const familyReady = await loadFamilyContext();
+    if (!familyReady) return;
+  }
   await loadSessions();
 }
 
@@ -262,19 +290,21 @@ async function send() {
   }
   const context = createRequestContext();
   const requestToken = ++sendRequestToken;
+  let targetSessionId = activeSessionId.value;
   loading.value = true;
   error.value = '';
   try {
-    if (!activeSessionId.value) {
+    if (!targetSessionId) {
       const created = await createAiSession({ elderId: props.roleCode === 'FAMILY' ? selectedElderId.value : props.elderId, sessionTitle: '照护咨询', sourceType: 'TEXT' });
       if (created.code !== 0) throw new Error(created.message);
       if (!isCurrentElderContext(context) || requestToken !== sendRequestToken) return;
-      activeSessionId.value = created.data.sessionId;
-      persistActiveSessionId(activeSessionId.value);
+      targetSessionId = created.data.sessionId;
+      activeSessionId.value = targetSessionId;
+      persistActiveSessionId(targetSessionId);
     }
-    const response = await sendAiMessage(activeSessionId.value, { content, messageType: 'TEXT' });
+    const response = await sendAiMessage(targetSessionId, { content, messageType: 'TEXT' });
     if (response.code !== 0) throw new Error(response.message);
-    if (!isCurrentElderContext(context) || requestToken !== sendRequestToken) return;
+    if (!isCurrentElderContext(context) || requestToken !== sendRequestToken || activeSessionId.value !== targetSessionId) return;
     conversation.value.push(
       { id: response.data.userMessageId || localId('user'), role: 'user', content },
       {
@@ -299,7 +329,8 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 onMounted(async () => {
-  await loadFamilyContext();
+  const familyReady = await loadFamilyContext();
+  if (!familyReady) return;
   await loadSessions();
 });
 

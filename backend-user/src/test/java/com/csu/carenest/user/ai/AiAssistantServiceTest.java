@@ -52,6 +52,21 @@ class AiAssistantServiceTest {
     }
 
     @Test
+    void warningCreatesNoTickets() {
+        when(provider.answer("medication question"))
+                .thenReturn(new AiProvider.Result("consult a clinician", "WARNING", "MEDICATION", "NORMAL"));
+
+        AiAssistantDtos.MessageResult result = service.message(
+                "Bearer token", "session-1", new AiAssistantDtos.MessageRequest("medication question", "TEXT", null));
+
+        assertTrue(result.riskFlag());
+        assertNull(result.assistanceTicketId());
+        assertFalse(result.customerServiceTicketCreated());
+        verify(repository, never()).assistance(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(repository, never()).customerTicket(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
     void criticalCreatesAssistanceAndCustomerServiceTickets() {
         when(provider.answer("我想死"))
                 .thenReturn(new AiProvider.Result("请立即联系家属或当地急救。", "CRITICAL", "EMERGENCY", "URGENT"));

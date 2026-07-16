@@ -50,6 +50,7 @@ class AiConversationHistoryServiceTest {
         when(auth.requireCurrentUser("Bearer family"))
                 .thenReturn(new AuthService.CurrentUser("family-user", List.of(RoleCode.FAMILY)));
         AiAssistantDtos.SessionSummary summary = summary("session-2", "elder-2");
+        when(repository.bound("family-user", "elder-2")).thenReturn(true);
         when(repository.sessionsForFamily("family-user", "elder-2", 20, 0)).thenReturn(List.of(summary));
         when(repository.sessionCountForFamily("family-user", "elder-2")).thenReturn(1L);
 
@@ -58,6 +59,18 @@ class AiConversationHistoryServiceTest {
 
         assertEquals("elder-2", result.records().get(0).elderId());
         verify(repository).sessionsForFamily("family-user", "elder-2", 20, 0);
+    }
+
+    @Test
+    void rejectsFamilyListingForExplicitUnboundElder() {
+        when(auth.requireCurrentUser("Bearer family"))
+                .thenReturn(new AuthService.CurrentUser("family-user", List.of(RoleCode.FAMILY)));
+        when(repository.bound("family-user", "elder-2")).thenReturn(false);
+
+        ApiException exception = assertThrows(ApiException.class,
+                () -> service.listSessions("Bearer family", "elder-2", 1, 20));
+
+        assertEquals(403, exception.code());
     }
 
     @Test
