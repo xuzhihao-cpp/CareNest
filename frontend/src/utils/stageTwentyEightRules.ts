@@ -7,7 +7,7 @@ export const TRAINING_TIME_ZONE = 'Asia/Shanghai';
 
 const trainingStatusLabels: Record<TrainingDisplayStatus, string> = {
   PENDING: '待审核',
-  APPROVED: '培训有效',
+  APPROVED: '通过',
   REJECTED: '未通过',
   NEED_MORE: '需补充',
   EXPIRED: '培训已过期'

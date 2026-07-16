@@ -21,6 +21,7 @@ RUN apt-get update \
     && useradd --system --uid 10001 --gid carenest --home-dir /app --shell /usr/sbin/nologin carenest
 WORKDIR /app
 COPY --from=build --chown=carenest:carenest /workspace/backend-care-admin/target/backend-care-admin-*.jar /app/app.jar
+COPY --chown=carenest:carenest db/seed /app/db/seed
 USER carenest
 EXPOSE 8082
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Shanghai"

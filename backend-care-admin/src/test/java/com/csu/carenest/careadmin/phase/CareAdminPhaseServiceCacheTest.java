@@ -19,6 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -103,7 +104,10 @@ class CareAdminPhaseServiceCacheTest {
                 .thenReturn(new RedisLockService.Acquisition(RedisLockService.State.UNAVAILABLE, null, null, null));
         when(jdbcTemplate.queryForMap(anyString(), any(Object[].class))).thenReturn(Map.of(
                 "order_id", "order_001",
-                "order_status", "WAIT_DISPATCH"
+                "order_status", "WAIT_DISPATCH",
+                "service_id", "service_001",
+                "scheduled_start_at", LocalDateTime.now().plusDays(1),
+                "scheduled_end_at", LocalDateTime.now().plusDays(1).plusHours(1)
         ));
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(Object[].class))).thenReturn(1);
         when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);

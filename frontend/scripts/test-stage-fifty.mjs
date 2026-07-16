@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { after, test } from 'node:test';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createServer } from 'vite';
+const root = fileURLToPath(new URL('..', import.meta.url)); const requests=[]; const responses=[];
+globalThis.uni={getStorageSync:()=>({token:'nurse-token'}),request(options){requests.push(options);options.success({statusCode:200,data:responses.shift()});}};
+const vite=await createServer({root,configFile:false,server:{middlewareMode:true,hmr:false},optimizeDeps:{noDiscovery:true,include:[]},resolve:{alias:{'@':path.join(root,'src')}}});
+const api=await vite.ssrLoadModule('/src/api/stageFortyNineToFiftyFive.ts'); after(async()=>{await vite.close();delete globalThis.uni;});
+const ok=(data)=>({code:0,message:'success',traceId:'stage50',data});
+test('phase 50 reads recommendations for the selected real order',async()=>{responses.push(ok([{articleId:'article-1',readStatus:'UNREAD'}]));const response=await api.getRecommendedTrainingArticles('order/50');const req=requests.shift();assert.equal(req.url,'/api/v1/nurse/orders/order%2F50/recommended-articles');assert.equal(response.data[0].title,'服务前学习资料 1');});
+test('phase 50 records order and bounded reading duration',async()=>{responses.push(ok({articleId:'article-1',readStatus:'READ'}));const response=await api.markTrainingArticleRead('article-1','order-50',38);const req=requests.shift();assert.equal(req.method,'POST');assert.deepEqual(req.data,{orderId:'order-50',readDurationSeconds:38});assert.equal(response.data.readStatus,'READ');});
+test('phase 50 rejects incomplete reading status responses',async()=>{responses.push(ok({articleId:'article-1',readStatus:'UNKNOWN'}));const response=await api.markTrainingArticleRead('article-1','order-50',1);assert.equal(response.code,502);});

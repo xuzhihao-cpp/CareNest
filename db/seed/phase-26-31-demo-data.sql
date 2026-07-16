@@ -30,6 +30,15 @@ INSERT INTO role_permission (role_id, permission_id, sort) VALUES
 ('role_customer_service', 'perm_care_attention_review', 3103)
 ON DUPLICATE KEY UPDATE sort = VALUES(sort);
 
+INSERT INTO nurse_skill_dictionary (skill_code, skill_name, sort, enabled) VALUES
+('BASIC_CARE', '基础照护', 10, 1),
+('VITAL_SIGN', '生命体征观察', 20, 1),
+('REHAB_ASSIST', '康复陪护', 30, 1)
+ON DUPLICATE KEY UPDATE
+  skill_name = VALUES(skill_name),
+  sort = VALUES(sort),
+  enabled = VALUES(enabled);
+
 INSERT INTO sys_user (user_id, username, password_hash, display_name, phone, account_status) VALUES
 ('nurse-noapp-026', 'nurse_noapp_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '无申请护理演示', '13800002601', 'ENABLED'),
 ('nurse-pending-026', 'nurse_pending_demo', '{bcrypt}$2b$10$CTEqZgvVGIL8gCprN4wywO4ricUhhHWQwWUY6iiX2pLZXEB2S13au', '待审核护理演示', '13800002602', 'ENABLED'),

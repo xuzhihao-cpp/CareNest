@@ -150,7 +150,7 @@ class Phase19To30ServiceTest {
         when(repository.findHealthReviewTaskForUpdate("review_1"))
                 .thenReturn(Optional.of(new HealthReviewTaskEntity(
                         "review_1", "elder_demo", "PENDING", "2", "allergies",
-                        null, "青霉素", "SUGGESTION", "suggestion_1", null)));
+                        null, "青霉素", "SUGGESTION", "suggestion_1", null, null)));
         when(repository.currentArchiveVersion("elder_demo")).thenReturn(2);
 
         HealthArchiveDtos.ArchiveResponse response = service.archiveHealthReviewTask(
@@ -177,7 +177,7 @@ class Phase19To30ServiceTest {
                         "review_disease", "elder_demo", "PENDING", "3", "diseases",
                         "[{\"diseaseName\":\"高血压\",\"status\":\"ACTIVE\"}]",
                         "{\"diseaseName\":\"高血压\",\"status\":\"MONITORING\"}",
-                        "SERVICE_RECORD", "record_1", null)));
+                        "SERVICE_RECORD", "record_1", null, null)));
         when(repository.currentArchiveVersion("elder_demo")).thenReturn(3);
 
         HealthArchiveDtos.ArchiveResponse response = service.archiveHealthReviewTask(
@@ -202,7 +202,7 @@ class Phase19To30ServiceTest {
                 .thenReturn(Optional.of(new HealthReviewTaskEntity(
                         "review_risk", "elder_demo", "PENDING", "4", "riskTags",
                         "跌倒风险：MEDIUM", "夜间跌倒风险：HIGH",
-                        "SERVICE_RECORD", "record_1", null)));
+                        "SERVICE_RECORD", "record_1", null, null)));
         when(repository.currentArchiveVersion("elder_demo")).thenReturn(4);
 
         HealthArchiveDtos.ArchiveResponse response = service.archiveHealthReviewTask(
@@ -225,7 +225,7 @@ class Phase19To30ServiceTest {
         when(repository.findHealthReviewTaskForUpdate("review_2"))
                 .thenReturn(Optional.of(new HealthReviewTaskEntity(
                         "review_2", "elder_demo", "PENDING", "4", "careSummary",
-                        "原摘要", "新摘要", "SUGGESTION", "suggestion_2", null)));
+                        "原摘要", "新摘要", "SUGGESTION", "suggestion_2", null, null)));
         when(repository.currentArchiveVersion("elder_demo")).thenReturn(4);
 
         HealthArchiveDtos.ArchiveResponse response = service.archiveHealthReviewTask(
@@ -280,23 +280,25 @@ class Phase19To30ServiceTest {
     void recommendationRequiresActiveOrderCreateScopeAndPersistsReason() {
         when(repository.findActiveBinding("family_demo", "elder_demo"))
                 .thenReturn(Optional.of(Map.of("scope_codes", "[\"ORDER_CREATE\"]")));
-        when(repository.findRecommendableNurses("service_1")).thenReturn(List.of(
+        when(repository.findOnShelfServiceDuration("service_1")).thenReturn(Optional.of(60));
+        when(repository.addressBelongsToElder("address_1", "elder_demo")).thenReturn(true);
+        when(repository.findRecommendableNurses(eq("service_1"), eq("elder_demo"), any(), any())).thenReturn(List.of(
                 new NurseRecommendationEntity(
                         "nurse_demo", "护理甲", new BigDecimal("95.5"),
-                        List.of("SKILL_BASIC"), "资质和培训有效，匹配技能：SKILL_BASIC", true)));
+                        List.of("SKILL_BASIC"), "资质和培训有效，擅长基础照护，当前时段可预约。", true)));
 
         RecommendationDtos.RecommendResponse response = service.recommendNurses(
                 FAMILY,
                 new RecommendationDtos.RecommendRequest(
-                        "elder_demo", "service_1", "2026-07-12T09:00:00", "address_1"));
+                        "elder_demo", "service_1", LocalDateTime.now().plusDays(1).toString(), "address_1"));
 
         assertEquals(1, response.nurses().size());
         ArgumentCaptor<NurseRecommendationEntity> recommendationCaptor =
                 ArgumentCaptor.forClass(NurseRecommendationEntity.class);
         verify(repository).insertRecommendationLog(
-                anyString(), anyString(), eq(null), eq("elder_demo"), eq("service_1"),
-                eq("address_1"), any(), recommendationCaptor.capture(), eq("family_demo"));
-        assertTrue(recommendationCaptor.getValue().recommendReason().contains("匹配技能"));
+                anyString(), anyString(), anyString(), eq(null), eq("elder_demo"), eq("service_1"),
+                eq("address_1"), any(), recommendationCaptor.capture(), eq(1), eq("family_demo"));
+        assertTrue(recommendationCaptor.getValue().recommendReason().contains("基础照护"));
     }
 
     @Test
@@ -305,19 +307,26 @@ class Phase19To30ServiceTest {
                 "order_id", "order_1",
                 "elder_id", "elder_demo",
                 "family_id", "family_demo",
-                "order_status", "WAIT_DISPATCH");
+                "order_status", "WAIT_DISPATCH",
+                "service_id", "service_1",
+                "scheduled_start_at", LocalDateTime.now().plusDays(1),
+                "scheduled_end_at", LocalDateTime.now().plusDays(1).plusHours(1));
         when(repository.findOrder("order_1")).thenReturn(order);
         when(repository.findActiveBinding("family_demo", "elder_demo"))
                 .thenReturn(Optional.of(Map.of("scope_codes", "[\"ORDER_CREATE\"]")));
-        when(repository.findOrderRecommendation("order_1", "nurse_demo"))
-                .thenReturn(Optional.of(new NurseRecommendationEntity(
-                        "nurse_demo", "护理甲", BigDecimal.TEN, List.of(), "综合评分推荐", true)));
+        NurseRecommendationEntity recommendation = new NurseRecommendationEntity(
+                "nurse_demo", "护理甲", BigDecimal.TEN, List.of(), "综合评分推荐", true);
+        when(repository.findOrderRecommendationLog("order_1", "nurse_demo"))
+                .thenReturn(Optional.of(new Phase19To30Repository.RecommendationLogRow("log_1", recommendation)));
+        when(repository.nurseEligibleForService(eq("nurse_demo"), eq("service_1"), any(), any(), eq("order_1")))
+                .thenReturn(true);
 
         RecommendationDtos.PreferredNurseResponse response = service.choosePreferredNurse(
                 FAMILY, "order_1", new RecommendationDtos.PreferredNurseRequest("nurse_demo"));
 
         assertEquals("nurse_demo", response.preferredNurseId());
-        verify(repository).updatePreferredNurse("order_1", "nurse_demo");
+        verify(repository).updatePreferredNurse(
+                "order_1", "nurse_demo", "综合评分推荐", "log_1", "family_demo");
         verify(repository, never()).insertHealthReviewTask(
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }

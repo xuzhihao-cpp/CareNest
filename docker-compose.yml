@@ -95,6 +95,13 @@ services:
         mc mb --ignore-existing "local/$${MINIO_BUCKET}"
         mc cp /seed-assets/blood-pressure-report.pdf "local/$${MINIO_BUCKET}/demo/elder_001/blood-pressure-report.pdf"
         mc cp /seed-assets/lab-result.pdf "local/$${MINIO_BUCKET}/demo/elder_001/lab-result.pdf"
+        mc cp /seed-assets/blood-pressure-report.pdf "local/$${MINIO_BUCKET}/demo/nurse/pending/certificate.pdf"
+        mc cp /seed-assets/blood-pressure-report.pdf "local/$${MINIO_BUCKET}/demo/nurse/needmore/certificate.pdf"
+        mc cp /seed-assets/blood-pressure-report.pdf "local/$${MINIO_BUCKET}/demo/nurse/qualified/certificate.pdf"
+        mc cp /seed-assets/blood-pressure-report.pdf "local/$${MINIO_BUCKET}/demo/nurse/valid/certificate.pdf"
+        mc cp /seed-assets/blood-pressure-report.pdf "local/$${MINIO_BUCKET}/demo/nurse/expired/certificate.pdf"
+        mc cp /seed-assets/blood-pressure-report.pdf "local/$${MINIO_BUCKET}/demo/nurse/reco-a/certificate.pdf"
+        mc cp /seed-assets/blood-pressure-report.pdf "local/$${MINIO_BUCKET}/demo/nurse/reco-b/certificate.pdf"
 
 volumes:
   carenest_mysql_data:

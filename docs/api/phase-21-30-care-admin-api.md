@@ -42,14 +42,17 @@
 
 | 方法 | 路径 | 请求/查询字段 | 响应 data | 角色 |
 | --- | --- | --- | --- | --- |
-| POST | `/nurse/qualification-applications` | `{realName,idNoMasked,certificateNo,certificateFileIds,serviceSkillCodes}` | `{applicationId,auditStatus}` | `NURSE`，管理场景允许 `ADMIN` |
-| GET | `/nurse/qualification-applications/current` | - | `{applicationId,auditStatus}` | `NURSE`，管理场景允许 `ADMIN` |
+| GET | `/dictionaries/nurseServiceSkill` | - | `{dictCode,items:[{value,label,sort}]}` | 已登录用户 |
+| POST | `/nurse/qualification-applications` | `{realName,idNoMasked,certificateNo,certificateFileIds,serviceSkillCodes}` | 完整资质申请读模型 | `NURSE` + `NURSE_QUALIFICATION_SUBMIT` |
+| GET | `/nurse/qualification-applications/current` | - | 完整资质申请读模型 | `NURSE` + `NURSE_QUALIFICATION_SUBMIT` |
 | GET | `/admin/nurse-qualification-applications` | `auditStatus,page,size` | `{records,total,page,size}` | `ADMIN/CUSTOMER_SERVICE` |
+| GET | `/admin/nurse-qualification-applications/{applicationId}/files/{fileId}/preview` | - | 授权文件流 | `ADMIN/CUSTOMER_SERVICE` + `NURSE_QUALIFICATION_REVIEW` |
 | POST | `/admin/nurse-qualification-applications/{applicationId}/review` | `{auditStatus,reviewComment}` | `{nurseId,qualificationStatus}` | `ADMIN/CUSTOMER_SERVICE` |
-| GET | `/nurse/training-status` | - | `{nurseId,trainingStatus,expiredAt}` | `NURSE`，管理场景允许 `ADMIN` |
-| POST | `/admin/nurses/{nurseId}/training-review` | `{status,trainingBatch,expiredAt,remark}` | `{nurseId,trainingStatus,expiredAt}` | `ADMIN/CUSTOMER_SERVICE` |
+| GET | `/nurse/training-status` | - | 完整培训状态读模型 | `NURSE` |
+| GET | `/admin/nurses/{nurseId}/training-status` | - | 完整培训状态读模型 | `ADMIN/CUSTOMER_SERVICE` + `NURSE_TRAINING_REVIEW` |
+| POST | `/admin/nurses/{nurseId}/training-review` | `{status,trainingBatch,expiredAt,remark}` | 完整培训状态读模型 | `ADMIN/CUSTOMER_SERVICE` + `NURSE_TRAINING_REVIEW` |
 
-待审核或未通过资质不得重复提交正式申请；培训通过时 `expiredAt` 必须晚于当前时间。推荐接口只返回资质和培训均有效的护理。
+完整资质申请读模型为 `{applicationId,nurseId,nurseName,auditStatus,realName,idNoMasked,certificateNoMasked,certificateFiles,serviceSkillCodes,reviewComment,submittedAt,reviewedAt}`。完整培训状态读模型为 `{nurseId,nurseName,qualificationStatus,trainingStatus,trainingBatch,passedAt,expiredAt,remark}`。待审核或已通过资质不得重复提交正式申请；培训通过时 `expiredAt` 必须晚于当前时间。推荐接口只返回资质和培训均有效的护理。
 
 ## 阶段29-30：护理推荐和偏好选择
 
@@ -60,9 +63,9 @@
 | PUT | `/family/orders/{orderId}/preferred-nurse` | `{preferredNurseId}` | `{orderId,preferredNurseId,recommendReason}` | `FAMILY` + `ACTIVE` 绑定 + `ORDER_CREATE` |
 | GET | `/family/orders/{orderId}/recommendation-view` | - | `{orderId,preferredNurseId,recommendReason}` | `FAMILY` + `ACTIVE` 绑定 + `ORDER_CREATE` |
 
-推荐结果必须包含可解释理由并写入 `nurse_recommendation_log`。偏好选择只更新 `preferred_nurse_id`，订单继续保持 `WAIT_DISPATCH`，最终派单仍由管理端完成。
+推荐结果必须包含后端生成的中文可解释理由并写入 `nurse_recommendation_log`。Redis 仅缓存相同条件的候选读模型，最长五分钟，MySQL 始终保存每次请求日志并作为事实源。订单推荐 GET 只读取创建订单时绑定的推荐日志，不在缺少日志时临时生成候选。偏好选择保存护理、推荐理由、推荐日志和操作人快照，订单继续保持 `WAIT_DISPATCH`，最终派单仍由管理端完成。
 
 ## 当前数据库依赖
 
 - 阶段21-25已按远端 `main` 中阶段19、20、23、24真实表结构对齐。
-- 阶段26-30接口代码已完成；其生产联调依赖成员1后续提供对应表结构/迁移，成员3不越权在 `db/` 中创建这些表。
+- 阶段26-31生产表、权限、索引和演示数据位于 `db/schema/phase-26-31-nurse-admission-schema.sql` 与 `db/seed/phase-26-31-demo-data.sql`，必须通过空库初始化验收。

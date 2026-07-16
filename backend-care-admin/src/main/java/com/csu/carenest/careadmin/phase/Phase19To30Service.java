@@ -19,15 +19,21 @@ import com.csu.carenest.careadmin.phase.entity.TrainingRecordEntity;
 import com.csu.carenest.careadmin.phase.enums.AuditStatus;
 import com.csu.carenest.careadmin.phase.enums.TrainingStatus;
 import com.csu.carenest.careadmin.phase.repository.Phase19To30Repository;
+import com.csu.carenest.careadmin.redis.RedisCacheService;
+import com.csu.carenest.careadmin.redis.RedisKeyFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -67,14 +73,25 @@ public class Phase19To30Service {
     private final Phase19To30Repository repository;
     private final ObjectMapper objectMapper;
     private final Phase25MedicalFileStorage medicalFileStorage;
+    private final RedisCacheService cacheService;
+
+    @Autowired
+    public Phase19To30Service(
+            Phase19To30Repository repository,
+            ObjectMapper objectMapper,
+            Phase25MedicalFileStorage medicalFileStorage,
+            RedisCacheService cacheService) {
+        this.repository = repository;
+        this.objectMapper = objectMapper;
+        this.medicalFileStorage = medicalFileStorage;
+        this.cacheService = cacheService;
+    }
 
     public Phase19To30Service(
             Phase19To30Repository repository,
             ObjectMapper objectMapper,
             Phase25MedicalFileStorage medicalFileStorage) {
-        this.repository = repository;
-        this.objectMapper = objectMapper;
-        this.medicalFileStorage = medicalFileStorage;
+        this(repository, objectMapper, medicalFileStorage, null);
     }
 
     public PageData<MedicalFileDtos.MedicalFileItem> medicalFiles(
@@ -341,6 +358,23 @@ public class Phase19To30Service {
     public record MedicalFilePreview(byte[] content, String mimeType, String originalName) {
     }
 
+    @Transactional(readOnly = true)
+    public List<QualificationDtos.SkillOption> qualificationSkillOptions() {
+        return repository.findQualificationSkillOptions();
+    }
+
+    @Transactional(readOnly = true)
+    public QualificationFilePreview qualificationFilePreview(String applicationId, String fileId) {
+        Phase19To30Repository.QualificationFileRow file = repository
+                .findQualificationFile(applicationId, fileId)
+                .orElseThrow(NotFoundException::new);
+        return new QualificationFilePreview(
+                medicalFileStorage.read(file.bucket(), file.objectKey()), file.mimeType(), file.originalName());
+    }
+
+    public record QualificationFilePreview(byte[] content, String mimeType, String originalName) {
+    }
+
     @Transactional
     public QualificationDtos.ApplicationResponse submitQualification(
             CurrentUser currentUser,
@@ -350,15 +384,36 @@ public class Phase19To30Service {
             throw new ConflictException();
         }
 
+        List<String> skillCodes = request.serviceSkillCodes().stream()
+                .map(String::trim).filter(this::hasText).distinct().toList();
+        List<String> fileIds = request.certificateFileIds().stream()
+                .map(String::trim).filter(this::hasText).distinct().toList();
+        if (skillCodes.isEmpty() || skillCodes.size() != request.serviceSkillCodes().size()
+                || fileIds.isEmpty() || fileIds.size() != request.certificateFileIds().size()
+                || fileIds.size() > 5 || !repository.qualificationSkillsExist(skillCodes)) {
+            throw new BusinessRuleException();
+        }
+        for (String fileId : fileIds) {
+            Phase19To30Repository.QualificationFileRow file = repository
+                    .findOwnedQualificationFile(currentUser.userId(), fileId)
+                    .orElseThrow(ForbiddenException::new);
+            if (!qualificationFileTypeAllowed(file.mimeType(), file.originalName())
+                    || file.size() <= 0 || file.size() > 20L * 1024 * 1024) {
+                throw new BusinessRuleException();
+            }
+        }
+
         String applicationId = nextId("qualification");
         repository.updateNurseProfileForApplication(
                 currentUser.userId(), request.realName(), request.idNoMasked(), PENDING);
-        String skillsJson = writeJson(request.serviceSkillCodes());
-        for (String fileId : request.certificateFileIds()) {
+        String skillsJson = writeJson(skillCodes);
+        for (String fileId : fileIds) {
             repository.insertNurseCertificate(
                     nextId("certificate"),
                     applicationId,
                     currentUser.userId(),
+                    request.realName(),
+                    request.idNoMasked(),
                     request.certificateNo(),
                     fileId,
                     skillsJson);
@@ -371,7 +426,7 @@ public class Phase19To30Service {
     public QualificationDtos.ApplicationResponse currentQualification(CurrentUser currentUser) {
         QualificationApplicationEntity application = repository.findCurrentQualification(currentUser.userId())
                 .orElseThrow(NotFoundException::new);
-        return new QualificationDtos.ApplicationResponse(application.applicationId(), application.auditStatus());
+        return toQualificationApplication(application);
     }
 
     public PageData<QualificationDtos.ApplicationResponse> qualificationApplications(
@@ -384,7 +439,7 @@ public class Phase19To30Service {
         List<QualificationDtos.ApplicationResponse> records = repository
                 .findQualificationApplications(normalizedStatus, safeSize, offset(safePage, safeSize))
                 .stream()
-                .map(item -> new QualificationDtos.ApplicationResponse(item.applicationId(), item.auditStatus()))
+                .map(this::toQualificationApplication)
                 .toList();
         return new PageData<>(records,
                 repository.countQualificationApplications(normalizedStatus), safePage, safeSize);
@@ -397,6 +452,9 @@ public class Phase19To30Service {
             QualificationDtos.QualificationReviewRequest request) {
         QualificationApplicationEntity application = repository.findQualificationApplication(applicationId)
                 .orElseThrow(NotFoundException::new);
+        if (!PENDING.equals(application.auditStatus())) {
+            throw new ConflictException();
+        }
         AuditStatus targetStatus = AuditStatus.parse(request.auditStatus());
         requireReviewTarget(targetStatus, request.reviewComment());
         repository.reviewQualification(
@@ -405,6 +463,7 @@ public class Phase19To30Service {
                 targetStatus.name(),
                 request.reviewComment(),
                 reviewer.userId());
+        evictRecommendationCache();
         saveOperationLog(reviewer, "REVIEW_NURSE_QUALIFICATION", "NURSE_QUALIFICATION",
                 applicationId, application, request);
         return new QualificationDtos.QualificationReviewResponse(
@@ -412,10 +471,13 @@ public class Phase19To30Service {
     }
 
     public QualificationDtos.TrainingResponse trainingStatus(CurrentUser currentUser) {
-        TrainingRecordEntity record = repository.findTrainingRecord(currentUser.userId())
+        return trainingStatusForNurse(currentUser.userId());
+    }
+
+    public QualificationDtos.TrainingResponse trainingStatusForNurse(String nurseId) {
+        TrainingRecordEntity record = repository.findTrainingRecord(nurseId)
                 .orElseThrow(NotFoundException::new);
-        return new QualificationDtos.TrainingResponse(
-                record.nurseId(), effectiveTrainingStatus(record), record.expiredAt());
+        return toTrainingResponse(record);
     }
 
     @Transactional
@@ -423,6 +485,9 @@ public class Phase19To30Service {
             CurrentUser reviewer,
             String nurseId,
             QualificationDtos.TrainingReviewRequest request) {
+        if (!APPROVED.equals(repository.findNurseQualificationStatus(nurseId))) {
+            throw new BusinessRuleException();
+        }
         TrainingStatus status = TrainingStatus.parse(request.status());
         LocalDateTime expiredAt = parseNullableDateTime(request.expiredAt());
         if (status == TrainingStatus.APPROVED
@@ -436,10 +501,10 @@ public class Phase19To30Service {
         repository.saveTrainingReview(
                 nextId("training"), nurseId, status.name(), request.trainingBatch(), expiredAt,
                 request.remark(), reviewer.userId());
+        evictRecommendationCache();
         saveOperationLog(reviewer, "REVIEW_NURSE_TRAINING", "NURSE_TRAINING",
                 nurseId, null, request);
-        return new QualificationDtos.TrainingResponse(
-                nurseId, status.name(), expiredAt == null ? null : expiredAt.toString());
+        return trainingStatusForNurse(nurseId);
     }
 
     @Transactional
@@ -448,13 +513,38 @@ public class Phase19To30Service {
             RecommendationDtos.RecommendRequest request) {
         requireElderAccess(currentUser, request.elderId(), ORDER_CREATE_SCOPE);
         LocalDateTime scheduledStart = parseDateTime(request.scheduledStart());
-        List<NurseRecommendationEntity> recommendations = repository.findRecommendableNurses(request.serviceId());
+        if (!scheduledStart.isAfter(LocalDateTime.now())) {
+            throw new BusinessRuleException();
+        }
+        int durationMinutes = repository.findOnShelfServiceDuration(request.serviceId())
+                .orElseThrow(BusinessRuleException::new);
+        if (!repository.addressBelongsToElder(request.addressId(), request.elderId())) {
+            throw new BusinessRuleException();
+        }
+        LocalDateTime scheduledEnd = scheduledStart.plusMinutes(durationMinutes);
+        String requestHash = recommendationHash(request, scheduledStart);
+        RecommendationDtos.RecommendResponse cached = cacheService == null
+                ? null
+                : cacheService.get(
+                        RedisKeyFactory.nurseRecommendationKey(requestHash),
+                        RecommendationDtos.RecommendResponse.class).orElse(null);
+        List<NurseRecommendationEntity> recommendations = cached == null
+                ? repository.findRecommendableNurses(
+                        request.serviceId(), request.elderId(), scheduledStart, scheduledEnd)
+                : cached.nurses().stream().map(this::toRecommendationEntity).toList();
+        if (cached == null && cacheService != null) {
+            cacheService.put(
+                    RedisKeyFactory.nurseRecommendationKey(requestHash),
+                    toRecommendResponse(recommendations), Duration.ofMinutes(5));
+        }
         String requestKey = nextId("recommend");
-        for (NurseRecommendationEntity recommendation : recommendations) {
+        for (int index = 0; index < recommendations.size(); index++) {
+            NurseRecommendationEntity recommendation = recommendations.get(index);
             // 推荐理由必须落库，后续选择偏好、申诉和评分都可追溯到同一批推荐结果。
             repository.insertRecommendationLog(
-                    nextId("recommend_log"), requestKey, null, request.elderId(), request.serviceId(),
-                    request.addressId(), scheduledStart, recommendation, currentUser.userId());
+                    nextId("recommend_log"), requestKey, requestHash, null, request.elderId(),
+                    request.serviceId(), request.addressId(), scheduledStart, recommendation,
+                    index + 1, currentUser.userId());
         }
         return toRecommendResponse(recommendations);
     }
@@ -464,19 +554,7 @@ public class Phase19To30Service {
             String orderId) {
         Map<String, Object> order = requireOrder(orderId);
         requireOrderAccess(currentUser, order, false);
-        List<NurseRecommendationEntity> recommendations = repository.findOrderRecommendations(orderId);
-        if (recommendations.isEmpty()) {
-            recommendations = repository.findRecommendableNurses(string(order, "service_id"));
-            LocalDateTime scheduledStart = toLocalDateTime(order.get("scheduled_start_at"));
-            String requestKey = nextId("recommend");
-            for (NurseRecommendationEntity recommendation : recommendations) {
-                repository.insertRecommendationLog(
-                        nextId("recommend_log"), requestKey, orderId, string(order, "elder_id"),
-                        string(order, "service_id"), string(order, "address_id"), scheduledStart,
-                        recommendation, currentUser.userId());
-            }
-        }
-        return toRecommendResponse(recommendations);
+        return toRecommendResponse(repository.findOrderRecommendations(orderId));
     }
 
     @Transactional
@@ -489,11 +567,21 @@ public class Phase19To30Service {
         if (!"WAIT_DISPATCH".equals(string(order, "order_status"))) {
             throw new ConflictException();
         }
-        NurseRecommendationEntity recommendation = repository
-                .findOrderRecommendation(orderId, request.preferredNurseId())
-                .filter(NurseRecommendationEntity::available)
+        Phase19To30Repository.RecommendationLogRow recommendationLog = repository
+                .findOrderRecommendationLog(orderId, request.preferredNurseId())
+                .filter(row -> row.recommendation().available())
                 .orElseThrow(BusinessRuleException::new);
-        repository.updatePreferredNurse(orderId, request.preferredNurseId());
+        LocalDateTime scheduledStart = toLocalDateTime(order.get("scheduled_start_at"));
+        LocalDateTime scheduledEnd = toLocalDateTime(order.get("scheduled_end_at"));
+        if (!repository.nurseEligibleForService(
+                request.preferredNurseId(), string(order, "service_id"),
+                scheduledStart, scheduledEnd, orderId)) {
+            throw new BusinessRuleException();
+        }
+        NurseRecommendationEntity recommendation = recommendationLog.recommendation();
+        repository.updatePreferredNurse(
+                orderId, request.preferredNurseId(), recommendation.recommendReason(),
+                recommendationLog.logId(), currentUser.userId());
         saveOperationLog(currentUser, "CHOOSE_PREFERRED_NURSE", "NURSING_ORDER", orderId,
                 nullablePreference(nullableString(order, "preferred_nurse_id")), request);
 
@@ -511,10 +599,14 @@ public class Phase19To30Service {
         if (!hasText(nurseId)) {
             throw new NotFoundException();
         }
-        NurseRecommendationEntity recommendation = repository.findOrderRecommendation(orderId, nurseId)
-                .orElseThrow(NotFoundException::new);
+        String recommendReason = nullableString(order, "preferred_nurse_reason");
+        if (!hasText(recommendReason)) {
+            recommendReason = repository.findOrderRecommendation(orderId, nurseId)
+                    .map(NurseRecommendationEntity::recommendReason)
+                    .orElseThrow(NotFoundException::new);
+        }
         return new RecommendationDtos.PreferredNurseResponse(
-                orderId, nurseId, recommendation.recommendReason());
+                orderId, nurseId, recommendReason);
     }
 
     private MedicalFileEntity requireMedicalFile(String fileId) {
@@ -608,7 +700,7 @@ public class Phase19To30Service {
                     task.sourceId(), null, task.status()));
         }
         return new HealthArchiveDtos.ReviewTaskResponse(
-                task.taskId(), task.elderId(), task.status(), task.archiveVersion(), suggestions);
+                task.taskId(), task.elderId(), task.status(), task.archiveVersion(), task.submittedAt(), suggestions);
     }
 
     private MedicalFileDtos.MedicalFileItem toMedicalFileItem(MedicalFileEntity entity) {
@@ -624,6 +716,89 @@ public class Phase19To30Service {
                         item.nurseId(), item.nurseName(), item.score(), item.matchedSkills(),
                         item.recommendReason(), item.available()))
                 .toList());
+    }
+
+    private NurseRecommendationEntity toRecommendationEntity(RecommendationDtos.NurseItem item) {
+        return new NurseRecommendationEntity(
+                item.nurseId(), item.nurseName(), item.score(), item.matchedSkills(),
+                item.recommendReason(), item.available());
+    }
+
+    private String recommendationHash(
+            RecommendationDtos.RecommendRequest request,
+            LocalDateTime scheduledStart) {
+        String value = String.join("|", request.elderId(), request.serviceId(), request.addressId(),
+                scheduledStart.withSecond(0).withNano(0).toString());
+        try {
+            return java.util.HexFormat.of().formatHex(
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
+    }
+
+    private void evictRecommendationCache() {
+        if (cacheService != null) {
+            cacheService.evictByPrefix(RedisKeyFactory.nurseRecommendationPrefix());
+        }
+    }
+
+    private QualificationDtos.ApplicationResponse toQualificationApplication(
+            QualificationApplicationEntity application) {
+        List<QualificationDtos.CertificateFile> files = repository
+                .findQualificationFiles(application.applicationId())
+                .stream()
+                .map(file -> new QualificationDtos.CertificateFile(
+                        file.fileId(), file.originalName(), file.mimeType(), file.size(),
+                        qualificationFileTypeAllowed(file.mimeType(), file.originalName())))
+                .toList();
+        return new QualificationDtos.ApplicationResponse(
+                application.applicationId(), application.nurseId(), application.nurseName(),
+                application.auditStatus(), application.realName(), application.idNoMasked(),
+                maskCertificateNumber(application.certificateNo()), files,
+                readStringList(application.serviceSkillCodes()), application.reviewComment(),
+                application.submittedAt(), application.reviewedAt());
+    }
+
+    private QualificationDtos.TrainingResponse toTrainingResponse(TrainingRecordEntity record) {
+        return new QualificationDtos.TrainingResponse(
+                record.nurseId(), record.nurseName(), record.qualificationStatus(),
+                effectiveTrainingStatus(record), record.trainingBatch(), record.passedAt(),
+                record.expiredAt(), record.remark());
+    }
+
+    private List<String> readStringList(String raw) {
+        if (!hasText(raw)) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(raw, new TypeReference<>() {
+            });
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Invalid qualification skill data", exception);
+        }
+    }
+
+    private String maskCertificateNumber(String certificateNo) {
+        if (!hasText(certificateNo)) {
+            return "";
+        }
+        String value = certificateNo.trim();
+        if (value.length() <= 4) {
+            return "****";
+        }
+        int prefixLength = Math.min(4, value.length() - 4);
+        return value.substring(0, prefixLength) + "****" + value.substring(value.length() - 4);
+    }
+
+    private boolean qualificationFileTypeAllowed(String mimeType, String originalName) {
+        String mime = hasText(mimeType) ? mimeType.trim().toLowerCase() : "";
+        String name = hasText(originalName) ? originalName.trim().toLowerCase() : "";
+        return ("application/pdf".equals(mime) && name.endsWith(".pdf"))
+                || (("image/jpeg".equals(mime) || "image/jpg".equals(mime))
+                && (name.endsWith(".jpg") || name.endsWith(".jpeg")))
+                || ("image/png".equals(mime) && name.endsWith(".png"));
     }
 
     private void validateArchiveDecisions(List<HealthArchiveDtos.ArchiveDecision> decisions) {
@@ -804,7 +979,7 @@ public class Phase19To30Service {
         if (!APPROVED.equals(record.trainingStatus()) || !hasText(record.expiredAt())) {
             return record.trainingStatus();
         }
-        return parseDateTime(record.expiredAt()).isAfter(LocalDateTime.now()) ? APPROVED : REJECTED;
+        return parseDateTime(record.expiredAt()).isAfter(LocalDateTime.now()) ? APPROVED : "EXPIRED";
     }
 
     private HealthArchiveDtos.PreServiceElderProfile toPreServiceElderProfile(

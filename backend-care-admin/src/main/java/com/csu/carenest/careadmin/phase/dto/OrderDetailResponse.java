@@ -18,6 +18,8 @@ public record OrderDetailResponse(
         Integer servicePrice,
         String contactName,
         String contactPhone,
+        String preferredNurseName,
+        String preferredNurseReason,
         String remark
 ) {
 }

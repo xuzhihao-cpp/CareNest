@@ -6,6 +6,7 @@ import com.csu.carenest.careadmin.phase.entity.NurseRecommendationEntity;
 import com.csu.carenest.careadmin.phase.entity.QualificationApplicationEntity;
 import com.csu.carenest.careadmin.phase.entity.TrainingRecordEntity;
 import com.csu.carenest.careadmin.phase.dto.HealthArchiveDtos;
+import com.csu.carenest.careadmin.phase.dto.QualificationDtos;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -223,7 +224,7 @@ public class Phase19To30Repository {
                 SELECT t.review_task_id, t.elder_id, t.review_status,
                        COALESCE(ha.archive_version, 0) AS archive_version,
                        t.field_name, t.old_value, t.new_value, t.source_type, t.source_id,
-                       t.review_remark
+                       t.review_remark, t.created_at AS submitted_at
                 FROM health_info_review_task t
                 LEFT JOIN health_archive ha ON ha.elder_id = t.elder_id
                 WHERE (? IS NULL OR t.review_status = ?)
@@ -239,7 +240,8 @@ public class Phase19To30Repository {
                 rs.getString("new_value"),
                 rs.getString("source_type"),
                 rs.getString("source_id"),
-                rs.getString("review_remark")
+                rs.getString("review_remark"),
+                rs.getTimestamp("submitted_at").toLocalDateTime()
         ), status, status, size, offset);
     }
 
@@ -249,7 +251,7 @@ public class Phase19To30Repository {
                     SELECT t.review_task_id, t.elder_id, t.review_status,
                            COALESCE(ha.archive_version, 0) AS archive_version,
                            t.field_name, t.old_value, t.new_value, t.source_type, t.source_id,
-                           t.review_remark
+                           t.review_remark, t.created_at AS submitted_at
                     FROM health_info_review_task t
                     LEFT JOIN health_archive ha ON ha.elder_id = t.elder_id
                     WHERE t.review_task_id = ?
@@ -263,7 +265,8 @@ public class Phase19To30Repository {
                     rs.getString("new_value"),
                     rs.getString("source_type"),
                     rs.getString("source_id"),
-                    rs.getString("review_remark")
+                    rs.getString("review_remark"),
+                    rs.getTimestamp("submitted_at").toLocalDateTime()
             ), taskId);
             return Optional.ofNullable(entity);
         } catch (EmptyResultDataAccessException exception) {
@@ -279,7 +282,7 @@ public class Phase19To30Repository {
                                      FROM health_archive ha
                                      WHERE ha.elder_id = t.elder_id), 0) AS archive_version,
                            t.field_name, t.old_value, t.new_value, t.source_type, t.source_id,
-                           t.review_remark
+                           t.review_remark, t.created_at AS submitted_at
                     FROM health_info_review_task t
                     WHERE t.review_task_id = ?
                     FOR UPDATE
@@ -287,8 +290,9 @@ public class Phase19To30Repository {
                     rs.getString("review_task_id"), rs.getString("elder_id"),
                     rs.getString("review_status"), rs.getString("archive_version"),
                     rs.getString("field_name"), rs.getString("old_value"),
-                    rs.getString("new_value"), rs.getString("source_type"),
-                    rs.getString("source_id"), rs.getString("review_remark")
+                            rs.getString("new_value"), rs.getString("source_type"),
+                            rs.getString("source_id"), rs.getString("review_remark"),
+                            rs.getTimestamp("submitted_at").toLocalDateTime()
             ), taskId);
             return Optional.ofNullable(entity);
         } catch (EmptyResultDataAccessException exception) {
@@ -571,10 +575,35 @@ public class Phase19To30Repository {
             String idNoMasked,
             String qualificationStatus) {
         jdbcTemplate.update("""
-                UPDATE nurse_profile
-                SET real_name = ?, id_no_masked = ?, qualification_status = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE nurse_id = ?
-                """, realName, idNoMasked, qualificationStatus, nurseId);
+                INSERT INTO nurse_profile
+                  (nurse_id, real_name, id_no_masked, qualification_status, training_status,
+                   can_take_order, profile_status)
+                VALUES (?, ?, ?, ?, 'PENDING', 0, 'ACTIVE')
+                ON DUPLICATE KEY UPDATE
+                  real_name = VALUES(real_name),
+                  id_no_masked = VALUES(id_no_masked),
+                  qualification_status = VALUES(qualification_status),
+                  can_take_order = 0,
+                  updated_at = CURRENT_TIMESTAMP
+                """, nurseId, realName, idNoMasked, qualificationStatus);
+    }
+
+    public void insertNurseCertificate(
+            String certificateId,
+            String applicationId,
+            String nurseId,
+            String realName,
+            String idNoMasked,
+            String certificateNo,
+            String fileId,
+            String skillCodesJson) {
+        jdbcTemplate.update("""
+                INSERT INTO nurse_certificate
+                  (certificate_id, application_id, nurse_id, real_name, id_no_masked, certificate_no, file_id,
+                   service_skill_codes, audit_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+                """, certificateId, applicationId, nurseId, realName, idNoMasked,
+                certificateNo, fileId, skillCodesJson);
     }
 
     public void insertNurseCertificate(
@@ -584,28 +613,64 @@ public class Phase19To30Repository {
             String certificateNo,
             String fileId,
             String skillCodesJson) {
-        jdbcTemplate.update("""
-                INSERT INTO nurse_certificate
-                  (certificate_id, application_id, nurse_id, certificate_no, file_id,
-                   service_skill_codes, audit_status)
-                VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
-                """, certificateId, applicationId, nurseId, certificateNo, fileId, skillCodesJson);
+        insertNurseCertificate(certificateId, applicationId, nurseId, null, null,
+                certificateNo, fileId, skillCodesJson);
+    }
+
+    public Optional<QualificationFileRow> findOwnedQualificationFile(String nurseId, String fileId) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject("""
+                    SELECT file_id, original_name, mime_type, file_size, storage_bucket, object_key, uploaded_by
+                    FROM file_asset
+                    WHERE file_id = ? AND uploaded_by = ?
+                      AND audit_status IN ('PENDING', 'APPROVED')
+                    """, (rs, rowNum) -> new QualificationFileRow(
+                    rs.getString("file_id"), rs.getString("original_name"), rs.getString("mime_type"),
+                    rs.getLong("file_size"), rs.getString("storage_bucket"), rs.getString("object_key"),
+                    rs.getString("uploaded_by")), fileId, nurseId));
+        } catch (EmptyResultDataAccessException exception) {
+            return Optional.empty();
+        }
+    }
+
+    public List<QualificationDtos.SkillOption> findQualificationSkillOptions() {
+        return jdbcTemplate.query("""
+                SELECT skill_code, skill_name, sort
+                FROM nurse_skill_dictionary
+                WHERE enabled = 1
+                ORDER BY sort, skill_code
+                """, (rs, rowNum) -> new QualificationDtos.SkillOption(
+                rs.getString("skill_code"), rs.getString("skill_name"), rs.getInt("sort")));
+    }
+
+    public boolean qualificationSkillsExist(List<String> skillCodes) {
+        if (skillCodes == null || skillCodes.isEmpty()) {
+            return false;
+        }
+        String placeholders = String.join(",", java.util.Collections.nCopies(skillCodes.size(), "?"));
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM nurse_skill_dictionary WHERE enabled = 1 AND skill_code IN (" + placeholders + ")",
+                Integer.class,
+                skillCodes.toArray());
+        return count != null && count == skillCodes.size();
     }
 
     public Optional<QualificationApplicationEntity> findCurrentQualification(String nurseId) {
         try {
             QualificationApplicationEntity entity = jdbcTemplate.queryForObject("""
-                    SELECT application_id, nurse_id, audit_status, review_comment
-                    FROM nurse_certificate
-                    WHERE nurse_id = ?
-                    ORDER BY created_at DESC
+                    SELECT nc.application_id, nc.nurse_id, nc.audit_status, nc.review_comment,
+                           COALESCE(np.real_name, u.display_name) AS nurse_name,
+                           COALESCE(nc.real_name, np.real_name, u.display_name) AS real_name,
+                           COALESCE(nc.id_no_masked, np.id_no_masked) AS id_no_masked,
+                           nc.certificate_no, CAST(nc.service_skill_codes AS CHAR) AS service_skill_codes,
+                           nc.submitted_at, nc.reviewed_at
+                    FROM nurse_certificate nc
+                    JOIN nurse_profile np ON np.nurse_id = nc.nurse_id
+                    JOIN sys_user u ON u.user_id = nc.nurse_id
+                    WHERE nc.nurse_id = ?
+                    ORDER BY nc.submitted_at DESC, nc.created_at DESC
                     LIMIT 1
-                    """, (rs, rowNum) -> new QualificationApplicationEntity(
-                    rs.getString("application_id"),
-                    rs.getString("nurse_id"),
-                    rs.getString("audit_status"),
-                    rs.getString("review_comment")
-            ), nurseId);
+                    """, this::mapQualificationApplication, nurseId);
             return Optional.ofNullable(entity);
         } catch (EmptyResultDataAccessException exception) {
             return Optional.empty();
@@ -625,39 +690,65 @@ public class Phase19To30Repository {
             int size,
             int offset) {
         return jdbcTemplate.query("""
-                SELECT application_id, nurse_id, MAX(audit_status) AS audit_status,
-                       MAX(review_comment) AS review_comment
-                FROM nurse_certificate
-                WHERE (? IS NULL OR audit_status = ?)
-                GROUP BY application_id, nurse_id
-                ORDER BY MAX(created_at) DESC
+                SELECT nc.application_id, nc.nurse_id, MAX(nc.audit_status) AS audit_status,
+                       MAX(nc.review_comment) AS review_comment,
+                       MAX(COALESCE(np.real_name, u.display_name)) AS nurse_name,
+                       MAX(COALESCE(nc.real_name, np.real_name, u.display_name)) AS real_name,
+                       MAX(COALESCE(nc.id_no_masked, np.id_no_masked)) AS id_no_masked,
+                       MAX(nc.certificate_no) AS certificate_no,
+                       MAX(CAST(nc.service_skill_codes AS CHAR)) AS service_skill_codes,
+                       MIN(nc.submitted_at) AS submitted_at, MAX(nc.reviewed_at) AS reviewed_at
+                FROM nurse_certificate nc
+                JOIN nurse_profile np ON np.nurse_id = nc.nurse_id
+                JOIN sys_user u ON u.user_id = nc.nurse_id
+                WHERE (? IS NULL OR nc.audit_status = ?)
+                GROUP BY nc.application_id, nc.nurse_id
+                ORDER BY MIN(nc.submitted_at) DESC
                 LIMIT ? OFFSET ?
-                """, (rs, rowNum) -> new QualificationApplicationEntity(
-                rs.getString("application_id"),
-                rs.getString("nurse_id"),
-                rs.getString("audit_status"),
-                rs.getString("review_comment")
-        ), auditStatus, auditStatus, size, offset);
+                """, this::mapQualificationApplication, auditStatus, auditStatus, size, offset);
     }
 
     public Optional<QualificationApplicationEntity> findQualificationApplication(String applicationId) {
         try {
             QualificationApplicationEntity entity = jdbcTemplate.queryForObject("""
-                    SELECT application_id, nurse_id, MAX(audit_status) AS audit_status,
-                           MAX(review_comment) AS review_comment
-                    FROM nurse_certificate
-                    WHERE application_id = ?
-                    GROUP BY application_id, nurse_id
-                    """, (rs, rowNum) -> new QualificationApplicationEntity(
-                    rs.getString("application_id"),
-                    rs.getString("nurse_id"),
-                    rs.getString("audit_status"),
-                    rs.getString("review_comment")
-            ), applicationId);
+                    SELECT nc.application_id, nc.nurse_id, MAX(nc.audit_status) AS audit_status,
+                           MAX(nc.review_comment) AS review_comment,
+                           MAX(COALESCE(np.real_name, u.display_name)) AS nurse_name,
+                           MAX(COALESCE(nc.real_name, np.real_name, u.display_name)) AS real_name,
+                           MAX(COALESCE(nc.id_no_masked, np.id_no_masked)) AS id_no_masked,
+                           MAX(nc.certificate_no) AS certificate_no,
+                           MAX(CAST(nc.service_skill_codes AS CHAR)) AS service_skill_codes,
+                           MIN(nc.submitted_at) AS submitted_at, MAX(nc.reviewed_at) AS reviewed_at
+                    FROM nurse_certificate nc
+                    JOIN nurse_profile np ON np.nurse_id = nc.nurse_id
+                    JOIN sys_user u ON u.user_id = nc.nurse_id
+                    WHERE nc.application_id = ?
+                    GROUP BY nc.application_id, nc.nurse_id
+                    """, this::mapQualificationApplication, applicationId);
             return Optional.ofNullable(entity);
         } catch (EmptyResultDataAccessException exception) {
             return Optional.empty();
         }
+    }
+
+    public List<QualificationFileRow> findQualificationFiles(String applicationId) {
+        return jdbcTemplate.query("""
+                SELECT fa.file_id, fa.original_name, fa.mime_type, fa.file_size,
+                       fa.storage_bucket, fa.object_key, fa.uploaded_by
+                FROM nurse_certificate nc
+                JOIN file_asset fa ON fa.file_id = nc.file_id
+                WHERE nc.application_id = ?
+                ORDER BY nc.created_at, nc.certificate_id
+                """, (rs, rowNum) -> new QualificationFileRow(
+                rs.getString("file_id"), rs.getString("original_name"), rs.getString("mime_type"),
+                rs.getLong("file_size"), rs.getString("storage_bucket"), rs.getString("object_key"),
+                rs.getString("uploaded_by")), applicationId);
+    }
+
+    public Optional<QualificationFileRow> findQualificationFile(String applicationId, String fileId) {
+        return findQualificationFiles(applicationId).stream()
+                .filter(file -> file.fileId().equals(fileId))
+                .findFirst();
     }
 
     public void reviewQualification(
@@ -680,20 +771,58 @@ public class Phase19To30Repository {
     public Optional<TrainingRecordEntity> findTrainingRecord(String nurseId) {
         try {
             TrainingRecordEntity entity = jdbcTemplate.queryForObject("""
-                    SELECT nurse_id, training_status, expired_at
-                    FROM nurse_training_record
-                    WHERE nurse_id = ?
-                    ORDER BY created_at DESC
+                    SELECT ntr.nurse_id, COALESCE(np.real_name, u.display_name) AS nurse_name,
+                           np.qualification_status, ntr.training_status, ntr.training_batch,
+                           ntr.passed_at, ntr.expired_at, ntr.remark
+                    FROM nurse_training_record ntr
+                    JOIN nurse_profile np ON np.nurse_id = ntr.nurse_id
+                    JOIN sys_user u ON u.user_id = ntr.nurse_id
+                    WHERE ntr.nurse_id = ?
+                    ORDER BY ntr.created_at DESC
                     LIMIT 1
                     """, (rs, rowNum) -> new TrainingRecordEntity(
                     rs.getString("nurse_id"),
+                    rs.getString("nurse_name"),
+                    rs.getString("qualification_status"),
                     rs.getString("training_status"),
-                    text(rs.getObject("expired_at"))
+                    rs.getString("training_batch"),
+                    text(rs.getObject("passed_at")),
+                    text(rs.getObject("expired_at")),
+                    rs.getString("remark")
             ), nurseId);
             return Optional.ofNullable(entity);
         } catch (EmptyResultDataAccessException exception) {
             return Optional.empty();
         }
+    }
+
+    public String findNurseQualificationStatus(String nurseId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT qualification_status FROM nurse_profile WHERE nurse_id = ?",
+                    String.class,
+                    nurseId);
+        } catch (EmptyResultDataAccessException exception) {
+            return null;
+        }
+    }
+
+    public Optional<Integer> findOnShelfServiceDuration(String serviceId) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject("""
+                    SELECT duration_minutes FROM service_item
+                    WHERE service_id = ? AND service_status = 'ON_SHELF'
+                    """, Integer.class, serviceId));
+        } catch (EmptyResultDataAccessException exception) {
+            return Optional.empty();
+        }
+    }
+
+    public boolean addressBelongsToElder(String addressId, String elderId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM service_address WHERE address_id = ? AND elder_id = ?
+                """, Integer.class, addressId, elderId);
+        return count != null && count > 0;
     }
 
     public void saveTrainingReview(
@@ -706,46 +835,82 @@ public class Phase19To30Repository {
             String reviewerId) {
         jdbcTemplate.update("""
                 INSERT INTO nurse_training_record
-                  (training_id, nurse_id, training_status, training_batch, expired_at,
+                  (training_id, nurse_id, training_status, training_batch, passed_at, expired_at,
                    remark, reviewed_by, reviewed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """, trainingId, nurseId, status, trainingBatch, expiredAt, remark, reviewerId);
+                VALUES (?, ?, ?, ?, IF(? = 'APPROVED', CURRENT_TIMESTAMP, NULL), ?, ?, ?, CURRENT_TIMESTAMP)
+                """, trainingId, nurseId, status, trainingBatch, status, expiredAt, remark, reviewerId);
+        jdbcTemplate.update("""
+                UPDATE nurse_profile
+                SET training_status = ?,
+                    can_take_order = IF(? = 'APPROVED' AND ? > CURRENT_TIMESTAMP, 1, 0),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE nurse_id = ?
+                """, status, status, expiredAt, nurseId);
     }
 
-    public List<NurseRecommendationEntity> findRecommendableNurses(String serviceId) {
+    public List<NurseRecommendationEntity> findRecommendableNurses(
+            String serviceId,
+            String elderId,
+            LocalDateTime scheduledStart,
+            LocalDateTime scheduledEnd) {
         return jdbcTemplate.query("""
                 SELECT np.nurse_id, COALESCE(np.real_name, u.display_name) AS nurse_name,
                        COALESCE(ns.total_score, 0) AS total_score,
-                       GROUP_CONCAT(DISTINCT nss.skill_code ORDER BY nss.skill_code) AS matched_skills
+                       GROUP_CONCAT(DISTINCT nss.skill_code ORDER BY nss.skill_code) AS matched_skills,
+                       GROUP_CONCAT(DISTINCT nss.skill_name ORDER BY nss.skill_code SEPARATOR '、') AS matched_skill_names,
+                       EXISTS (
+                         SELECT 1 FROM nurse_task history_task
+                         JOIN nursing_order history_order ON history_order.order_id = history_task.order_id
+                         WHERE history_task.nurse_id = np.nurse_id
+                           AND history_order.elder_id = ?
+                           AND history_task.task_status = 'COMPLETED'
+                       ) AS served_elder
                 FROM nurse_profile np
                 JOIN sys_user u ON u.user_id = np.nurse_id
                 JOIN nurse_training_record ntr ON ntr.nurse_id = np.nurse_id
+                  AND ntr.created_at = (
+                    SELECT MAX(latest_training.created_at)
+                    FROM nurse_training_record latest_training
+                    WHERE latest_training.nurse_id = np.nurse_id
+                  )
                 LEFT JOIN nurse_score ns ON ns.nurse_id = np.nurse_id
-                LEFT JOIN nurse_service_skill nss ON nss.nurse_id = np.nurse_id
+                JOIN nurse_service_skill nss ON nss.nurse_id = np.nurse_id
+                  AND nss.service_id = ? AND nss.enabled = 1
                 WHERE np.qualification_status = 'APPROVED'
+                  AND np.training_status = 'APPROVED'
+                  AND np.can_take_order = 1
+                  AND np.profile_status = 'ACTIVE'
+                  AND u.account_status = 'ENABLED'
                   AND ntr.training_status = 'APPROVED'
-                  AND (ntr.expired_at IS NULL OR ntr.expired_at > CURRENT_TIMESTAMP)
-                  AND (nss.service_id = ? OR nss.service_id IS NULL)
+                  AND ntr.expired_at > CURRENT_TIMESTAMP
+                  AND NOT EXISTS (
+                    SELECT 1 FROM nurse_task busy_task
+                    JOIN nursing_order busy_order ON busy_order.order_id = busy_task.order_id
+                    WHERE busy_task.nurse_id = np.nurse_id
+                      AND busy_task.task_status IN ('DISPATCHED','ACCEPTED','ON_THE_WAY','SERVING')
+                      AND busy_order.order_status NOT IN ('COMPLETED','CANCELED','REJECTED')
+                      AND busy_order.scheduled_start_at < ?
+                      AND busy_order.scheduled_end_at > ?
+                  )
                 GROUP BY np.nurse_id, np.real_name, u.display_name, ns.total_score
                 ORDER BY total_score DESC, np.nurse_id
                 """, (rs, rowNum) -> {
-            String skills = rs.getString("matched_skills");
-            List<String> skillList = skills == null || skills.isBlank()
-                    ? List.of()
-                    : Arrays.stream(skills.split(",")).map(String::trim).toList();
+            List<String> skillList = splitCsv(rs.getString("matched_skills"));
             BigDecimal score = rs.getBigDecimal("total_score");
-            String reason = skillList.isEmpty()
-                    ? "资质和培训有效，按综合评分推荐"
-                    : "资质和培训有效，匹配技能：" + String.join("、", skillList);
+            String reason = "资质和培训有效，擅长" + rs.getString("matched_skill_names")
+                    + (rs.getBoolean("served_elder") ? "，曾为该长辈提供服务" : "")
+                    + "，当前时段可预约，综合评分"
+                    + (score == null ? "暂无" : score.stripTrailingZeros().toPlainString()) + "分。";
             return new NurseRecommendationEntity(
-                    rs.getString("nurse_id"),
-                    rs.getString("nurse_name"),
-                    score == null ? BigDecimal.ZERO : score,
-                    skillList,
-                    reason,
-                    true
-            );
-        }, serviceId);
+                    rs.getString("nurse_id"), rs.getString("nurse_name"),
+                    score == null ? BigDecimal.ZERO : score, skillList, reason, true);
+        }, elderId, serviceId, scheduledEnd, scheduledStart);
+    }
+
+    /** Compatibility entry point retained for focused unit tests. */
+    public List<NurseRecommendationEntity> findRecommendableNurses(String serviceId) {
+        return findRecommendableNurses(
+                serviceId, "", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
     }
 
     public void insertRecommendationLog(
@@ -768,6 +933,30 @@ public class Phase19To30Repository {
                 recommendation.nurseId(), recommendation.score(),
                 String.join(",", recommendation.matchedSkills()), recommendation.recommendReason(),
                 recommendation.available() ? 1 : 0, createdBy);
+    }
+
+    public void insertRecommendationLog(
+            String logId,
+            String requestKey,
+            String requestHash,
+            String orderId,
+            String elderId,
+            String serviceId,
+            String addressId,
+            LocalDateTime scheduledStart,
+            NurseRecommendationEntity recommendation,
+            int rankNo,
+            String createdBy) {
+        jdbcTemplate.update("""
+                INSERT INTO nurse_recommendation_log
+                  (recommendation_log_id, request_key, request_hash, order_id, elder_id, service_id,
+                   address_id, scheduled_start_at, nurse_id, score, matched_skills,
+                   recommend_reason, available, rank_no, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, logId, requestKey, requestHash, orderId, elderId, serviceId, addressId,
+                scheduledStart, recommendation.nurseId(), recommendation.score(),
+                String.join(",", recommendation.matchedSkills()), recommendation.recommendReason(),
+                recommendation.available() ? 1 : 0, rankNo, createdBy);
     }
 
     public List<NurseRecommendationEntity> findOrderRecommendations(String orderId) {
@@ -795,6 +984,92 @@ public class Phase19To30Repository {
                 .findFirst();
     }
 
+    public Optional<RecommendationLogRow> findOrderRecommendationLog(String orderId, String nurseId) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject("""
+                    SELECT l.recommendation_log_id, l.nurse_id,
+                           COALESCE(np.real_name, u.display_name) AS nurse_name,
+                           l.score, l.matched_skills, l.recommend_reason, l.available
+                    FROM nurse_recommendation_log l
+                    JOIN sys_user u ON u.user_id = l.nurse_id
+                    LEFT JOIN nurse_profile np ON np.nurse_id = l.nurse_id
+                    WHERE l.order_id = ? AND l.nurse_id = ?
+                    ORDER BY l.created_at DESC LIMIT 1
+                    """, (rs, rowNum) -> new RecommendationLogRow(
+                    rs.getString("recommendation_log_id"),
+                    new NurseRecommendationEntity(
+                            rs.getString("nurse_id"), rs.getString("nurse_name"),
+                            rs.getBigDecimal("score"), splitCsv(rs.getString("matched_skills")),
+                            rs.getString("recommend_reason"), rs.getBoolean("available"))),
+                    orderId, nurseId));
+        } catch (EmptyResultDataAccessException exception) {
+            return Optional.empty();
+        }
+    }
+
+    public boolean nurseEligibleForService(
+            String nurseId,
+            String serviceId,
+            LocalDateTime scheduledStart,
+            LocalDateTime scheduledEnd,
+            String excludedOrderId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM nurse_profile np
+                JOIN sys_user u ON u.user_id = np.nurse_id AND u.account_status = 'ENABLED'
+                JOIN nurse_training_record ntr ON ntr.nurse_id = np.nurse_id
+                  AND ntr.created_at = (
+                    SELECT MAX(latest_training.created_at)
+                    FROM nurse_training_record latest_training
+                    WHERE latest_training.nurse_id = np.nurse_id
+                  )
+                WHERE np.nurse_id = ?
+                  AND np.qualification_status = 'APPROVED'
+                  AND np.training_status = 'APPROVED'
+                  AND np.can_take_order = 1
+                  AND np.profile_status = 'ACTIVE'
+                  AND ntr.training_status = 'APPROVED'
+                  AND ntr.expired_at > CURRENT_TIMESTAMP
+                  AND EXISTS (
+                    SELECT 1 FROM nurse_service_skill skill
+                    WHERE skill.nurse_id = np.nurse_id AND skill.service_id = ? AND skill.enabled = 1
+                  )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM nurse_task busy_task
+                    JOIN nursing_order busy_order ON busy_order.order_id = busy_task.order_id
+                    WHERE busy_task.nurse_id = np.nurse_id
+                      AND busy_task.task_status IN ('DISPATCHED','ACCEPTED','ON_THE_WAY','SERVING')
+                      AND busy_order.order_id <> ?
+                      AND busy_order.order_status NOT IN ('COMPLETED','CANCELED','REJECTED')
+                      AND busy_order.scheduled_start_at < ?
+                      AND busy_order.scheduled_end_at > ?
+                  )
+                """, Integer.class, nurseId, serviceId,
+                excludedOrderId == null ? "" : excludedOrderId, scheduledEnd, scheduledStart);
+        return count != null && count > 0;
+    }
+
+    public void updatePreferredNurse(
+            String orderId,
+            String nurseId,
+            String recommendReason,
+            String recommendationLogId,
+            String selectedBy) {
+        jdbcTemplate.update("""
+                UPDATE nursing_order
+                SET preferred_nurse_id = ?, preferred_nurse_reason = ?,
+                    preferred_recommendation_log_id = ?, preferred_selected_at = CURRENT_TIMESTAMP,
+                    preferred_selected_by = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE order_id = ?
+                """, nurseId, recommendReason, recommendationLogId, selectedBy, orderId);
+        jdbcTemplate.update("""
+                UPDATE nurse_recommendation_log
+                SET selected_at = CURRENT_TIMESTAMP, selected_by = ?
+                WHERE recommendation_log_id = ?
+                """, selectedBy, recommendationLogId);
+    }
+
+    /** Compatibility entry point retained for focused unit tests. */
     public void updatePreferredNurse(String orderId, String nurseId) {
         jdbcTemplate.update("""
                 UPDATE nursing_order SET preferred_nurse_id = ?, updated_at = CURRENT_TIMESTAMP
@@ -819,6 +1094,18 @@ public class Phase19To30Repository {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, logId, operatorId, roleCode, operationType, bizType, bizId,
                 beforeValue, afterValue, traceId);
+    }
+
+    private QualificationApplicationEntity mapQualificationApplication(
+            java.sql.ResultSet rs,
+            int rowNum) throws java.sql.SQLException {
+        return new QualificationApplicationEntity(
+                rs.getString("application_id"), rs.getString("nurse_id"),
+                rs.getString("audit_status"), rs.getString("review_comment"),
+                rs.getString("nurse_name"), rs.getString("real_name"),
+                rs.getString("id_no_masked"), rs.getString("certificate_no"),
+                rs.getString("service_skill_codes"), text(rs.getObject("submitted_at")),
+                text(rs.getObject("reviewed_at")));
     }
 
     private Map<String, Object> queryForMap(String sql, Object... args) {
@@ -852,6 +1139,19 @@ public class Phase19To30Repository {
     public record MedicalFileRow(
             String medicalFileId, String fileType, String title, String occurredAt,
             String originalName, String mimeType, String bucket, String objectKey) {
+    }
+
+    public record QualificationFileRow(
+            String fileId,
+            String originalName,
+            String mimeType,
+            long size,
+            String bucket,
+            String objectKey,
+            String uploadedBy) {
+    }
+
+    public record RecommendationLogRow(String logId, NurseRecommendationEntity recommendation) {
     }
 
     public record RecentReportRow(

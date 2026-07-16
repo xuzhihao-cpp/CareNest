@@ -29,6 +29,14 @@ public final class RedisKeyFactory {
         return "carenest:lock:archive:" + taskId;
     }
 
+    public static String nurseRecommendationKey(String requestHash) {
+        return nurseRecommendationPrefix() + requestHash;
+    }
+
+    public static String nurseRecommendationPrefix() {
+        return "recommend:nurses:";
+    }
+
     public static String userHash(String userId) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(userId.getBytes(StandardCharsets.UTF_8));
