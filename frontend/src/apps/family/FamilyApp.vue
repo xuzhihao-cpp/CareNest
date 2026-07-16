@@ -11,9 +11,10 @@ import StageTwentyMedicalFilesPanel from '@/components/StageTwentyMedicalFilesPa
 import StageTwentyTwoHealthFeedbackPanel from '@/components/StageTwentyTwoHealthFeedbackPanel.vue';
 import StageSixteenReportAckPanel from '@/components/StageSixteenReportAckPanel.vue';
 import StageSeventeenOrderChangePanel from '@/components/StageSeventeenOrderChangePanel.vue';
+import StageFortyOneAiAssistantPanel from '@/components/StageFortyOneAiAssistantPanel.vue';
 import type { AuthUser } from '@/types/stageTwo';
 
-type FamilyTab = 'profile' | 'health' | 'feedback' | 'medical' | 'binding' | 'address' | 'orders' | 'reports';
+type FamilyTab = 'profile' | 'health' | 'feedback' | 'medical' | 'binding' | 'address' | 'orders' | 'reports' | 'ai';
 const activeTab = ref<FamilyTab>('profile');
 const user = ref<AuthUser | null>(null);
 const tabs: Array<{ key: FamilyTab; label: string }> = [
@@ -26,6 +27,7 @@ const tabs: Array<{ key: FamilyTab; label: string }> = [
   { key: 'orders', label: '服务订单' },
   { key: 'reports', label: '服务报告' }
 ];
+tabs.push({ key: 'ai', label: 'AI 照护助手' });
 const allowed = computed(() => user.value?.roles.includes('FAMILY'));
 
 async function loadUser() {
@@ -66,6 +68,7 @@ onMounted(loadUser);
         <StageNineServiceAddressPanel v-if="activeTab === 'address'" role-code="FAMILY" :auth-user="user" />
         <template v-if="activeTab === 'orders'"><StageTenOrderPanel role-code="FAMILY" :auth-user="user" /><StageSeventeenOrderChangePanel role-code="FAMILY" :auth-user="user" /></template>
         <template v-if="activeTab === 'reports'"><StageFifteenServiceReportPanel role-code="FAMILY" :auth-user="user" /><StageSixteenReportAckPanel role-code="FAMILY" :auth-user="user" /></template>
+        <StageFortyOneAiAssistantPanel v-if="activeTab === 'ai'" role-code="FAMILY" />
       </view>
     </template>
   </view>

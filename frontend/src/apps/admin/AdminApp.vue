@@ -11,8 +11,9 @@ import StageTwentyOneMedicalReviewPanel from '@/components/StageTwentyOneMedical
 import StageTwentyThreeReviewTaskList from '@/components/StageTwentyThreeReviewTaskList.vue';
 import type { HomeCard } from '@/types/stageFour';
 import type { AuthUser } from '@/types/stageTwo';
+import StageFortyThreeCustomerServicePanel from '@/components/StageFortyThreeCustomerServicePanel.vue';
 
-type AdminView = 'overview' | 'services' | 'orders' | 'reports' | 'medical-files' | 'health-review';
+type AdminView = 'overview' | 'services' | 'orders' | 'reports' | 'medical-files' | 'health-review' | 'customer-service';
 const view = ref<AdminView>('overview');
 const user = ref<AuthUser | null>(null);
 const overviewCards = ref<HomeCard[]>([]);
@@ -25,8 +26,9 @@ const nav: Array<{ key: AdminView; label: string }> = [
   { key: 'orders', label: '订单调度' }, { key: 'reports', label: '服务报告' },
   { key: 'medical-files', label: '病历审核' }, { key: 'health-review', label: '档案建议' }
 ];
+nav.push({ key: 'customer-service', label: '客服工单' });
 const visibleNav = computed(() => isCustomerService.value && !isAdmin.value
-  ? nav.filter((item) => item.key === 'medical-files' || item.key === 'health-review')
+  ? nav.filter((item) => item.key === 'customer-service' || item.key === 'medical-files' || item.key === 'health-review')
   : nav
 );
 async function loadUser() { const response = await getCurrentUser(); if (response.code === 0) user.value = response.data; }
@@ -80,6 +82,7 @@ onMounted(initialize);
         <template v-if="view === 'orders' && isAdmin"><StageElevenAdminOrdersPanel role-code="ADMIN" :auth-user="user" /><StageTwelveDispatchPanel role-code="ADMIN" :auth-user="user" /><StageSeventeenOrderChangePanel role-code="ADMIN" :auth-user="user" /></template>
         <StageFifteenServiceReportPanel v-if="view === 'reports' && isAdmin" role-code="ADMIN" :auth-user="user" />
         <StageTwentyOneMedicalReviewPanel v-if="view === 'medical-files'" :role-code="isCustomerService && !isAdmin ? 'CUSTOMER_SERVICE' : 'ADMIN'" :auth-user="user" />
+        <StageFortyThreeCustomerServicePanel v-if="view === 'customer-service'" />
         <StageTwentyThreeReviewTaskList v-if="view === 'health-review'" :role-code="isCustomerService && !isAdmin ? 'CUSTOMER_SERVICE' : 'ADMIN'" :auth-user="user" />
       </template>
     </main>

@@ -10,9 +10,10 @@ import StageTwentyTwoHealthFeedbackPanel from '@/components/StageTwentyTwoHealth
 import EmergencyAssistancePanel from '@/components/EmergencyAssistancePanel.vue';
 import StageSixteenReportAckPanel from '@/components/StageSixteenReportAckPanel.vue';
 import StageThirtyTwoReminderCenter from '@/components/StageThirtyTwoReminderCenter.vue';
+import StageFortyOneAiAssistantPanel from '@/components/StageFortyOneAiAssistantPanel.vue';
 import type { AuthUser } from '@/types/stageTwo';
 
-type ElderTab = 'profile' | 'health' | 'feedback' | 'assistance' | 'medical' | 'binding' | 'reports' | 'reminders';
+type ElderTab = 'profile' | 'health' | 'feedback' | 'assistance' | 'medical' | 'binding' | 'reports' | 'reminders' | 'ai';
 const activeTab = ref<ElderTab>('profile');
 const user = ref<AuthUser | null>(null);
 const allowed = computed(() => user.value?.roles.includes('ELDER'));
@@ -22,8 +23,10 @@ onMounted(loadUser);
 </script>
 
 <template>
-  <button v-if="allowed && activeTab !== 'reminders'" class="reminder-entry" type="button" @click="activeTab='reminders'">提醒中心</button>
+  <button v-if="allowed && activeTab !== 'reminders' && activeTab !== 'ai'" class="reminder-entry" type="button" @click="activeTab='reminders'">提醒中心</button>
+  <button v-if="allowed && activeTab !== 'ai'" class="reminder-entry" type="button" @click="activeTab='ai'">AI 照护助手</button>
   <StageThirtyTwoReminderCenter v-if="activeTab==='reminders' && allowed" @close="activeTab='profile'" />
+  <StageFortyOneAiAssistantPanel v-if="activeTab==='ai' && allowed" role-code="ELDER" />
   <view class="elder-app">
     <view class="elder-header"><view><text class="kicker">长辈服务</text><text class="title">{{ user?.displayName || '我的照护' }}</text></view><button type="button" class="logout" @click="signOut">退出登录</button></view>
     <view v-if="!allowed" class="access-card"><text>请使用长辈账号登录后访问。</text></view>

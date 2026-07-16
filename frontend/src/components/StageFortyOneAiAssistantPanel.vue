@@ -1,0 +1,10 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { createAiSession, sendAiMessage } from '@/api/stageFortyOne'
+import type { AiSafetyLevel } from '@/types/stageFortyOne'
+const props=defineProps<{roleCode:'ELDER'|'FAMILY';elderId?:string}>()
+const draft=ref('');const answer=ref('');const level=ref<AiSafetyLevel>('NORMAL');const loading=ref(false);const error=ref('');let sessionId=''
+async function send(){if(!draft.value.trim()||loading.value)return;loading.value=true;error.value='';try{if(!sessionId){const s=await createAiSession({elderId:props.elderId,sessionTitle:'照护咨询',sourceType:'TEXT'});if(s.code!==0)throw new Error(s.message);sessionId=s.data.sessionId}const r=await sendAiMessage(sessionId,{content:draft.value.trim(),messageType:'TEXT'});if(r.code!==0)throw new Error(r.message);answer.value=r.data.answer;level.value=r.data.safetyLevel;draft.value=''}catch(e){error.value=e instanceof Error?e.message:'请求失败'}finally{loading.value=false}}
+</script>
+<template><view class="ai-panel"><view class="ai-title">AI 照护助手</view><view v-if="level==='WARNING'" class="banner warning">已提交协助请求，客服会跟进。</view><view v-if="level==='CRITICAL'" class="banner critical">已创建紧急协助工单，请立即联系家属、平台客服或当地急救。</view><view v-if="answer" class="answer">{{ answer }}</view><view v-if="error" class="error">{{ error }}</view><textarea v-model="draft" :disabled="loading" placeholder="请输入照护问题" maxlength="500"/><button type="button" :disabled="loading" @click="send">{{ loading?'发送中…':'发送' }}</button></view></template>
+<style scoped>.ai-panel{padding:24rpx;background:#fff;border-radius:10rpx}.ai-title{font-size:34rpx;font-weight:700;margin-bottom:18rpx}.answer{padding:20rpx;background:#f4f8f5;border-radius:8rpx;line-height:1.6;margin-bottom:16rpx}.banner{padding:18rpx;border-radius:8rpx;margin-bottom:16rpx}.warning{background:#fff5dc;color:#795b16}.critical{background:#fff0ed;color:#a43d31}.error{color:#a43d31;margin:12rpx 0}textarea{width:100%;box-sizing:border-box;border:1rpx solid #d5ded8;padding:16rpx;min-height:150rpx;margin-bottom:14rpx}button{background:#2d7c68;color:#fff;border-radius:6rpx}</style>
