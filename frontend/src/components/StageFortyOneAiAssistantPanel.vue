@@ -159,6 +159,7 @@ async function loadFamilyContext() {
 async function selectElder(elderId: string) {
   if (elderId === selectedElderId.value) return;
   elderRequestGeneration += 1;
+  sessionListRequestToken += 1;
   messageRequestToken += 1;
   sendRequestToken += 1;
   selectedElderId.value = elderId;
@@ -169,6 +170,8 @@ async function selectElder(elderId: string) {
   sessionsLoading.value = false;
   messagesLoading.value = false;
   loading.value = false;
+  draft.value = '';
+  error.value = '';
   historyError.value = '';
   historyRetryTarget.value = '';
   historyRetrySessionId.value = '';
@@ -185,6 +188,7 @@ async function retryHistory() {
 }
 
 function startNewConversation() {
+  sessionListRequestToken += 1;
   messageRequestToken += 1;
   sendRequestToken += 1;
   activeSessionId.value = '';
