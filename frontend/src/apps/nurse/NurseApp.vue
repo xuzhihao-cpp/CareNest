@@ -8,6 +8,8 @@ import { acceptNurseTask, updateNurseTaskStatus } from '@/api/stageTwelve';
 import StageTwentyThreeSuggestionPanel from '@/components/StageTwentyThreeSuggestionPanel.vue';
 import StageTwentyFivePreServiceSummary from '@/components/StageTwentyFivePreServiceSummary.vue';
 import StageTwentySixQualificationPanel from '@/components/StageTwentySixQualificationPanel.vue';
+import StageFiftyRecommendedArticles from '@/components/StageFiftyRecommendedArticles.vue';
+import { getRecommendedTrainingArticles } from '@/api/stageFortyNineToFiftyFive';
 import type { AuthUser } from '@/types/stageTwo';
 import type { NurseTaskDetailRecord } from '@/types/stageThirteen';
 import type { NurseTaskStatus } from '@/types/stageTwelve';
@@ -21,7 +23,8 @@ const recentRecordId = ref('');
 const selectedTaskId = ref('');
 const summaryTaskId = ref('');
 const attentionRefreshKey = ref(0);
-const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'qualification' | 'health-summary'>('tasks');
+const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'qualification' | 'health-summary' | 'articles'>('tasks');
+const articleTaskId = ref('');
 const isEditingRecord = ref(false);
 const suggestionOrderId = ref('');
 const loading = ref(false);
@@ -215,6 +218,13 @@ function openHealthSummary(task: NurseTaskDetailRecord) {
   activeTab.value = 'health-summary';
 }
 
+function openArticles(task: NurseTaskDetailRecord) {
+  selectedTaskId.value = task.taskId;
+  articleTaskId.value = task.taskId;
+  activeTab.value = 'articles';
+  error.value = '';
+}
+
 function closeHealthSummary() {
   summaryTaskId.value = '';
   activeTab.value = 'tasks';
@@ -262,6 +272,16 @@ async function handlePrimaryTaskAction(task: NurseTaskDetailRecord) {
   selectedTaskId.value = task.taskId;
   const action = nextTaskAction(task);
   if (action.targetStatus === 'SERVING') {
+    const reading = await getRecommendedTrainingArticles(task.orderId);
+    if (reading.code !== 0) {
+      error.value = reading.message || '服务前学习资料暂时无法核对。';
+      return;
+    }
+    if (reading.data.some((item) => item.requiredRead && item.readStatus === 'UNREAD')) {
+      error.value = '请先完成本次服务的必读学习资料。';
+      openArticles(task);
+      return;
+    }
     openHealthSummary(task);
     return;
   }
@@ -362,6 +382,7 @@ onMounted(loadTasks);
       <button :class="{ active: activeTab === 'records' }" type="button" @click="openRecords">服务记录</button>
       <button :class="{ active: activeTab === 'suggestions' }" type="button" @click="openSuggestions()">档案建议</button>
       <button :class="{ active: activeTab === 'qualification' }" type="button" @click="activeTab = 'qualification'">准入资格</button>
+      <button :class="{ active: activeTab === 'articles' }" type="button" @click="selectedTask && openArticles(selectedTask)">学习资料</button>
     </view>
 
     <view v-if="activeTab === 'tasks'" class="task-board">
@@ -372,6 +393,7 @@ onMounted(loadTasks);
           <view class="task-card-top"><text class="task-service">{{ task.serviceName || '上门护理服务' }}</text><text class="status-chip" :class="`status-${task.taskStatus.toLowerCase()}`">{{ label(task.taskStatus) }}</text></view>
           <text class="task-person">服务对象 {{ task.elderName || '长辈信息待同步' }}</text><text class="task-time">{{ taskTime(task.scheduledStart) }}</text>
           <view class="task-card-actions">
+            <button v-if="preServiceSummaryStatuses.includes(task.taskStatus)" class="secondary-action" type="button" @click="openArticles(task)">学习资料</button>
             <button v-if="preServiceSummaryStatuses.includes(task.taskStatus) && task.taskStatus !== 'ON_THE_WAY'" class="secondary-action health-summary-entry" type="button" :disabled="loading" @click="openHealthSummary(task)">查看健康摘要</button>
             <button class="primary-action" type="button" :disabled="loading" @click="handlePrimaryTaskAction(task)">{{ nextTaskAction(task).label }}</button>
           </view>
@@ -427,6 +449,13 @@ onMounted(loadTasks);
     />
 
     <StageTwentySixQualificationPanel v-else-if="activeTab === 'qualification'" />
+
+    <StageFiftyRecommendedArticles
+      v-else-if="activeTab === 'articles' && tasks.find((item) => item.taskId === articleTaskId)"
+      :order-id="tasks.find((item) => item.taskId === articleTaskId)!.orderId"
+      :service-name="tasks.find((item) => item.taskId === articleTaskId)!.serviceName"
+      @close="activeTab = 'tasks'"
+    />
 
     <view v-else-if="activeTab === 'records' && isEditingRecord && recordableTask" class="record-panel">
       <view class="record-editor-heading"><view><text>填写服务记录</text><text>{{ recordableTask.serviceName || '上门护理服务' }} · {{ taskTime(recordableTask.scheduledStart) }}</text></view><button class="text-action" type="button" @click="openRecords">返回记录列表</button></view>
