@@ -32,6 +32,7 @@ public class CareAdminStatusService {
         }
         return new CareAdminHealthResponse(
                 dbConnected ? "UP" : "DOWN",
+                dbConnected,
                 "CareNest Care Admin",
                 version,
                 dbConnected,

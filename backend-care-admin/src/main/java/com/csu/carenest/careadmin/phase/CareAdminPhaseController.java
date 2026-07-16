@@ -5,6 +5,8 @@ import com.csu.carenest.careadmin.auth.CurrentUser;
 import com.csu.carenest.careadmin.auth.RoleCode;
 import com.csu.carenest.careadmin.common.ApiResponse;
 import com.csu.carenest.careadmin.common.PageData;
+import com.csu.carenest.careadmin.delivery.DeliveryDtos;
+import com.csu.carenest.careadmin.delivery.Phase51To55DeliveryService;
 import com.csu.carenest.careadmin.phase.dto.*;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -22,10 +24,15 @@ public class CareAdminPhaseController {
 
     private final AuthService authService;
     private final CareAdminPhaseService phaseService;
+    private final Phase51To55DeliveryService deliveryService;
 
-    public CareAdminPhaseController(AuthService authService, CareAdminPhaseService phaseService) {
+    public CareAdminPhaseController(
+            AuthService authService,
+            CareAdminPhaseService phaseService,
+            Phase51To55DeliveryService deliveryService) {
         this.authService = authService;
         this.phaseService = phaseService;
+        this.deliveryService = deliveryService;
     }
 
     @GetMapping("/nurse/workbench-summary")
@@ -242,8 +249,10 @@ public class CareAdminPhaseController {
     }
 
     @GetMapping("/admin/demo-data/status")
-    public ApiResponse<DemoDataStatusResponse> demoDataStatus(@RequestHeader("Authorization") String authorization) {
-        authService.requireAnyRole(authorization, RoleCode.ADMIN, RoleCode.CUSTOMER_SERVICE);
-        return ApiResponse.success(phaseService.demoDataStatus());
+    public ApiResponse<DeliveryDtos.DemoDataStatusResponse> demoDataStatus(
+            @RequestHeader("Authorization") String authorization) {
+        CurrentUser currentUser = authService.requireAnyRole(
+                authorization, RoleCode.ADMIN, RoleCode.CUSTOMER_SERVICE);
+        return ApiResponse.success(deliveryService.demoDataStatus(currentUser));
     }
 }
