@@ -9,6 +9,7 @@ import StageTwentyThreeSuggestionPanel from '@/components/StageTwentyThreeSugges
 import StageTwentyFivePreServiceSummary from '@/components/StageTwentyFivePreServiceSummary.vue';
 import StageTwentySixQualificationPanel from '@/components/StageTwentySixQualificationPanel.vue';
 import StageFiftyRecommendedArticles from '@/components/StageFiftyRecommendedArticles.vue';
+import StageThirtyFiveToFortyNursePanel from '@/components/StageThirtyFiveToFortyNursePanel.vue';
 import { getRecommendedTrainingArticles } from '@/api/stageFortyNineToFiftyFive';
 import type { AuthUser } from '@/types/stageTwo';
 import type { NurseTaskDetailRecord } from '@/types/stageThirteen';
@@ -23,7 +24,7 @@ const recentRecordId = ref('');
 const selectedTaskId = ref('');
 const summaryTaskId = ref('');
 const attentionRefreshKey = ref(0);
-const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'qualification' | 'health-summary' | 'articles'>('tasks');
+const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'quality' | 'qualification' | 'health-summary' | 'articles'>('tasks');
 const articleTaskId = ref('');
 const isEditingRecord = ref(false);
 const suggestionOrderId = ref('');
@@ -470,6 +471,12 @@ onMounted(loadTasks);
     />
 
     <StageTwentySixQualificationPanel v-else-if="activeTab === 'qualification'" />
+
+    <StageThirtyFiveToFortyNursePanel
+      v-else-if="activeTab === 'quality'"
+      :task="selectedTask"
+      @refresh-tasks="loadTasks"
+    />
 
     <StageFiftyRecommendedArticles
       v-else-if="activeTab === 'articles' && tasks.find((item) => item.taskId === articleTaskId)"

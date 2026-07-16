@@ -1,0 +1,72 @@
+# Phase 41-43 AI Assistant Full-Stack API
+
+## Scope
+
+The MVP uses MySQL as the source of truth and a deterministic rule provider. AI
+responses are safety-oriented guidance only and never diagnosis, prescription,
+dosage changes, or emergency medical judgment.
+
+## User APIs (`backend-user`)
+
+### `POST /api/v1/ai/sessions`
+
+Elder users may omit `elderId` or use their own elder profile. Family users must
+provide an elder with an active binding.
+
+Request: `{ "elderId": "elder_001", "sessionTitle": "日常照护咨询", "sourceType": "TEXT" }`
+
+Response data: `sessionId`, `elderId`, `elderName`, `sessionTitle`,
+`sessionStatus`, `safetyLevel`, `riskFlag`, `latestAssistanceTicketId`,
+`latestAssistanceStatus`, and `createdAt`.
+
+### `GET /api/v1/ai/sessions`
+
+Returns the current elder's sessions, or family sessions filtered by an
+authorized `elderId`. Internal identifiers are response fields for API
+correlation only and must not be shown as primary UI labels.
+
+### `POST /api/v1/ai/sessions/{sessionId}/messages`
+
+Request: `{ "content": "胸口很闷，呼吸困难", "messageType": "TEXT", "voiceLogId": null }`
+
+Response data: `sessionId`, user and assistant message IDs, `answer`,
+`safetyLevel`, `riskFlag`, `assistanceTicketId`, and
+`customerServiceTicketCreated`.
+
+Safety classification:
+
+- `NORMAL`: daily care and product usage guidance.
+- `WARNING`: medication, dosage, diagnosis, treatment changes, or uncertain symptoms.
+  Refuse clinical decisions and create a normal-priority assistance ticket.
+- `CRITICAL`: chest pain, breathing difficulty, unconsciousness, serious fall, or
+  self-harm wording. Create urgent assistance and customer-service tickets.
+
+### `POST /api/v1/ai/sessions/{sessionId}/close`
+
+Closes a session owned by the elder or an active family binding.
+
+### `GET /api/v1/assistance/tickets`
+
+Lists assistance tickets for elder self or a family member with an active
+binding. Supports `elderId`, `status`, `page`, and `size`.
+
+## Customer-service APIs (`backend-care-admin`)
+
+- `GET /api/v1/customer-service/tickets`: list by `status`, `priority`, `keyword`, `page`, `size`.
+- `GET /api/v1/customer-service/tickets/{ticketId}`: detail and messages.
+- `POST /api/v1/customer-service/tickets/{ticketId}/status`: transition to
+  `PROCESSING`, `RESOLVED`, or `CLOSED` with optional `handleResult`.
+- `POST /api/v1/customer-service/tickets/{ticketId}/messages`: add a text reply.
+- `GET /api/v1/admin/ai/sessions`: admin/customer-service AI audit list.
+
+Only `ADMIN` and `CUSTOMER_SERVICE` may use management APIs. Allowed ticket
+transitions are `PENDING -> PROCESSING`, `PROCESSING -> RESOLVED`, and either
+active state to `CLOSED`.
+
+## Persistence and privacy
+
+The existing `ai_assistant_session`, `ai_assistant_message`,
+`assistance_ticket`, `customer_service_ticket`, and `ticket_message` tables are
+used without duplicate schema. Audit content is limited to the submitted text
+and a short summary; passwords, tokens, identity numbers, and storage secrets
+are never persisted.

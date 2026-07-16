@@ -18,8 +18,9 @@ import StageFiftyTwoFiftyThreeDashboard from '@/components/StageFiftyTwoFiftyThr
 import StageFiftyFourFiftyFiveDeliveryPanel from '@/components/StageFiftyFourFiftyFiveDeliveryPanel.vue';
 import type { HomeCard } from '@/types/stageFour';
 import type { AuthUser } from '@/types/stageTwo';
+import StageFortyThreeCustomerServicePanel from '@/components/StageFortyThreeCustomerServicePanel.vue';
 
-type AdminView = 'overview' | 'services' | 'orders' | 'reports' | 'medical-files' | 'health-review' | 'qualifications' | 'training' | 'training-articles' | 'follow-ups' | 'dashboard' | 'delivery';
+type AdminView = 'overview' | 'services' | 'orders' | 'reports' | 'medical-files' | 'health-review' | 'qualifications' | 'training' | 'training-articles' | 'follow-ups' | 'dashboard' | 'delivery' | 'customer-service' | 'care-metrics';
 const view = ref<AdminView>('overview');
 const user = ref<AuthUser | null>(null);
 const overviewCards = ref<HomeCard[]>([]);
@@ -44,7 +45,7 @@ const nav: Array<{ key: AdminView; label: string }> = [
   { key: 'training-articles', label: '培训文章' }, { key: 'follow-ups', label: '随访管理' },
   { key: 'dashboard', label: '数据看板' }, { key: 'delivery', label: '交付检查' }
 ];
-const visibleNav = computed(() => {
+ const visibleNav = computed(() => {
   const permissionFilteredNav = nav.filter((item) =>
     (item.key !== 'training-articles' || canManageTrainingArticles.value)
     && (item.key !== 'follow-ups' || canManageFollowUps.value)
@@ -53,7 +54,8 @@ const visibleNav = computed(() => {
   );
   if (!isCustomerService.value || isAdmin.value) return permissionFilteredNav;
   const customerServiceNav = permissionFilteredNav.filter((item) =>
-    item.key === 'medical-files'
+    item.key === 'customer-service'
+    || item.key === 'medical-files'
     || item.key === 'health-review'
     || item.key === 'qualifications'
     || item.key === 'training'
@@ -66,6 +68,7 @@ const visibleNav = computed(() => {
     ? [{ key: 'orders' as AdminView, label: '服务前审阅' }, ...customerServiceNav]
     : customerServiceNav;
 });
+ nav.push({ key: 'customer-service', label: '客服工单' });
 async function loadUser() { const response = await getCurrentUser(); if (response.code === 0) user.value = response.data; }
 async function loadPermissions() {
   permissionError.value = '';
@@ -146,6 +149,7 @@ onMounted(initialize);
         </template>
         <StageFifteenServiceReportPanel v-if="view === 'reports' && isAdmin" role-code="ADMIN" :auth-user="user" />
         <StageTwentyOneMedicalReviewPanel v-if="view === 'medical-files'" :role-code="isCustomerService && !isAdmin ? 'CUSTOMER_SERVICE' : 'ADMIN'" :auth-user="user" />
+        <StageFortyThreeCustomerServicePanel v-if="view === 'customer-service'" />
         <StageTwentyThreeReviewTaskList v-if="view === 'health-review'" :role-code="isCustomerService && !isAdmin ? 'CUSTOMER_SERVICE' : 'ADMIN'" :auth-user="user" />
         <StageTwentySevenQualificationReviewWorkbench v-if="view === 'qualifications'" />
         <StageTwentyEightTrainingReviewWorkbench v-if="view === 'training'" />

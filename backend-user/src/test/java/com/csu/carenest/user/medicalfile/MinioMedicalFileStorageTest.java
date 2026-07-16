@@ -1,13 +1,12 @@
 package com.csu.carenest.user.medicalfile;
 
-import io.minio.GetPresignedObjectUrlArgs;
-import io.minio.MinioClient;
-import io.minio.http.Method;
 import org.junit.jupiter.api.Test;
 
+import java.net.URI;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MinioMedicalFileStorageTest {
     @Test
@@ -16,12 +15,19 @@ class MinioMedicalFileStorageTest {
         String secretKey = "local-secret";
         MinioMedicalFileStorage storage = new MinioMedicalFileStorage(
                 "http://minio:9000", accessKey, secretKey, "smart-nursing", "us-east-1", "http://localhost:19000");
-        MinioClient publicSigner = MinioClient.builder().endpoint("http://localhost:19000").region("us-east-1")
-                .credentials(accessKey, secretKey).build();
+        URI preview = URI.create(storage.presignedGet("medical/demo.mp3", Duration.ofMinutes(10)));
+        String query = preview.getRawQuery();
+        String decodedQuery = preview.getQuery();
 
-        String expected = publicSigner.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                .method(Method.GET).bucket("smart-nursing").object("medical/demo.mp3").expiry(600).build());
-
-        assertEquals(expected, storage.presignedGet("medical/demo.mp3", Duration.ofMinutes(10)));
+        assertEquals("http", preview.getScheme());
+        assertEquals("localhost", preview.getHost());
+        assertEquals(19000, preview.getPort());
+        assertEquals("/smart-nursing/medical/demo.mp3", preview.getPath());
+        assertTrue(query.contains("X-Amz-Algorithm=AWS4-HMAC-SHA256"));
+        assertTrue(decodedQuery.contains("X-Amz-Credential=" + accessKey + "/"));
+        assertTrue(decodedQuery.contains("/us-east-1/s3/aws4_request"));
+        assertTrue(query.contains("X-Amz-Expires=600"));
+        assertTrue(query.contains("X-Amz-SignedHeaders=host"));
+        assertTrue(query.contains("X-Amz-Signature="));
     }
 }
