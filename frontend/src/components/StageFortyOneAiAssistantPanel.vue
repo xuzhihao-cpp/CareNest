@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Bot, CircleAlert, History, Mic, MicOff, Plus, RotateCw, SendHorizontal, ShieldAlert, Sparkles, Trash2, UserRound, Volume2, VolumeX, X } from '@lucide/vue';
-import { getFamilyElders } from '@/api/stageSeven';
+import { getElderProfile, getFamilyElders } from '@/api/stageSeven';
 import { createAiSession, deleteAiSession, getAiSessionMessages, listAiSessions, sendAiMessage } from '@/api/stageFortyOne';
 import type { ElderProfileResponse } from '@/types/stageSeven';
 import type { AiSafetyLevel, AiSessionSummary } from '@/types/stageFortyOne';
@@ -42,6 +42,9 @@ const voiceStatus = ref('');
 const speechOutputSupported = ref(false);
 const readRepliesAloud = ref(false);
 const deletingSessionId = ref('');
+const elderProfile = ref<ElderProfileResponse | null>(null);
+const elderContactLoading = ref(false);
+const elderContactError = ref('');
 const starterPrompts = ['上门护理前要准备什么？', '今天怎样安排饮水？', '如何记录日常照护情况？'];
 const hasUserMessage = computed(() => conversation.value.some((item) => item.role === 'user'));
 const canSend = computed(() => props.roleCode !== 'FAMILY' || Boolean(selectedElderId.value));
@@ -202,6 +205,49 @@ function speakAnswer(content: string) {
   utterance.lang = 'zh-CN';
   utterance.rate = 0.92;
   window.speechSynthesis.speak(utterance);
+}
+const elderEmergencyContact = computed(() => elderProfile.value?.emergencyContacts?.find((contact) =>
+  Boolean(contact.contactName?.trim() || contact.contactPhone?.trim())
+) ?? null);
+
+async function loadElderContact() {
+  if (props.roleCode !== 'ELDER') return;
+  elderContactLoading.value = true;
+  elderContactError.value = '';
+  const response = await getElderProfile(props.elderId || 'elder_001');
+  elderContactLoading.value = false;
+  if (response.code === 0) {
+    elderProfile.value = response.data;
+    return;
+  }
+  elderProfile.value = null;
+  elderContactError.value = '暂时无法读取紧急联系人，请先到健康档案中检查联系人信息。';
+}
+
+function requestFamilyCall() {
+  if (props.roleCode !== 'ELDER' || elderContactLoading.value) return;
+  const contact = elderEmergencyContact.value;
+  const phone = contact?.contactPhone?.trim() || '';
+  if (!contact || !/^1\d{10}$/.test(phone)) {
+    uni.showToast({ title: elderContactError.value || '请先完善紧急联系人电话', icon: 'none' });
+    return;
+  }
+  uni.showModal({
+    title: '确认联系家属',
+    content: `${contact.contactName || '紧急联系人'}\n${phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}`,
+    confirmText: '确认拨打',
+    cancelText: '暂不拨打',
+    success(result) {
+      if (result.confirm) {
+        uni.makePhoneCall({
+          phoneNumber: phone,
+          fail() {
+            uni.showToast({ title: '当前设备无法直接拨号，请使用手机电话功能拨打', icon: 'none' });
+          }
+        });
+      }
+    }
+  });
 }
 function mapConversationMessage(message: { messageId: string; senderRole: 'USER' | 'ASSISTANT'; content: string; safetyFlag: boolean; safetyLevel: AiSafetyLevel }): ChatMessage {
   return {
@@ -476,6 +522,7 @@ async function send() {
         customerServiceCreated: response.data.customerServiceTicketCreated
       }
     );
+    if (props.roleCode === 'ELDER' && response.data.familyAssistanceRequested) requestFamilyCall();
     draft.value = '';
     voiceDraftPending.value = false;
     voiceStatus.value = '';
@@ -498,6 +545,7 @@ onMounted(async () => {
   speechOutputSupported.value = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
   const storedReadAloud = uni.getStorageSync('carenest_elder_ai_read_aloud');
   readRepliesAloud.value = props.roleCode === 'ELDER' && storedReadAloud === true;
+  void loadElderContact();
   const familyReady = await loadFamilyContext();
   if (!familyReady) return;
   await loadSessions();
