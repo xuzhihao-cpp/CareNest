@@ -152,9 +152,13 @@ test('validates voice extension, MIME, size and duration together', () => {
   assert.equal(rules.validateVoiceFileDescriptor(
     { name: 'feedback.mp3', size: 1024, mimeType: 'audio/mpeg', durationSeconds: 59 }, 2048, 0.002
   ), '');
+  assert.equal(rules.validateVoiceFileDescriptor(
+    { name: 'feedback.webm', size: 1024, mimeType: 'audio/webm;codecs=opus', durationSeconds: 12 }, 2048, 0.002
+  ), '');
+  assert.equal(rules.normalizeVoiceMimeType(' Audio/WebM; codecs=opus '), 'audio/webm');
   assert.match(rules.validateVoiceFileDescriptor(
     { name: 'feedback.pdf', size: 1024, mimeType: 'application/pdf' }, 2048, 0.002
-  ), /MP3/);
+  ), /录音格式/);
   assert.match(rules.validateVoiceFileDescriptor(
     { name: 'feedback.mp3', size: 1024, mimeType: 'application/pdf' }, 2048, 0.002
   ), /真实格式/);

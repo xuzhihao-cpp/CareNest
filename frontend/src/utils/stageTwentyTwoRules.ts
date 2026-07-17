@@ -27,17 +27,22 @@ export function voiceFileExtension(name: string) {
   return index >= 0 ? name.slice(index + 1).toLowerCase() : '';
 }
 
+export function normalizeVoiceMimeType(mimeType: string) {
+  return mimeType.split(';', 1)[0]?.trim().toLowerCase() ?? '';
+}
+
 export function validateVoiceFileDescriptor(
   file: { name: string; size: number; mimeType: string; durationSeconds?: number },
   maxBytes: number,
   maxMb: number
 ) {
   const extension = voiceFileExtension(file.name);
+  const normalizedMimeType = normalizeVoiceMimeType(file.mimeType);
   if (!VOICE_FILE_EXTENSIONS.includes(extension as (typeof VOICE_FILE_EXTENSIONS)[number])) {
-    return '请选择 MP3、M4A、WAV、AAC、WEBM 或 OGG 语音文件。';
+    return '当前设备生成的录音格式暂不支持，请更换浏览器后重新录音。';
   }
-  if (!file.mimeType || !(voiceMimeByExtension[extension] ?? []).includes(file.mimeType.toLowerCase())) {
-    return '无法确认语音文件的真实格式，请重新选择原始语音文件。';
+  if (!normalizedMimeType || !(voiceMimeByExtension[extension] ?? []).includes(normalizedMimeType)) {
+    return '无法确认本次录音的真实格式，请重新录音。';
   }
   if (file.size <= 0) return '不能上传空语音文件。';
   if (file.size > maxBytes) return `语音文件不能超过 ${maxMb} MB。`;
