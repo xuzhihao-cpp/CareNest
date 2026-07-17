@@ -28,7 +28,13 @@ function sameDay(value: string, target: Date) { const date = new Date(value); re
 function formatDate(value: string | undefined, includeDate = true) { if (!value) return ''; const date = new Date(value); if (Number.isNaN(date.getTime())) return value.replace('T', ' '); return new Intl.DateTimeFormat('zh-CN', includeDate ? { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false } : { hour: '2-digit', minute: '2-digit', hour12: false }).format(date); }
 function timingLabel(value: string) { const minutes = Math.round((new Date(value).getTime() - Date.now()) / 60000); if (minutes < -1) return `已过时间 ${Math.abs(minutes)} 分钟`; if (minutes <= 1) return '就是现在'; if (minutes < 60) return `${minutes} 分钟后`; const hours = Math.round(minutes / 60); if (hours < 24) return `${hours} 小时后`; return formatDate(value); }
 function statusLabel(value: ReminderStatus) { return statusLabels[value] || value; }
-function actionLabel(value: string) { return value === 'DONE' ? '完成提醒' : value === 'SNOOZE' ? '稍后提醒' : '请求协助'; }
+function actionLabel(value: string) { return value === 'DONE' ? '已确认完成' : value === 'SNOOZE' ? '稍后提醒' : '请求协助'; }
+function confirmationLabel(item: ReminderItem) {
+  const content = `${item.title} ${item.content}`;
+  if (/服药|用药|药物|吃药/.test(content)) return '我已服药';
+  if (/上门|护理服务|护理人员|到达/.test(content)) return '我知道了';
+  return '确认已完成';
+}
 
 async function loadTasks() { loading.value = true; error.value = ''; const response = await getElderReminders(1, 50); if (response.code === 0) reminders.value = response.data.records; else error.value = response.message || '提醒读取失败'; loading.value = false; }
 async function loadRecords() { loading.value = true; error.value = ''; const response = await getElderReminderRecords(1, 50); if (response.code === 0) records.value = response.data.records; else error.value = response.message || '记录读取失败'; loading.value = false; }
@@ -39,7 +45,7 @@ async function execute(item: ReminderItem, action: ReminderAction) {
   const response = await actOnElderReminder(item.reminderId, action === 'SNOOZE' ? { action, snoozeMinutes: 30 } : { action });
   if (response.code === 0) {
     if (action === 'DONE') completingId.value = item.reminderId;
-    message.value = action === 'DONE' ? '已完成，做得很好' : action === 'SNOOZE' ? '将在 30 分钟后再次提醒' : '协助请求已提交';
+    message.value = action === 'DONE' ? '已经确认并记录，做得很好' : action === 'SNOOZE' ? '将在 30 分钟后再次提醒' : '协助请求已提交';
     await new Promise((resolve) => setTimeout(resolve, action === 'DONE' ? 180 : 0));
     await loadTasks(); completingId.value = '';
   } else error.value = response.message || '操作失败，请重试';
@@ -69,7 +75,7 @@ onMounted(loadTasks);
         <text class="next-title">{{ nextReminder.title }}</text>
         <text class="next-content">{{ nextReminder.content }}</text>
         <text class="next-time">{{ formatDate(nextReminder.reminderAt) }}</text>
-        <button class="complete-action" type="button" :disabled="Boolean(workingId)" @click="execute(nextReminder, 'DONE')"><Check :size="22" aria-hidden="true" />完成</button>
+        <button class="complete-action" type="button" :disabled="Boolean(workingId)" @click="execute(nextReminder, 'DONE')"><Check :size="22" aria-hidden="true" />{{ confirmationLabel(nextReminder) }}</button>
         <view class="secondary-actions">
           <button type="button" :disabled="Boolean(workingId)" @click="execute(nextReminder, 'SNOOZE')"><Clock3 :size="18" aria-hidden="true" />稍后 30 分钟</button>
           <button type="button" :disabled="Boolean(workingId)" @click="execute(nextReminder, 'NEED_HELP')"><HandHeart :size="18" aria-hidden="true" />需要协助</button>

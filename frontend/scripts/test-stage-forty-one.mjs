@@ -11,4 +11,7 @@ if(!component.includes('target instanceof HTMLElement')) throw new Error('H5 his
 if(!/sendRequestToken \+= 1;\s+loading\.value = false;\s+error\.value =/.test(component)) throw new Error('session switching does not invalidate an in-flight send')
 if(!component.includes('if (!familyReady) return;')) throw new Error('family history loads without a selected elder')
 if(!component.includes('carenest_ai_selected_elder_FAMILY')) throw new Error('family elder selection is not persisted')
+if(!component.includes('webkitSpeechRecognition')) throw new Error('elder AI assistant does not support browser voice recognition')
+if(!component.includes("messageType = voiceDraftPending.value ? 'VOICE' : 'TEXT'")) throw new Error('voice query is not persisted as a VOICE message')
+if(!component.includes('已经听清，请确认文字后发送')) throw new Error('voice query bypasses elder confirmation')
 console.log('stage 41 api contract smoke passed')
