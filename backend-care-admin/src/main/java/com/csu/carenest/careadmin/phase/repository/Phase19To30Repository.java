@@ -82,6 +82,23 @@ public class Phase19To30Repository {
         }
     }
 
+    public Optional<MedicalFileAssetRow> findMedicalFileAsset(String medicalFileId) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject("""
+                    SELECT fa.file_id, fa.original_name, fa.mime_type, fa.file_size,
+                           fa.storage_bucket, fa.object_key
+                    FROM medical_file mf
+                    JOIN file_asset fa ON fa.file_id = mf.file_id
+                    WHERE mf.medical_file_id = ?
+                    """, (rs, rowNum) -> new MedicalFileAssetRow(
+                    rs.getString("file_id"), rs.getString("original_name"), rs.getString("mime_type"),
+                    rs.getLong("file_size"), rs.getString("storage_bucket"), rs.getString("object_key")),
+                    medicalFileId));
+        } catch (EmptyResultDataAccessException exception) {
+            return Optional.empty();
+        }
+    }
+
     public void updateMedicalFileReview(
             String medicalFileId,
             String auditStatus,
@@ -537,6 +554,15 @@ public class Phase19To30Repository {
                 rs.getString("medical_file_id"), rs.getString("file_type"), rs.getString("title"),
                 text(rs.getObject("occurred_at")), rs.getString("original_name"), rs.getString("mime_type"),
                 rs.getString("storage_bucket"), rs.getString("object_key")), elderId);
+    }
+
+    public record MedicalFileAssetRow(
+            String fileId,
+            String originalName,
+            String mimeType,
+            long fileSize,
+            String bucket,
+            String objectKey) {
     }
 
     public Optional<MedicalFileRow> findApprovedMedicalFile(String elderId, String medicalFileId) {

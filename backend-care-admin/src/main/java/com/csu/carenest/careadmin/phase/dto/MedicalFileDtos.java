@@ -21,7 +21,12 @@ public final class MedicalFileDtos {
             String title,
             String occurredAt,
             String auditStatus,
-            String reviewComment) {
+            String reviewComment,
+            String originalName,
+            String mimeType,
+            Long fileSize,
+            String previewUrl,
+            String downloadUrl) {
     }
 
     public record ReviewRequest(

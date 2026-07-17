@@ -77,6 +77,28 @@ public class Phase19To30Controller {
         return ApiResponse.success(phaseService.medicalFile(fileId));
     }
 
+    @GetMapping("/admin/medical-files/{fileId}/preview")
+    public ResponseEntity<byte[]> medicalFilePreview(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable("fileId") String fileId,
+            @RequestParam(name = "download", defaultValue = "false") boolean download) {
+        authService.requireAnyRole(authorization, RoleCode.ADMIN, RoleCode.CUSTOMER_SERVICE);
+        Phase19To30Service.MedicalFilePreview preview = phaseService.adminMedicalFilePreview(fileId);
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(preview.mimeType());
+        } catch (Exception ignored) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+        ContentDisposition disposition = (download ? ContentDisposition.attachment() : ContentDisposition.inline())
+                .filename(preview.originalName(), StandardCharsets.UTF_8)
+                .build();
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .body(preview.content());
+    }
+
     @PostMapping("/admin/medical-files/{fileId}/review")
     public ApiResponse<MedicalFileDtos.ReviewResponse> reviewMedicalFile(
             @RequestHeader("Authorization") String authorization,
