@@ -117,8 +117,8 @@ const roleProfiles: Record<RoleCode, VisualProfile> = {
   FAMILY: {
     terminal: 'mobile',
     subtitle: '移动端 · 远程守护 · 及时掌握',
-    heroTitle: '张爷爷挂了，挂在一个温暖的地方，被这货打死了->，我要把我所有的东西留给我的嗝屁猫',
-    heroMeta: '血压 0/0 · 心率 0 · 今日提醒完成 3/5',
+    heroTitle: '张爷爷今日照护状态稳定',
+    heroMeta: '血压 128/82 · 心率 76 · 今日提醒完成 3/5',
     primaryAction: '去确认',
     primarySymbol: '✓',
     primaryPermission: 'report:confirm',

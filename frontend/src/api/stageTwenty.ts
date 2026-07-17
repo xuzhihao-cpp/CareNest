@@ -1,4 +1,12 @@
-import { failure, getApiBase, readAuthSession, request } from '@/api/client';
+import {
+  createDemoTraceId,
+  failure,
+  getApiBase,
+  isDemoPresentationMode,
+  readAuthSession,
+  request,
+  success
+} from '@/api/client';
 import type { ApiResponse, PageResult } from '@/types/api';
 import type {
   FileAssetUploadResult,
@@ -36,6 +44,18 @@ function parseUploadPayload(payload: unknown) {
   }
 }
 
+function demoUploadResult(filePath: string): ApiResponse<FileAssetUploadResult> {
+  return success(
+    {
+      fileId: `demo_file_${Date.now()}`,
+      url: filePath,
+      type: 'DEMO',
+      auditStatus: 'PENDING'
+    },
+    createDemoTraceId()
+  );
+}
+
 export function uploadMedicalFileAsset(
   filePath: string,
   onProgress: (progress: number) => void
@@ -54,7 +74,15 @@ export function uploadMedicalFileAsset(
       success(response) {
         const payload = parseUploadPayload(response.data);
         if (isApiResponse<FileAssetUploadResult>(payload)) {
+          if (isDemoPresentationMode() && payload.code !== 0) {
+            resolve(demoUploadResult(filePath));
+            return;
+          }
           if (payload.code === 0 && !hasValidUploadedFileId(payload.data)) {
+            if (isDemoPresentationMode()) {
+              resolve(demoUploadResult(filePath));
+              return;
+            }
             resolve(
               failure(
                 502,
@@ -68,6 +96,10 @@ export function uploadMedicalFileAsset(
           resolve(payload);
           return;
         }
+        if (isDemoPresentationMode()) {
+          resolve(demoUploadResult(filePath));
+          return;
+        }
         resolve(
           failure(
             response.statusCode >= 400 ? response.statusCode : 500,
@@ -78,6 +110,10 @@ export function uploadMedicalFileAsset(
         );
       },
       fail() {
+        if (isDemoPresentationMode()) {
+          resolve(demoUploadResult(filePath));
+          return;
+        }
         resolve(
           failure(
             500,
