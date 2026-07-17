@@ -25,7 +25,7 @@ class AiConversationHistoryServiceTest {
     void setUp() {
         auth = mock(AuthService.class);
         repository = mock(AiAssistantRepository.class);
-        service = new AiAssistantService(auth, repository, mock(AiProvider.class));
+        service = new AiAssistantService(auth, repository, mock(AiProvider.class), new FamilyAssistanceIntentDetector(), mock(AutomatedHealthFeedbackService.class));
     }
 
     @Test

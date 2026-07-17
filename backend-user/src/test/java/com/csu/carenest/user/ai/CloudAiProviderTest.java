@@ -52,6 +52,56 @@ class CloudAiProviderTest {
     }
 
     @Test
+    void readsStructuredHealthFeedbackFromCloudResponse() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/chat/completions", exchange -> {
+            byte[] body = "{\"choices\":[{\"message\":{\"content\":\"{\\\"answer\\\":\\\"听起来你现在很不舒服，请先坐下休息。\\\",\\\"feedback\\\":{\\\"shouldSubmit\\\":true,\\\"feedbackType\\\":\\\"PAIN\\\",\\\"severity\\\":\\\"HIGH\\\"}}\"}}]}"
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            AiProviderProperties properties = new AiProviderProperties(
+                    "cloud", "http://127.0.0.1:" + server.getAddress().getPort(), "test-key", "qwen-plus", Duration.ofSeconds(2));
+
+            AiProvider.Result result = provider(properties).answer("我头好疼");
+
+            assertEquals("听起来你现在很不舒服，请先坐下休息。", result.answer());
+            assertTrue(result.feedbackRequested());
+            assertEquals("PAIN", result.feedbackType());
+            assertEquals("HIGH", result.feedbackSeverity());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void rejectedCloudAnswerStillCreatesPainFeedbackFallbackForSoreThroat() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/chat/completions", exchange -> {
+            byte[] body = "{\"choices\":[{\"message\":{\"content\":\"可能是咽炎，建议用药。\"}}]}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            AiProviderProperties properties = new AiProviderProperties(
+                    "cloud", "http://127.0.0.1:" + server.getAddress().getPort(), "test-key", "qwen-plus", Duration.ofSeconds(2));
+
+            AiProvider.Result result = provider(properties).answer("我嗓子疼");
+
+            assertTrue(result.feedbackRequested());
+            assertEquals("PAIN", result.feedbackType());
+            assertTrue(result.answer().contains("嗓子"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void blocksWarningQuestionWithoutCallingCloudWhenNoApiKey() {
         AiProviderProperties properties = new AiProviderProperties(
                 "cloud", "https://dashscope.aliyuncs.com/compatible-mode/v1", "", "qwen-plus", Duration.ofSeconds(2));
@@ -186,6 +236,6 @@ class CloudAiProviderTest {
     }
 
     private CloudAiProvider provider(AiProviderProperties properties) {
-        return new CloudAiProvider(properties, new AiSafetyClassifier(), new AiResponseGuard(), new ObjectMapper());
+        return new CloudAiProvider(properties, new AiSafetyClassifier(), new AiResponseGuard(), new ObjectMapper(), new AiHealthFeedbackDetector());
     }
 }

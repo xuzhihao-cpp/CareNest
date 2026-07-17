@@ -9,8 +9,8 @@ import java.util.*;
 
 @Service
 public class AiAssistantService {
-    private final AuthService auth; private final AiAssistantRepository repo; private final AiProvider provider;
-    public AiAssistantService(AuthService auth,AiAssistantRepository repo,AiProvider provider){this.auth=auth;this.repo=repo;this.provider=provider;}
+    private final AuthService auth; private final AiAssistantRepository repo; private final AiProvider provider; private final FamilyAssistanceIntentDetector assistanceIntent; private final AutomatedHealthFeedbackService automatedFeedback;
+    public AiAssistantService(AuthService auth,AiAssistantRepository repo,AiProvider provider,FamilyAssistanceIntentDetector assistanceIntent,AutomatedHealthFeedbackService automatedFeedback){this.auth=auth;this.repo=repo;this.provider=provider;this.assistanceIntent=assistanceIntent;this.automatedFeedback=automatedFeedback;}
     @Transactional public AiAssistantDtos.Session create(String token,AiAssistantDtos.CreateSessionRequest req){
         AuthService.CurrentUser u=auth.requireCurrentUser(token); String elderId=resolve(u,req==null?null:req.elderId()); AiAssistantRepository.Elder e=repo.elder(elderId).orElseThrow(()->new ApiException(404,"elder not found"));
         String id="ai_"+UUID.randomUUID().toString().replace("-","").substring(0,24); repo.createSession(id,elderId,u.userId(),req==null?null:req.sessionTitle(),req==null||req.sourceType()==null?"TEXT":req.sourceType(),id); return new AiAssistantDtos.Session(id,e.id(),e.name(),req==null?null:req.sessionTitle(),"ACTIVE","NORMAL",false,null,null,java.time.LocalDateTime.now().toString());
@@ -20,7 +20,13 @@ public class AiAssistantService {
         AiProvider.Result result=provider.answer(req.content()); String trace="trace_"+UUID.randomUUID().toString().replace("-",""); String userMsg=messageId(); String aiMsg=messageId();
         repo.addMessage(userMsg,sessionId,"USER",req.messageType()==null?"TEXT":req.messageType(),summary(req.content()),req.content(),req.voiceLogId(),!"NORMAL".equals(result.safetyLevel()),trace); repo.addMessage(aiMsg,sessionId,"ASSISTANT","TEXT",summary(result.answer()),result.answer(),null,!"NORMAL".equals(result.safetyLevel()),trace); repo.updateSafety(sessionId,result.safetyLevel(),!"NORMAL".equals(result.safetyLevel()));
         String elderId=repo.sessionElder(sessionId).orElseThrow(); String assistance=null; boolean cs=false; if("CRITICAL".equals(result.safetyLevel())){ assistance="assist_"+UUID.randomUUID().toString().replace("-","").substring(0,24); repo.assistance(assistance,elderId,u.userId(),sessionId,result.category(),result.priority(),result.answer()); String ticket="cs_"+UUID.randomUUID().toString().replace("-","").substring(0,24);repo.customerTicket(ticket,assistance,elderId,u.userId(),result.category(),result.priority(),result.answer());cs=true; }
-        return new AiAssistantDtos.MessageResult(sessionId,userMsg,aiMsg,result.answer(),result.safetyLevel(),!"NORMAL".equals(result.safetyLevel()),assistance,cs);
+        String healthFeedbackId = null;
+        if ("NORMAL".equals(result.safetyLevel()) && result.feedbackRequested()) {
+            healthFeedbackId = automatedFeedback.submit(elderId, u.userId(), req.content(), result);
+        }
+        boolean familyAssistanceRequested = u.roles().contains(RoleCode.ELDER)
+                && (assistanceIntent.detects(req.content()) || "CRITICAL".equals(result.safetyLevel()));
+        return new AiAssistantDtos.MessageResult(sessionId,userMsg,aiMsg,result.answer(),result.safetyLevel(),!"NORMAL".equals(result.safetyLevel()),assistance,cs,familyAssistanceRequested,healthFeedbackId,healthFeedbackId != null);
     }
     public AiAssistantDtos.PageResult<AiAssistantDtos.AssistanceTicket> tickets(String token,String elderId,String status,int page,int size){AuthService.CurrentUser u=auth.requireCurrentUser(token);String id=resolve(u,elderId);if(page<1||size<1||size>50)throw new ApiException(422,"invalid page");return new AiAssistantDtos.PageResult<>(repo.tickets(id,status,size,(page-1)*size),repo.ticketCount(id,status),page,size);}
     public AiAssistantDtos.PageResult<AiAssistantDtos.SessionSummary> listSessions(String token,String elderId,int page,int size){AuthService.CurrentUser u=auth.requireCurrentUser(token);if(page<1||size<1||size>50)throw new ApiException(422,"invalid page");if(u.roles().contains(RoleCode.ELDER)){AiAssistantRepository.Elder elder=repo.elderByUser(u.userId()).orElseThrow(()->new ApiException(404,"elder not found"));return new AiAssistantDtos.PageResult<>(repo.sessionsForElder(elder.id(),u.userId(),size,(page-1)*size),repo.sessionCountForElder(elder.id(),u.userId()),page,size);}if(u.roles().contains(RoleCode.FAMILY)){if(elderId!=null&&!repo.bound(u.userId(),elderId))throw new ApiException(403,"active family binding required");return new AiAssistantDtos.PageResult<>(repo.sessionsForFamily(u.userId(),elderId,size,(page-1)*size),repo.sessionCountForFamily(u.userId(),elderId),page,size);}throw new ApiException(403,"role not allowed");}
