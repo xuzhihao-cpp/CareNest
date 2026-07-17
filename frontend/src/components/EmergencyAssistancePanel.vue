@@ -1,13 +1,45 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { getElderProfile } from '@/api/stageSeven';
+import type { ElderProfileResponse, RelationType } from '@/types/stageSeven';
 
 const emit = defineEmits<{
-  (event: 'open-profile'): void;
   (event: 'back-feedback'): void;
 }>();
 
 const platformPhone = String(import.meta.env.VITE_PLATFORM_ASSISTANCE_PHONE || '').trim();
 const callError = ref('');
+const profile = ref<ElderProfileResponse | null>(null);
+const contactLoading = ref(true);
+const contactError = ref('');
+
+const relationLabels: Record<RelationType, string> = {
+  SON: '儿子',
+  DAUGHTER: '女儿',
+  SPOUSE: '配偶',
+  OTHER: '其他关系'
+};
+
+const emergencyContact = computed(() => profile.value?.emergencyContacts.find((contact) =>
+  Boolean(contact.contactName?.trim() || contact.contactPhone?.trim())
+) ?? null);
+
+async function loadEmergencyContact() {
+  contactLoading.value = true;
+  contactError.value = '';
+  const response = await getElderProfile('elder_001');
+  contactLoading.value = false;
+  if (response.code === 0) {
+    profile.value = response.data;
+    return;
+  }
+  profile.value = null;
+  contactError.value = response.code === 401
+    ? '登录状态已失效，请重新登录后查看联系人。'
+    : response.code === 403
+      ? '当前账号无权查看紧急联系人。'
+      : '暂时无法读取紧急联系人，请稍后再试。';
+}
 
 function callPhone(phoneNumber: string, label: string) {
   callError.value = '';
@@ -18,6 +50,8 @@ function callPhone(phoneNumber: string, label: string) {
     }
   });
 }
+
+onMounted(loadEmergencyContact);
 </script>
 
 <template>
@@ -30,7 +64,14 @@ function callPhone(phoneNumber: string, label: string) {
 
     <view class="assistance-section family-section">
       <view><text class="section-title">先联系家属</text><text class="section-help">查看档案中已经保存的紧急联系人和联系电话。</text></view>
-      <button type="button" @click="emit('open-profile')">查看家属联系方式</button>
+      <view v-if="contactLoading" class="contact-state">正在读取紧急联系人...</view>
+      <view v-else-if="emergencyContact" class="contact-details">
+        <text class="contact-name">{{ emergencyContact.contactName || '未填写姓名' }}</text>
+        <text class="contact-phone">{{ emergencyContact.contactPhone || '未填写联系电话' }}</text>
+        <text v-if="emergencyContact.relationType" class="contact-relation">关系：{{ relationLabels[emergencyContact.relationType as RelationType] || '其他关系' }}</text>
+      </view>
+      <text v-else-if="contactError" class="contact-state error">{{ contactError }}</text>
+      <text v-else class="contact-state">档案中尚未保存紧急联系人和联系电话。</text>
     </view>
 
     <view class="assistance-section platform-section">
@@ -66,7 +107,12 @@ function callPhone(phoneNumber: string, label: string) {
 .assistance-section button,.back-command { min-height:78rpx; margin:0; border:1rpx solid #b8d0cb; border-radius:4rpx; background:#fff; color:#176d65; font-size:26rpx; font-weight:800; }
 .platform-section button { border-color:#167f76; background:#167f76; color:#fff; }
 .emergency-section button { border-color:#bd3e36; background:#bd3e36; color:#fff; }
-.unavailable-note { padding:16rpx; background:#f4f6f5; color:#667873; font-size:22rpx; line-height:1.5; }
+.unavailable-note,.contact-state { padding:16rpx; background:#f4f6f5; color:#667873; font-size:22rpx; line-height:1.5; }
+.contact-state.error { background:#fff2f1; color:#a3342e; }
+.contact-details { display:grid; gap:6rpx; padding:18rpx; border:1rpx solid #b9d8e5; background:#f4fbfe; }
+.contact-name { color:#17312e; font-size:28rpx; font-weight:850; }
+.contact-phone { color:#176d65; font-size:32rpx; font-weight:850; letter-spacing:.5rpx; }
+.contact-relation { color:#607671; font-size:22rpx; }
 .call-error { padding:18rpx 20rpx; border:1rpx solid #efb7b2; background:#fff2f1; color:#a3342e; font-size:23rpx; line-height:1.55; }
 .back-command { width:100%; }
 </style>
