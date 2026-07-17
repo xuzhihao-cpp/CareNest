@@ -24,6 +24,7 @@ class AiAssistantServiceTest {
     private AiProvider provider;
     private AiAssistantService service;
     private FamilyAssistanceIntentDetector assistanceIntent;
+    private AutomatedHealthFeedbackService automatedFeedback;
 
     @BeforeEach
     void setUp() {
@@ -31,7 +32,8 @@ class AiAssistantServiceTest {
         repository = mock(AiAssistantRepository.class);
         provider = mock(AiProvider.class);
         assistanceIntent = new FamilyAssistanceIntentDetector();
-        service = new AiAssistantService(auth, repository, provider, assistanceIntent);
+        automatedFeedback = mock(AutomatedHealthFeedbackService.class);
+        service = new AiAssistantService(auth, repository, provider, assistanceIntent, automatedFeedback);
 
         when(auth.requireCurrentUser("Bearer token"))
                 .thenReturn(new AuthService.CurrentUser("elder-user", List.of(RoleCode.ELDER)));
@@ -95,6 +97,21 @@ class AiAssistantServiceTest {
         assertTrue(result.familyAssistanceRequested());
         assertNull(result.assistanceTicketId());
         assertFalse(result.customerServiceTicketCreated());
+    }
+
+    @Test
+    void structuredHealthFeedbackIsSubmittedWithOriginalConversationText() {
+        when(provider.answer("我头好疼"))
+                .thenReturn(new AiProvider.Result("听起来你现在很不舒服，请先坐下休息。", "NORMAL", "DAILY_CARE", "NORMAL", "PAIN", "HIGH", true));
+        when(automatedFeedback.submit("elder-1", "elder-user", "我头好疼", provider.answer("我头好疼")))
+                .thenReturn("feedback-1");
+
+        AiAssistantDtos.MessageResult result = service.message(
+                "Bearer token", "session-1", new AiAssistantDtos.MessageRequest("我头好疼", "TEXT", null));
+
+        assertTrue(result.healthFeedbackSubmitted());
+        assertEquals("feedback-1", result.healthFeedbackId());
+        verify(automatedFeedback).submit("elder-1", "elder-user", "我头好疼", provider.answer("我头好疼"));
     }
 
     @Test

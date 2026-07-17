@@ -20,4 +20,6 @@ if(!types.includes('familyAssistanceRequested:boolean')) throw new Error('AI res
 if(!component.includes('uni.showModal({')) throw new Error('elder family assistance lacks confirmation dialog')
 if(!component.includes('uni.makePhoneCall({')) throw new Error('elder family assistance lacks real phone call')
 if(!component.includes('requestFamilyCall')) throw new Error('elder family assistance is not wired to message response')
+if(!types.includes('healthFeedbackSubmitted:boolean')) throw new Error('AI response is missing health feedback status')
+if(!component.includes('已记录到健康反馈')) throw new Error('AI conversation does not show submitted health feedback')
 console.log('stage 41 api contract smoke passed')
