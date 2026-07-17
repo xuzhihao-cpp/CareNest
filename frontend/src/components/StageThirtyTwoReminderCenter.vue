@@ -56,14 +56,16 @@ onMounted(loadTasks);
 
 <template>
   <section class="reminder-panel">
-    <header class="panel-head">
-      <view><text class="eyebrow">今天的安排</text><text class="panel-title">把重要的事放心交给提醒</text></view>
-      <button class="icon-button" type="button" aria-label="刷新提醒" @click="view === 'tasks' ? loadTasks() : loadRecords()"><RefreshCw :size="21" aria-hidden="true" /></button>
-    </header>
+    <view class="reminder-toolbar">
+      <header class="panel-head">
+        <view><text class="eyebrow">今天的安排</text><text class="panel-title">把重要的事放心交给提醒</text></view>
+        <button class="icon-button" type="button" aria-label="刷新提醒" @click="view === 'tasks' ? loadTasks() : loadRecords()"><RefreshCw :size="21" aria-hidden="true" /></button>
+      </header>
 
-    <view class="segment" role="tablist">
-      <button type="button" :class="{ active: view === 'tasks' }" @click="switchView('tasks')"><Clock3 :size="18" aria-hidden="true" />提醒</button>
-      <button type="button" :class="{ active: view === 'records' }" @click="switchView('records')"><History :size="18" aria-hidden="true" />记录</button>
+      <view class="segment" role="tablist">
+        <button type="button" :class="{ active: view === 'tasks' }" @click="switchView('tasks')"><Clock3 :size="18" aria-hidden="true" />提醒</button>
+        <button type="button" :class="{ active: view === 'records' }" @click="switchView('records')"><History :size="18" aria-hidden="true" />记录</button>
+      </view>
     </view>
 
     <view v-if="loading" class="state">正在读取提醒...</view>
@@ -97,4 +99,5 @@ onMounted(loadTasks);
 
 <style scoped>
 .reminder-panel{color:#203129}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:4px 2px 18px}.eyebrow,.panel-title{display:block;letter-spacing:0}.eyebrow{color:#5c7268;font-size:13px}.panel-title{max-width:280px;margin-top:5px;font-size:22px;font-weight:760;line-height:1.3}.icon-button{display:grid;place-items:center;flex:none;width:44px;height:44px;margin:0;padding:0;border:1px solid #dce5df;border-radius:7px;background:#fff;color:#356d5b}.segment{display:grid;grid-template-columns:1fr 1fr;margin-bottom:18px;border-bottom:1px solid #dce4de}.segment button{display:flex;min-height:48px;align-items:center;justify-content:center;gap:7px;margin:0;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:#6c7c74;font-size:15px}.segment button.active{border-bottom-color:#2d7863;color:#245f50;font-weight:750}.next-reminder{padding:21px 20px;border:1px solid #dce5df;border-left:5px solid #c58b2d;border-radius:8px;background:#fff;transition:opacity .18s ease,transform .18s ease}.next-reminder.completing{opacity:0;transform:translateY(-6px)}.next-label{display:flex;align-items:center;gap:6px;color:#80611f;font-size:13px}.next-label strong{margin-left:auto;color:#6f5318}.next-title,.next-content,.next-time{display:block}.next-title{margin-top:18px;font-size:24px;font-weight:780;line-height:1.25}.next-content{margin-top:8px;color:#53635b;font-size:16px;line-height:1.6}.next-time{margin-top:9px;color:#68786f;font-size:14px}.complete-action{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;margin:22px 0 0;border:0;border-radius:7px;background:#26715c;color:#fff;font-size:17px;font-weight:750}.secondary-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}.secondary-actions button{display:flex;min-width:0;min-height:46px;align-items:center;justify-content:center;gap:5px;margin:0;padding:0 7px;border:1px solid #d7e2dc;border-radius:7px;background:#f7faf8;color:#466159;font-size:13px}.secondary-actions button:last-child{border-color:#edd1cb;background:#fff8f6;color:#93483e}.reminder-group{margin-top:27px}.reminder-group h2{margin:0 0 8px;padding:0 2px;color:#485b52;font-size:15px}.reminder-row,.record-row{display:flex;min-height:64px;align-items:center;gap:11px;padding:11px 2px;border-bottom:1px solid #e3e9e5}.row-time{flex:none;width:48px;color:#4d675c;font-size:14px;font-weight:700}.row-time.wide{width:80px;font-size:12px}.row-main{min-width:0;flex:1}.row-main strong,.row-main text{display:block}.row-main strong{font-size:15px;overflow-wrap:anywhere}.row-main text{margin-top:4px;color:#718078;font-size:12px;line-height:1.35;overflow-wrap:anywhere}.row-status{flex:none;color:#8a681e;font-size:11px}.row-status.done{color:#668076}.completed-group .reminder-row{color:#6e7b74}.record-mark{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#eaf3ee;color:#2c735f}.record-result{text-align:right}.record-result strong,.record-result text{display:block}.record-result strong{font-size:12px}.record-result text{margin-top:3px;color:#738078;font-size:11px}.state,.empty-state{display:flex;min-height:180px;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:#718078;text-align:center}.empty-state strong{color:#354a41;font-size:17px}.empty-state text{font-size:13px}.state.error{color:#91473d}.state.error button{min-height:44px;margin-top:8px;border:1px solid #dfc3be;border-radius:7px;background:#fff;color:#91473d}.success-message{margin-bottom:12px;padding:12px 14px;border-left:4px solid #4d927b;background:#edf6f1;color:#2f6957;font-size:14px}@media(prefers-reduced-motion:reduce){.next-reminder{transition:none}}
+.reminder-toolbar{position:sticky;top:var(--app-shell-header-height,0px);z-index:24;background:#f4f6f3;box-shadow:0 8px 12px -14px rgba(31,52,41,.45)}
 </style>

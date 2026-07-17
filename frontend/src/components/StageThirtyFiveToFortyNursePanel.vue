@@ -372,7 +372,7 @@ onMounted(loadMetricWork);
   <view class="care-metric-nurse-panel">
     <view class="quality-heading">
       <view>
-        <text class="quality-kicker">阶段 35-40</text>
+        <text class="quality-kicker">服务质量</text>
         <text class="quality-title">质量留证</text>
         <text class="quality-subtitle">
           {{ task ? `${task.serviceName || '上门护理服务'} · ${taskTime(task.scheduledStart)}` : '请先从任务列表选择订单' }}

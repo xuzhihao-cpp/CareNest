@@ -164,9 +164,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <view class="stage-fourteen-panel glass-panel" aria-label="阶段14护理执行记录">
+  <view class="stage-fourteen-panel glass-panel" aria-label="护理执行记录">
     <view class="section-title">
-      <text>⑭</text>
       <text>护理执行记录</text>
     </view>
 
@@ -194,7 +193,7 @@ onMounted(() => {
         <view class="contract-response">
           <text class="section-mini">可提交执行记录的任务</text>
           <text class="permission-main">{{ tasks.length }} 单</text>
-          <text class="auth-meta">来自阶段13任务列表</text>
+          <text class="auth-meta">来自护理任务列表</text>
         </view>
         <button
           v-for="task in tasks"
@@ -348,7 +347,7 @@ onMounted(() => {
     </view>
 
     <view class="contract-response">
-      <text class="section-mini">最近一次阶段14响应 DTO</text>
+      <text class="section-mini">最近一次操作结果</text>
       <text v-if="lastActionResponse">
         {{ lastActionResponse.code }} / {{ lastActionResponse.message }} / {{ lastActionResponse.traceId }}
       </text>
