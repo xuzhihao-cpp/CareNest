@@ -34,6 +34,7 @@ export interface CareMetricConfigRequest {
 
 export interface ConfigVersionResponse {
   configVersion: number;
+  items: CareMetricConfigItem[];
 }
 
 export interface MetricChecklistItem {

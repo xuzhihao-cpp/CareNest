@@ -51,16 +51,26 @@ function nextRequest() {
   return request;
 }
 
-test('config endpoints use the frozen phase 34 path and validate version responses', async () => {
-  enqueue(success({ configVersion: 1 }));
+test('config endpoints use the frozen phase 34 path and return active metric items', async () => {
+  const activeItems = [{
+    metricCode: 'SERVICE_PHOTO',
+    metricName: '服务照片',
+    metricType: 'SERVICE_PROCESS',
+    required: true,
+    evidenceType: 'PHOTO',
+    scoreWeight: 10,
+    description: '服务完成后拍摄照片'
+  }];
+  enqueue(success({ configVersion: 1, items: activeItems }));
   const readResponse = await api.getCareMetricConfig('service/001');
   let request = nextRequest();
   assert.equal(request.method, 'GET');
   assert.equal(request.url, '/api/v1/admin/service-items/service%2F001/care-metric-config');
   assert.equal(request.header.Authorization, 'Bearer stage-34-token');
   assert.equal(readResponse.data.configVersion, 1);
+  assert.deepEqual(readResponse.data.items, activeItems);
 
-  enqueue(success({ configVersion: 2 }));
+  enqueue(success({ configVersion: 2, items: activeItems }));
   const saveResponse = await api.saveCareMetricConfig('service-001', {
     items: [{
       metricCode: 'SERVICE_PHOTO',
@@ -85,6 +95,7 @@ test('config endpoints use the frozen phase 34 path and validate version respons
     description: '留档'
   });
   assert.equal(saveResponse.data.configVersion, 2);
+  assert.deepEqual(saveResponse.data.items, activeItems);
 
   enqueue(success({ version: 3 }));
   assert.equal((await api.getCareMetricConfig('service-001')).code, 502);

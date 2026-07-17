@@ -255,7 +255,11 @@ async function loadMetricWork() {
   loading.value = false;
   if (checklistResponse.code !== 0) {
     checklist.value = [];
-    error.value = stageThirtyFourToFortyError(checklistResponse.code, 'CHECKLIST');
+    if (checklistResponse.code === 404) {
+      notice.value = '当前订单的质量清单正在准备中，请稍后刷新。';
+    } else {
+      error.value = stageThirtyFourToFortyError(checklistResponse.code, 'CHECKLIST');
+    }
     return;
   }
   if (evidenceResponse.code !== 0 || proofResponse.code !== 0) {

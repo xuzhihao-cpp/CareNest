@@ -6,6 +6,7 @@ import com.csu.carenest.careadmin.common.BusinessRuleException;
 import com.csu.carenest.careadmin.common.ConflictException;
 import com.csu.carenest.careadmin.common.ForbiddenException;
 import com.csu.carenest.careadmin.common.NotFoundException;
+import com.csu.carenest.careadmin.phase.Phase25MedicalFileStorage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -33,12 +34,22 @@ public class Phase34To40MetricService {
 
     private final Phase34To40MetricRepository repository;
     private final ObjectMapper objectMapper;
+    private final Phase25MedicalFileStorage fileStorage;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public Phase34To40MetricService(
+            Phase34To40MetricRepository repository,
+            ObjectMapper objectMapper,
+            Phase25MedicalFileStorage fileStorage) {
+        this.repository = repository;
+        this.objectMapper = objectMapper;
+        this.fileStorage = fileStorage;
+    }
 
     public Phase34To40MetricService(
             Phase34To40MetricRepository repository,
             ObjectMapper objectMapper) {
-        this.repository = repository;
-        this.objectMapper = objectMapper;
+        this(repository, objectMapper, null);
     }
 
     @Transactional(readOnly = true)
@@ -47,7 +58,8 @@ public class Phase34To40MetricService {
         requireService(serviceId);
         Phase34To40MetricRepository.ConfigContext config = repository.findActiveConfig(serviceId)
                 .orElseThrow(NotFoundException::new);
-        return new CareMetricDtos.ConfigVersionResponse(config.version());
+        return new CareMetricDtos.ConfigVersionResponse(
+                config.version(), repository.findConfigEditorItems(config.configId()));
     }
 
     @Transactional
@@ -76,12 +88,18 @@ public class Phase34To40MetricService {
         }
         log(user, "UPDATE_CARE_METRIC_CONFIG", "SERVICE_ITEM", serviceId,
                 null, Map.of("configVersion", version));
-        return new CareMetricDtos.ConfigVersionResponse(version);
+        return new CareMetricDtos.ConfigVersionResponse(version, items);
     }
 
     @Transactional
     public CareMetricDtos.MetricChecklistResponse generateChecklist(CurrentUser user, String orderId) {
         requirePermission(user, CONFIG_PERMISSION);
+        return ensureChecklistForDispatch(orderId, user.userId());
+    }
+
+    /** Creates the immutable order snapshot during dispatch so nurses never receive a task without its checklist. */
+    @Transactional
+    public CareMetricDtos.MetricChecklistResponse ensureChecklistForDispatch(String orderId, String generatedBy) {
         Phase34To40MetricRepository.OrderContext order = requireOrder(orderId);
         repository.lockOrder(orderId);
         order = requireOrder(orderId);
@@ -101,12 +119,10 @@ public class Phase34To40MetricService {
         }
 
         String checklistId = nextId("checklist");
-        repository.insertChecklist(checklistId, order, config, user.userId());
+        repository.insertChecklist(checklistId, order, config, generatedBy);
         for (Phase34To40MetricRepository.ConfigMetricItem item : configItems) {
             repository.insertOrderMetricItem(nextId("order_metric"), checklistId, orderId, item);
         }
-        log(user, "GENERATE_METRIC_CHECKLIST", "NURSING_ORDER", orderId,
-                null, Map.of("configVersion", config.version()));
         return checklistResponse(orderId);
     }
 
@@ -181,6 +197,18 @@ public class Phase34To40MetricService {
     public List<CareMetricDtos.EvidenceResponse> pendingEvidences(CurrentUser user) {
         requirePermission(user, REVIEW_PERMISSION);
         return repository.findPendingEvidences();
+    }
+
+    @Transactional(readOnly = true)
+    public CareMetricDtos.EvidenceFilePreview evidenceFilePreview(CurrentUser user, String evidenceId) {
+        requirePermission(user, REVIEW_PERMISSION);
+        Phase34To40MetricRepository.EvidenceFile file = repository.findEvidenceFile(evidenceId)
+                .orElseThrow(NotFoundException::new);
+        if (fileStorage == null) {
+            throw new NotFoundException();
+        }
+        return new CareMetricDtos.EvidenceFilePreview(
+                fileStorage.read(file.bucket(), file.objectKey()), file.mimeType(), file.originalName());
     }
 
     @Transactional

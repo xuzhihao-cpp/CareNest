@@ -13,7 +13,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /** 阶段34-40护理指标、留档和豁免审核接口入口。 */
@@ -84,6 +89,25 @@ public class Phase34To40MetricController {
             @RequestHeader("Authorization") String authorization) {
         CurrentUser user = adminUser(authorization);
         return ApiResponse.success(metricService.pendingEvidences(user));
+    }
+
+    @GetMapping("/admin/evidences/{evidenceId}/preview")
+    public ResponseEntity<byte[]> evidencePreview(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable("evidenceId") String evidenceId) {
+        CurrentUser user = adminUser(authorization);
+        CareMetricDtos.EvidenceFilePreview preview = metricService.evidenceFilePreview(user, evidenceId);
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(preview.mimeType());
+        } catch (Exception ignored) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                        .filename(preview.originalName(), StandardCharsets.UTF_8).build().toString())
+                .body(preview.content());
     }
 
     @PostMapping("/admin/evidences/{evidenceId}/review")

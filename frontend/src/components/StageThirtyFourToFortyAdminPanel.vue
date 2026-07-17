@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getServiceItems } from '@/api/stageEight';
 import {
   generateMetricChecklist,
+  getCareEvidencePreview,
   getAdminEvidences,
   getAdminExceptionProofs,
   getCareMetricConfig,
@@ -57,6 +58,8 @@ const orderId = ref('');
 const checklist = ref<MetricChecklistResponse>({ items: [] });
 const checkResult = ref<MetricCheckResponse>({ items: [] });
 const evidences = ref<EvidenceResponse[]>([]);
+const evidencePreviewUrls = ref<Record<string, string>>({});
+const evidencePreviewLoading = ref<Record<string, boolean>>({});
 const proofs = ref<ProofReviewResponse[]>([]);
 const reviewForms = ref<Record<string, { auditStatus: Exclude<EvidenceAuditStatus, 'PENDING'>; reviewComment: string }>>({});
 const proofForms = ref<Record<string, {
@@ -202,6 +205,9 @@ async function loadMetricConfig() {
     return;
   }
   configVersion.value = response.data.configVersion;
+  configItems.value = response.data.items.length
+    ? response.data.items.map((item) => ({ ...item }))
+    : [createEmptyMetricConfigItem()];
 }
 
 async function submitMetricConfig() {
@@ -218,7 +224,7 @@ async function submitMetricConfig() {
     error.value = response.message || stageThirtyFourToFortyError(response.code, 'CONFIG');
     return;
   }
-  configVersion.value = response.data.configVersion;
+  await loadMetricConfig();
   notice.value = `护理指标配置已保存，当前版本 ${response.data.configVersion}。`;
 }
 
@@ -287,6 +293,7 @@ function syncProofForms() {
 
 async function loadEvidenceQueue() {
   if (!canReviewEvidence.value) return;
+  clearEvidencePreviews();
   loading.value = true;
   resetFeedback();
   const response = await getAdminEvidences();
@@ -298,6 +305,27 @@ async function loadEvidenceQueue() {
   }
   evidences.value = response.data;
   syncEvidenceForms();
+}
+
+function clearEvidencePreviews() {
+  Object.values(evidencePreviewUrls.value).forEach((url) => URL.revokeObjectURL(url));
+  evidencePreviewUrls.value = {};
+  evidencePreviewLoading.value = {};
+}
+
+async function showEvidencePhoto(item: EvidenceResponse) {
+  if (!item.fileId || item.evidenceType !== 'PHOTO' || evidencePreviewUrls.value[item.evidenceId]) return;
+  evidencePreviewLoading.value = { ...evidencePreviewLoading.value, [item.evidenceId]: true };
+  const result = await getCareEvidencePreview(item.evidenceId);
+  evidencePreviewLoading.value = { ...evidencePreviewLoading.value, [item.evidenceId]: false };
+  if (result.code !== 0 || !result.blob) {
+    error.value = '留档图片暂时无法查看，请稍后刷新后重试。';
+    return;
+  }
+  evidencePreviewUrls.value = {
+    ...evidencePreviewUrls.value,
+    [item.evidenceId]: URL.createObjectURL(result.blob)
+  };
 }
 
 async function submitEvidenceReview(evidence: EvidenceResponse) {
@@ -370,6 +398,7 @@ watch(
 );
 
 onMounted(initialize);
+onBeforeUnmount(clearEvidencePreviews);
 </script>
 
 <template>
@@ -404,7 +433,7 @@ onMounted(initialize);
 
       <view v-if="section === 'config'" class="metric-section">
         <view class="section-head">
-          <view><text>服务项目指标配置</text><text>GET 接口仅返回版本号；下方编辑保存后会生成新版本，不改写历史订单。</text></view>
+          <view><text>服务项目指标配置</text><text>当前内容来自后台正在生效的配置；保存后生成新版本，不改写历史订单。</text></view>
           <text class="version-pill">版本 {{ configVersion ?? '未读取' }}</text>
         </view>
         <view class="service-selector">
@@ -477,8 +506,28 @@ onMounted(initialize);
         </view>
         <view v-if="evidences.length === 0" class="metric-state">暂无待审核留档。</view>
         <view v-else class="review-list">
-          <view v-for="item in evidences" :key="item.evidenceId" class="review-card">
-            <view><text>留档记录</text><strong>{{ compactBusinessId(item.evidenceId) }}</strong><small>{{ EVIDENCE_AUDIT_STATUS_LABELS[item.auditStatus] }}</small></view>
+          <view v-for="item in evidences" :key="item.evidenceId" class="review-card evidence-review-card">
+            <view class="evidence-content">
+              <text>留档内容</text>
+              <strong>{{ item.metricName || '服务留档' }}</strong>
+              <small>{{ item.evidenceType ? CARE_METRIC_EVIDENCE_LABELS[item.evidenceType] : '留档' }} · {{ item.fileId ? '已附文件' : '文字留档' }}</small>
+              <p v-if="item.description">{{ item.description }}</p>
+              <small v-if="item.submittedAt">提交时间：{{ item.submittedAt.replace('T', ' ').slice(0, 16) }}</small>
+              <small class="evidence-status">{{ EVIDENCE_AUDIT_STATUS_LABELS[item.auditStatus] }}</small>
+              <button
+                v-if="item.evidenceType === 'PHOTO' && item.fileId"
+                type="button"
+                class="photo-preview-button"
+                :disabled="Boolean(evidencePreviewLoading[item.evidenceId])"
+                @click="showEvidencePhoto(item)"
+              >{{ evidencePreviewUrls[item.evidenceId] ? '已打开图片' : evidencePreviewLoading[item.evidenceId] ? '正在读取图片' : '查看图片' }}</button>
+              <img
+                v-if="evidencePreviewUrls[item.evidenceId]"
+                class="evidence-photo"
+                :src="evidencePreviewUrls[item.evidenceId]"
+                alt="护理留档照片"
+              />
+            </view>
             <picker :range="evidenceReviewOptions" range-key="label" :value="pickerIndex(evidenceReviewOptions, reviewForms[item.evidenceId]?.auditStatus || 'APPROVED')" @change="setEvidenceReviewStatus(item.evidenceId, $event)">
               <view class="select-box">{{ EVIDENCE_AUDIT_STATUS_LABELS[reviewForms[item.evidenceId]?.auditStatus || 'APPROVED'] }}</view>
             </picker>
@@ -570,6 +619,13 @@ button[disabled] { opacity:.48; }
 .review-card text,.review-card small { color:#6a7d78; font-size:12px; }
 .review-card small { color:#087b78; font-weight:800; }
 .review-card .primary { align-self:stretch; }
+.evidence-review-card { grid-template-columns:minmax(280px,1.35fr) minmax(150px,.65fr) minmax(240px,1fr) 132px; align-items:center; }
+.evidence-review-card .evidence-content { min-width:0; }
+.evidence-content p { margin:3px 0 0; color:#314b45; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.evidence-review-card .evidence-status { margin-top:2px; color:#087b78; }
+.photo-preview-button { width:max-content; min-height:34px; margin-top:6px; padding:0 12px; border:1px solid #9bcfc6; border-radius:6px; background:#fff; color:#087b78; font-size:12px; font-weight:800; }
+.evidence-photo { display:block; width:min(100%, 360px); max-height:240px; margin-top:8px; border:1px solid #c8ded9; border-radius:6px; object-fit:contain; background:#fff; }
+.evidence-review-card .primary { min-height:42px; align-self:center; }
 @media (max-width:900px) {
   .metric-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .service-selector,.order-command-row,.metric-config-row,.review-card { grid-template-columns:1fr; }

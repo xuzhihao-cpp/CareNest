@@ -30,7 +30,7 @@ PUT 请求：
 }
 ```
 
-GET/PUT 的 `data` 均为 `{"configVersion":1}`。更新配置会创建新版本并停用旧版本，不覆盖历史指标项。
+GET/PUT 的 `data` 均为 `{"configVersion":1,"items":[...]}`。`items` 返回当前生效版本的完整指标项，管理端必须以此回显，不得用本地默认项替代。更新配置会创建新版本并停用旧版本，不覆盖历史指标项。
 
 ## 阶段35：订单留档清单
 
@@ -62,6 +62,7 @@ GET/PUT 的 `data` 均为 `{"configVersion":1}`。更新配置会创建新版本
 - `POST /api/v1/nurse/orders/{orderId}/evidences`
 - `GET /api/v1/orders/{orderId}/evidences`
 - `GET /api/v1/admin/evidences`
+- `GET /api/v1/admin/evidences/{evidenceId}/preview`
 - `POST /api/v1/admin/evidences/{evidenceId}/review`
 
 留档请求固定为：
