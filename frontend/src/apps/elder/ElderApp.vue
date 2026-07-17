@@ -125,7 +125,7 @@ onMounted(async () => {
             </section>
             <StageNineteenHealthArchivePanel v-if="homeView === 'health'" role-code="ELDER" :auth-user="user" />
             <StageTwentyTwoHealthFeedbackPanel v-if="homeView === 'feedback'" role-code="ELDER" :auth-user="user" @open-profile="primaryView='account';accountView='profile'" @open-assistance="homeView='assistance'" />
-            <EmergencyAssistancePanel v-if="homeView === 'assistance'" @open-profile="primaryView='account';accountView='profile'" @back-feedback="homeView='feedback'" />
+            <EmergencyAssistancePanel v-if="homeView === 'assistance'" @back-feedback="homeView='feedback'" />
           </template>
 
           <StageThirtyTwoReminderCenter v-else-if="primaryView === 'reminders'" @close="selectPrimary('home')" />

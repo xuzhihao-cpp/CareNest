@@ -44,6 +44,12 @@ function nextAppointmentTime() {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function localDate() {
+  const date = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 const elders = ref<ElderProfileResponse[]>([]);
 const services = ref<ServiceItemResponse[]>([]);
 const addresses = ref<ServiceAddressResponse[]>([]);
@@ -100,6 +106,22 @@ function formatAppointmentTime(value: string) {
   }
   const [date, time = ''] = value.replace('T', ' ').split(' ');
   return `${date} ${time.slice(0, 5)}`;
+}
+
+const appointmentDate = computed(() => form.value.scheduledStart.split('T')[0] || localDate());
+const appointmentTime = computed(() => form.value.scheduledStart.split('T')[1]?.slice(0, 5) || '09:00');
+
+function updateAppointmentTime(date: string, time: string) {
+  form.value.scheduledStart = `${date}T${time}`;
+  clearPreferredNurse();
+}
+
+function selectAppointmentDate(event: { detail: { value: string } }) {
+  updateAppointmentTime(event.detail.value, appointmentTime.value);
+}
+
+function selectAppointmentTime(event: { detail: { value: string } }) {
+  updateAppointmentTime(appointmentDate.value, event.detail.value);
 }
 
 function orderServiceName(order: FamilyOrderResponse) {
@@ -391,10 +413,17 @@ onUnmounted(() => {
       </view>
 
       <view class="order-form">
-        <label class="field">
+        <view class="field">
           <text>预约时间</text>
-          <input v-model="form.scheduledStart" class="input" type="datetime-local" @change="clearPreferredNurse" />
-        </label>
+          <view class="appointment-picker-row">
+            <picker mode="date" :start="localDate()" :value="appointmentDate" @change="selectAppointmentDate">
+              <view class="input date-picker-input">{{ appointmentDate }}</view>
+            </picker>
+            <picker mode="time" :value="appointmentTime" @change="selectAppointmentTime">
+              <view class="input date-picker-input">{{ appointmentTime }}</view>
+            </picker>
+          </view>
+        </view>
         <StageTwentyNineRecommendationPanel
           mode="conditions"
           :elder-id="form.elderId"
@@ -501,4 +530,8 @@ onUnmounted(() => {
 
 <style scoped>
 .permission-hint { padding:14rpx 16rpx; border-left:5rpx solid #8ebbb2; background:#eef7f4; color:#56716b; font-size:21rpx; line-height:1.5; }.permission-hint.warning { border-left-color:#d2a14a; background:#fff8e8; color:#785716; }
+.appointment-picker-row { display:grid; grid-template-columns:minmax(0,1fr) 176rpx; gap:14rpx; width:100%; }
+.appointment-picker-row picker { min-width:0; }
+.date-picker-input { display:flex; align-items:center; min-height:88rpx; box-sizing:border-box; }
+@media (max-width:390px) { .appointment-picker-row { grid-template-columns:minmax(0,1fr) 150rpx; gap:10rpx; } }
 </style>

@@ -113,6 +113,16 @@ public class Phase19To30Service {
         return toMedicalFileItem(requireMedicalFile(fileId));
     }
 
+    @Transactional(readOnly = true)
+    public MedicalFilePreview adminMedicalFilePreview(String fileId) {
+        MedicalFileEntity medicalFile = requireMedicalFile(fileId);
+        Phase19To30Repository.MedicalFileAssetRow file = repository
+                .findMedicalFileAsset(medicalFile.medicalFileId())
+                .orElseThrow(NotFoundException::new);
+        return new MedicalFilePreview(
+                medicalFileStorage.read(file.bucket(), file.objectKey()), file.mimeType(), file.originalName());
+    }
+
     @Transactional
     public MedicalFileDtos.ReviewResponse reviewMedicalFile(
             CurrentUser reviewer,
@@ -704,9 +714,17 @@ public class Phase19To30Service {
     }
 
     private MedicalFileDtos.MedicalFileItem toMedicalFileItem(MedicalFileEntity entity) {
+        Phase19To30Repository.MedicalFileAssetRow asset = repository
+                .findMedicalFileAsset(entity.medicalFileId())
+                .orElse(null);
+        String encodedId = UriUtils.encodePathSegment(entity.medicalFileId(), StandardCharsets.UTF_8);
+        String previewUrl = asset == null ? null : "/api/v1/admin/medical-files/" + encodedId + "/preview";
+        String downloadUrl = asset == null ? null : previewUrl + "?download=true";
         return new MedicalFileDtos.MedicalFileItem(
                 entity.medicalFileId(), entity.fileId(), entity.elderId(), entity.fileType(),
-                entity.title(), entity.occurredAt(), entity.auditStatus(), entity.reviewComment());
+                entity.title(), entity.occurredAt(), entity.auditStatus(), entity.reviewComment(),
+                asset == null ? null : asset.originalName(), asset == null ? null : asset.mimeType(),
+                asset == null ? null : asset.fileSize(), previewUrl, downloadUrl);
     }
 
     private RecommendationDtos.RecommendResponse toRecommendResponse(
