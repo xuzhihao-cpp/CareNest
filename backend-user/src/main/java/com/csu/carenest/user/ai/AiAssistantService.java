@@ -3,6 +3,7 @@ package com.csu.carenest.user.ai;
 import com.csu.carenest.user.auth.AuthService;
 import com.csu.carenest.user.auth.RoleCode;
 import com.csu.carenest.user.common.ApiException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ public class AiAssistantService {
         this(auth, repo, provider, new AiTriageClassifier());
     }
 
+    @Autowired
     public AiAssistantService(AuthService auth, AiAssistantRepository repo, AiProvider provider,
                               AiTriageClassifier triageClassifier) {
         this.auth = auth;
