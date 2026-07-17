@@ -18,7 +18,7 @@ import java.util.Map;
 @ConditionalOnProperty(prefix = "carenest.ai", name = "provider", havingValue = "cloud")
 public class CloudAiProvider extends AiProvider {
     private static final Logger log = LoggerFactory.getLogger(CloudAiProvider.class);
-    private static final String SYSTEM_PROMPT = "你是 CareNest 的日常照护助手。只回答日常照护、生活支持和一般健康管理问题，不能提供诊断、处方、用药剂量调整或替代医生的判断。遇到明确紧急症状，建议立即联系家属、当地急救或专业医护人员。回答简洁、清楚、适合长辈阅读，只输出纯文本，不使用 Markdown、表格、Emoji 或特殊符号。除非用户明确询问平台功能，不要提及 CareNest、平台客服、平台安排、平台服务、记录需求或任何未确认的功能；直接围绕用户的问题给出安全、可执行的日常建议。不得编造电话号码、地址、服务时间或平台尚未提供的信息。不得虚构 CareNest 功能、服务能力或工作人员安排。不得给出具体临床阈值、诊断标准或用药数量。";
+    private static final String SYSTEM_PROMPT = "你是 CareNest 的日常照护助手。只回答日常照护、生活支持和一般健康管理问题，不能提供诊断、处方、用药剂量调整或替代医生的判断。遇到明确紧急症状，建议立即联系家属、当地急救或专业医护人员。请严格只输出 JSON，不要 Markdown，格式为 {\"answer\":\"给老人的安全回答\",\"feedback\":{\"shouldSubmit\":false,\"feedbackType\":null,\"severity\":null}}。当用户明确描述疼痛、头晕、睡眠、饮食或精神状态变化时，将 shouldSubmit 设为 true，并从 PAIN、DIZZINESS、SLEEP、DIET、MENTAL_STATE 中选择 feedbackType，从 LOW、MEDIUM、HIGH 中选择 severity；不要把提问、泛泛咨询或没有具体不适的内容作为健康反馈。feedback 不得包含诊断。回答简洁、清楚、适合长辈阅读，只输出纯文本内容。不得编造电话号码、地址、服务时间或平台功能，不得虚构 CareNest 功能，不得给出具体临床阈值、诊断标准或用药数量。";
     private final AiProviderProperties properties;
     private final AiSafetyClassifier classifier;
     private final AiResponseGuard responseGuard;
@@ -60,17 +60,44 @@ public class CloudAiProvider extends AiProvider {
                 return fallback;
             }
             JsonNode root = objectMapper.readTree(response.body());
-            String answer = root.path("choices").path(0).path("message").path("content").asText("").trim();
+            String modelContent = root.path("choices").path(0).path("message").path("content").asText("").trim();
+            JsonNode structured = parseJson(modelContent);
+            String answer = structured == null ? modelContent : structured.path("answer").asText("").trim();
             var rejection = responseGuard.rejectionReason(answer);
             if (answer.isEmpty() || rejection.isPresent()) {
                 rejection.ifPresent(reason -> log.warn("AI provider response rejected: {}", reason));
                 return fallback;
             }
-            return new Result(answer, "NORMAL", "DAILY_CARE", "NORMAL");
+            JsonNode feedback = structured == null ? null : structured.path("feedback");
+            boolean requested = feedback != null && feedback.path("shouldSubmit").asBoolean(false);
+            String feedbackType = requested ? feedback.path("feedbackType").asText("") : null;
+            String feedbackSeverity = requested ? feedback.path("severity").asText("") : null;
+            if (!isValidFeedback(feedbackType, feedbackSeverity)) {
+                requested = false;
+                feedbackType = null;
+                feedbackSeverity = null;
+            }
+            return new Result(answer, "NORMAL", "DAILY_CARE", "NORMAL", feedbackType, feedbackSeverity, requested);
         } catch (Exception exception) {
             log.warn("AI provider call failed: {}", exception.getClass().getSimpleName());
             return fallback;
         }
+    }
+
+    private JsonNode parseJson(String content) {
+        try {
+            String normalized = content.replaceFirst("^```(?:json)?\\s*", "").replaceFirst("\\s*```$", "").trim();
+            JsonNode node = objectMapper.readTree(normalized);
+            return node != null && node.isObject() && node.has("answer") ? node : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private boolean isValidFeedback(String type, String severity) {
+        return type != null && severity != null
+                && List.of("PAIN", "DIZZINESS", "SLEEP", "DIET", "MENTAL_STATE").contains(type)
+                && List.of("LOW", "MEDIUM", "HIGH").contains(severity);
     }
 
     private URI endpoint() {
