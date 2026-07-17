@@ -72,7 +72,7 @@ CREATE TABLE complaint (
 );
 CREATE TABLE nurse_profile (nurse_id VARCHAR(32) PRIMARY KEY);
 CREATE TABLE nurse_score (
-  nurse_id VARCHAR(32) PRIMARY KEY, total_score DECIMAL(6,2), service_count INT,
+  nurse_id VARCHAR(32) PRIMARY KEY, total_score DECIMAL(6,2) DEFAULT 100.00, service_count INT,
   positive_rate DECIMAL(6,2), complaint_count INT, last_service_at TIMESTAMP,
   updated_by VARCHAR(32)
 );

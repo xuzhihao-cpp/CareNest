@@ -406,6 +406,8 @@ public class Phase19To30Service {
         String applicationId = nextId("qualification");
         repository.updateNurseProfileForApplication(
                 currentUser.userId(), request.realName(), request.idNoMasked(), PENDING);
+        // 资质申请是护理员进入业务体系的入口，同时补齐固定 100 分的初始评分。
+        repository.ensureInitialNurseScore(currentUser.userId());
         String skillsJson = writeJson(skillCodes);
         for (String fileId : fileIds) {
             repository.insertNurseCertificate(

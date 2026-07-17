@@ -9,6 +9,7 @@ import com.csu.carenest.careadmin.score.Phase47To48ScoreService;
 import com.csu.carenest.careadmin.score.ScoreDtos;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -67,6 +68,46 @@ class Phase44To48SupportScoreServiceTest {
         verify(repository).insertChangeLog(
                 anyString(), anyString(), anyString(), anyString(),
                 any(BigDecimal.class), any(BigDecimal.class), anyString(), anyString());
+    }
+
+    @Test
+    void firstScoreRecalculationStartsFromOneHundred() {
+        Phase47To48ScoreRepository repository = mock(Phase47To48ScoreRepository.class);
+        Phase47To48ScoreService service = new Phase47To48ScoreService(repository, new ObjectMapper());
+        Phase47To48ScoreRepository.ScoreFacts facts = new Phase47To48ScoreRepository.ScoreFacts(
+                new BigDecimal("95.00"), 1, null, 1,
+                null, BigDecimal.ZERO, new BigDecimal("5.00"), BigDecimal.ZERO);
+        when(repository.hasPermission("admin_1", "NURSE_APPEAL_REVIEW")).thenReturn(true);
+        when(repository.nurseExists("nurse_1")).thenReturn(true);
+        when(repository.currentScore("nurse_1")).thenReturn(Optional.empty());
+        when(repository.calculateFacts("nurse_1")).thenReturn(facts);
+        when(repository.findLogs("nurse_1", 0, 20)).thenReturn(List.of());
+
+        service.recalculate(
+                ADMIN, "nurse_1", new ScoreDtos.RecalculateRequest("nurse_1", "complaint_1"));
+
+        ArgumentCaptor<BigDecimal> scoreCaptor = ArgumentCaptor.forClass(BigDecimal.class);
+        verify(repository).insertChangeLog(
+                anyString(), anyString(), anyString(), anyString(),
+                scoreCaptor.capture(), scoreCaptor.capture(), anyString(), anyString());
+        assertEquals(List.of(new BigDecimal("100.00"), new BigDecimal("95.00")),
+                scoreCaptor.getAllValues());
+    }
+
+    @Test
+    void nurseWithoutScoreRowReadsInitialOneHundred() {
+        Phase47To48ScoreRepository repository = mock(Phase47To48ScoreRepository.class);
+        Phase47To48ScoreService service = new Phase47To48ScoreService(repository, new ObjectMapper());
+        CurrentUser nurse = new CurrentUser("nurse_1", List.of(RoleCode.NURSE));
+        when(repository.nurseExists("nurse_1")).thenReturn(true);
+        when(repository.currentScore("nurse_1")).thenReturn(Optional.empty());
+        when(repository.monthDelta(anyString(), any())).thenReturn(BigDecimal.ZERO);
+        when(repository.findLogs("nurse_1", 0, 20)).thenReturn(List.of());
+
+        ScoreDtos.MyScoreResponse response = service.myScore(nurse, 1, 20);
+
+        assertEquals(new BigDecimal("100.00"), response.totalScore());
+        assertEquals("EXCELLENT", response.level());
     }
 
     @Test

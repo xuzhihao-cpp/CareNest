@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS nurse_service_skill (
 
 CREATE TABLE IF NOT EXISTS nurse_score (
   nurse_id VARCHAR(32) NOT NULL COMMENT 'Nurse user ID',
-  total_score DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT 'Recommendation score source',
+  total_score DECIMAL(5,2) NOT NULL DEFAULT 100.00 COMMENT 'Recommendation score source; nurses start at 100',
   service_count INT NOT NULL DEFAULT 0 COMMENT 'Completed service count',
   positive_rate DECIMAL(5,2) DEFAULT NULL COMMENT 'Positive feedback rate percentage',
   complaint_count INT NOT NULL DEFAULT 0 COMMENT 'Complaint count',

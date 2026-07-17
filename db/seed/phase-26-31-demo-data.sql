@@ -169,10 +169,15 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO nurse_score (
   nurse_id, total_score, service_count, positive_rate, complaint_count, last_service_at, updated_by
 ) VALUES
-('nurse-valid-028', 82.00, 8, 95.00, 0, '2026-07-12 10:00:00', 'admin-001'),
-('nurse-expired-028', 90.00, 12, 98.00, 0, '2026-06-01 10:00:00', 'admin-001'),
-('nurse-reco-a-029', 96.50, 28, 99.00, 0, '2026-07-14 15:00:00', 'admin-001'),
-('nurse-reco-b-029', 88.00, 16, 96.00, 1, '2026-07-13 16:00:00', 'admin-001')
+('nurse-001', 100.00, 0, NULL, 0, NULL, 'admin-001'),
+('nurse-noapp-026', 100.00, 0, NULL, 0, NULL, 'admin-001'),
+('nurse-pending-026', 100.00, 0, NULL, 0, NULL, 'admin-001'),
+('nurse-needmore-026', 100.00, 0, NULL, 0, NULL, 'admin-001'),
+('nurse-qualified-026', 100.00, 0, NULL, 0, NULL, 'admin-001'),
+('nurse-valid-028', 100.00, 8, 95.00, 0, '2026-07-12 10:00:00', 'admin-001'),
+('nurse-expired-028', 100.00, 12, 98.00, 0, '2026-06-01 10:00:00', 'admin-001'),
+('nurse-reco-a-029', 100.00, 28, 99.00, 0, '2026-07-14 15:00:00', 'admin-001'),
+('nurse-reco-b-029', 100.00, 16, 96.00, 0, '2026-07-13 16:00:00', 'admin-001')
 ON DUPLICATE KEY UPDATE
   total_score = VALUES(total_score),
   service_count = VALUES(service_count),
@@ -218,10 +223,10 @@ INSERT INTO nurse_recommendation_log (
   candidate_snapshot, created_by
 ) VALUES
 ('reclog_029_001_a', 'recommend_029_001', SHA2('elder_001|service_001|address_001|2026-07-22T09:00:00|a', 256), 'order_029_001', 'elder_001', 'service_001', 'address_001',
- '2026-07-22 09:00:00', 'nurse-reco-a-029', 96.50, 'BASIC_CARE,VITAL_SIGN', '资质和培训有效，匹配基础照护、生命体征观察，综合评分更高。', 1, 1,
+ '2026-07-22 09:00:00', 'nurse-reco-a-029', 100.00, 'BASIC_CARE,VITAL_SIGN', '资质和培训有效，匹配基础照护、生命体征观察，综合评分100分。', 1, 1,
  JSON_OBJECT('qualificationStatus','APPROVED','trainingValid',true,'serviceCount',28,'positiveRate',99.00), 'family-001'),
 ('reclog_029_001_b', 'recommend_029_001', SHA2('elder_001|service_001|address_001|2026-07-22T09:00:00|b', 256), 'order_029_001', 'elder_001', 'service_001', 'address_001',
- '2026-07-22 09:00:00', 'nurse-reco-b-029', 88.00, 'BASIC_CARE,REHAB_ASSIST', '资质和培训有效，匹配基础照护、康复陪护，综合评分稳定。', 1, 2,
+ '2026-07-22 09:00:00', 'nurse-reco-b-029', 100.00, 'BASIC_CARE,REHAB_ASSIST', '资质和培训有效，匹配基础照护、康复陪护，综合评分100分。', 1, 2,
  JSON_OBJECT('qualificationStatus','APPROVED','trainingValid',true,'serviceCount',16,'positiveRate',96.00), 'family-001')
 ON DUPLICATE KEY UPDATE
   request_key = VALUES(request_key),
@@ -242,7 +247,7 @@ ON DUPLICATE KEY UPDATE
 
 UPDATE nursing_order
 SET preferred_nurse_id = 'nurse-reco-a-029',
-    preferred_nurse_reason = '资质和培训有效，匹配基础照护、生命体征观察，综合评分更高。',
+    preferred_nurse_reason = '资质和培训有效，匹配基础照护、生命体征观察，综合评分100分。',
     preferred_recommendation_log_id = 'reclog_029_001_a',
     preferred_selected_at = '2026-07-22 08:30:00',
     preferred_selected_by = 'family-001'

@@ -57,6 +57,7 @@ Permission checks must be combined with resource ownership checks: elder self sc
 ## Database Rules
 
 - MySQL is the authoritative source for reminders, metrics, evidence, AI audit logs, tickets, reviews, complaints, appeals, scores, training articles, follow-ups, and final demo data.
+- Every nurse starts with `nurse_score.total_score = 100.00`; deductions and recoveries must form a continuous change-log chain from that baseline.
 - `reminder_record` is append-only for execution history. Updating `reminder_task.reminder_status` must be paired with a record row in the same backend transaction.
 - `order_metric_checklist` is unique per order. Generated checklist items keep metric code, name, evidence type, and score weight snapshots so later config changes do not rewrite historical orders.
 - `care_service_evidence` stores evidence metadata only. Object storage bucket/key remains in `file_asset`; the database does not store file bytes or MinIO credentials.

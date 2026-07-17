@@ -37,7 +37,7 @@ Member 1 delivers MySQL schema, migration path, demo seed data, field/status dic
 | TrainingRecord | `expiredAt` | `expired_at` | datetime | approved only | Approved training must have an expiry time. |
 | TrainingRecord | `displayStatus` | - | computed | yes | `EXPIRED` when latest approved record has `expired_at <= now`. |
 | NurseServiceSkill | `skillCode` | `skill_code` | varchar(64) | yes | Example: `BASIC_CARE`, `VITAL_SIGN`, `REHAB_ASSIST`. |
-| NurseScore | `score` | `total_score` | decimal(5,2) | yes | Score source range is `0-100`. |
+| NurseScore | `score` | `total_score` | decimal(5,2) | yes | Score source range is `0-100`; every nurse starts at `100.00`. |
 | NurseRecommendation | `recommendReason` | `recommend_reason` | varchar(500) | yes | Human-readable reason persisted in MySQL. |
 | NurseRecommendation | `available` | `available` | tinyint(1) | yes | `0` candidates cannot be selected as preference. |
 | PreferredNurse | `preferredNurseId` | `preferred_nurse_id` | varchar(32) | no | Preference only; not dispatch result. |

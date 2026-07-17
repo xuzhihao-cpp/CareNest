@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { getRecommendedTrainingArticles, markTrainingArticleRead } from '@/api/stageFortyNineToFiftyFive';
 import type { RecommendedTrainingArticle } from '@/types/stageFortyNineToFiftyFive';
+import { resolveTrainingArticleUrl } from '@/utils/trainingArticleUrl';
 
 const props = defineProps<{ orderId: string; serviceName?: string }>();
 const emit = defineEmits<{ (event: 'close'): void; (event: 'reading-state', complete: boolean): void }>();
@@ -41,9 +42,8 @@ function openArticle(article: RecommendedTrainingArticle) {
   if (!openedIds.value.includes(article.articleId)) openedIds.value = [...openedIds.value, article.articleId];
   if (!article.contentUrl) return;
   try {
-    const target = new URL(article.contentUrl, window.location.origin);
-    if (!['http:', 'https:'].includes(target.protocol)) throw new Error('unsupported');
-    window.open(target.toString(), '_blank', 'noopener,noreferrer');
+    const target = resolveTrainingArticleUrl(article.contentUrl, window.location.origin);
+    window.open(target, '_blank', 'noopener,noreferrer');
   } catch {
     error.value = '文章地址无效，请联系平台维护人员。';
   }

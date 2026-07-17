@@ -588,6 +588,15 @@ public class Phase19To30Repository {
                 """, nurseId, realName, idNoMasked, qualificationStatus);
     }
 
+    public void ensureInitialNurseScore(String nurseId) {
+        jdbcTemplate.update("""
+                INSERT INTO nurse_score
+                  (nurse_id, total_score, service_count, complaint_count)
+                VALUES (?, 100.00, 0, 0)
+                ON DUPLICATE KEY UPDATE nurse_id = VALUES(nurse_id)
+                """, nurseId);
+    }
+
     public void insertNurseCertificate(
             String certificateId,
             String applicationId,
@@ -855,7 +864,7 @@ public class Phase19To30Repository {
             LocalDateTime scheduledEnd) {
         return jdbcTemplate.query("""
                 SELECT np.nurse_id, COALESCE(np.real_name, u.display_name) AS nurse_name,
-                       COALESCE(ns.total_score, 0) AS total_score,
+                       COALESCE(ns.total_score, 100.00) AS total_score,
                        GROUP_CONCAT(DISTINCT nss.skill_code ORDER BY nss.skill_code) AS matched_skills,
                        GROUP_CONCAT(DISTINCT nss.skill_name ORDER BY nss.skill_code SEPARATOR '、') AS matched_skill_names,
                        EXISTS (
@@ -903,7 +912,7 @@ public class Phase19To30Repository {
                     + (score == null ? "暂无" : score.stripTrailingZeros().toPlainString()) + "分。";
             return new NurseRecommendationEntity(
                     rs.getString("nurse_id"), rs.getString("nurse_name"),
-                    score == null ? BigDecimal.ZERO : score, skillList, reason, true);
+                    score == null ? new BigDecimal("100.00") : score, skillList, reason, true);
         }, elderId, serviceId, scheduledEnd, scheduledStart);
     }
 

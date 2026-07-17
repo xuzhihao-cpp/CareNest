@@ -343,7 +343,7 @@ INSERT INTO nurse_score (
   nurse_id, total_score, service_count, positive_rate, complaint_count,
   last_service_at, updated_by
 ) VALUES (
-  'nurse-001', 88.00, 6, 96.00, 1, '2026-07-20 10:00:00', 'admin-001'
+  'nurse-001', 95.00, 6, 96.00, 1, '2026-07-20 10:00:00', 'admin-001'
 ) ON DUPLICATE KEY UPDATE
   total_score = VALUES(total_score),
   service_count = VALUES(service_count),
@@ -352,13 +352,21 @@ INSERT INTO nurse_score (
   last_service_at = VALUES(last_service_at),
   updated_by = VALUES(updated_by);
 
+-- 演示数据重置时清除护理演示账号此前产生的重算流水，保证每次都从 100 分形成连续记录。
+DELETE FROM nurse_score_change_log
+WHERE nurse_id IN (
+  'nurse-001', 'nurse-noapp-026', 'nurse-pending-026', 'nurse-needmore-026',
+  'nurse-qualified-026', 'nurse-valid-028', 'nurse-expired-028',
+  'nurse-reco-a-029', 'nurse-reco-b-029'
+);
+
 INSERT INTO nurse_score_change_log (
   change_log_id, nurse_id, source_event_type, source_event_id,
   before_score, after_score, score_delta, reason, changed_by
 ) VALUES
-('score_log_047_nurse_demo', 'nurse-001', 'COMPLAINT', 'complaint_045', 92.00, 88.00, -4.00, '收到服务资料完整性投诉，暂扣护理评分，护理人员可提交申诉复核。', 'admin-001'),
-('score_log_047_metric', 'nurse-reco-a-029', 'METRIC', 'metric_record_bp', 96.50, 97.00, 0.50, '按要求完成血压测量。', 'admin-001'),
-('score_log_047_appeal', 'nurse-reco-a-029', 'APPEAL', 'appeal_046_001', 95.00, 97.00, 2.00, '申诉通过，恢复照片缺失扣分。', 'admin-001')
+('score_log_047_nurse_demo', 'nurse-001', 'COMPLAINT', 'complaint_045', 100.00, 95.00, -5.00, '收到服务资料完整性投诉，从初始100分按投诉规则暂扣5分，护理人员可提交申诉复核。', 'admin-001'),
+('score_log_047_metric', 'nurse-reco-a-029', 'METRIC', 'metric_record_photo', 100.00, 98.00, -2.00, '服务照片留档暂缺，从初始100分按规则扣2分。', 'admin-001'),
+('score_log_047_appeal', 'nurse-reco-a-029', 'APPEAL', 'appeal_046_001', 98.00, 100.00, 2.00, '申诉通过，恢复照片缺失扣分。', 'admin-001')
 ON DUPLICATE KEY UPDATE
   source_event_type = VALUES(source_event_type),
   source_event_id = VALUES(source_event_id),
@@ -372,7 +380,7 @@ INSERT INTO training_article (
   article_id, title, content_summary, content_url, file_id, service_id,
   required_reading, article_status, created_by, published_at
 ) VALUES (
-  'article_049_001', '跌倒风险护理要点', '面向基础上门护理的防跌倒观察、搀扶和记录要求。', '/training/fall-prevention.html',
+  'article_049_001', '跌倒风险护理要点', '面向基础上门护理的防跌倒观察、搀扶和记录要求。', '/static/training/fall-prevention.html',
   'file_article_049', 'service_001', 1, 'PUBLISHED', 'admin-001', '2026-07-15 11:00:00'
 ) ON DUPLICATE KEY UPDATE
   title = VALUES(title),

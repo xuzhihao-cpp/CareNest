@@ -20,6 +20,7 @@ import java.util.UUID;
 public class Phase47To48ScoreService {
 
     private static final String SCORE_PERMISSION = "NURSE_APPEAL_REVIEW";
+    private static final BigDecimal INITIAL_SCORE = new BigDecimal("100.00");
 
     private final Phase47To48ScoreRepository repository;
     private final ObjectMapper objectMapper;
@@ -49,7 +50,10 @@ public class Phase47To48ScoreService {
     @Transactional(readOnly = true)
     public ScoreDtos.ScoreResponse score(CurrentUser user, String nurseId, int logLimit) {
         requireReadAccess(user, nurseId);
-        BigDecimal score = repository.currentScore(nurseId).orElseThrow(NotFoundException::new);
+        if (!repository.nurseExists(nurseId)) {
+            throw new NotFoundException();
+        }
+        BigDecimal score = repository.currentScore(nurseId).orElse(INITIAL_SCORE);
         return new ScoreDtos.ScoreResponse(
                 nurseId, score, level(score), repository.findLogs(nurseId, 0, logLimit));
     }
@@ -60,7 +64,10 @@ public class Phase47To48ScoreService {
         if (!user.hasRole(RoleCode.NURSE)) {
             throw new ForbiddenException();
         }
-        BigDecimal score = repository.currentScore(nurseId).orElseThrow(NotFoundException::new);
+        if (!repository.nurseExists(nurseId)) {
+            throw new NotFoundException();
+        }
+        BigDecimal score = repository.currentScore(nurseId).orElse(INITIAL_SCORE);
         return new ScoreDtos.MyScoreResponse(
                 score, level(score), repository.monthDelta(
                         nurseId, java.time.LocalDate.now().withDayOfMonth(1).atStartOfDay()),
@@ -73,7 +80,8 @@ public class Phase47To48ScoreService {
             throw new NotFoundException();
         }
         repository.lockNurse(nurseId);
-        BigDecimal before = repository.currentScore(nurseId).orElse(BigDecimal.ZERO);
+        // 首次重算也必须从护理员初始分 100 分起算，避免生成 0 分到当前分的错误增分流水。
+        BigDecimal before = repository.currentScore(nurseId).orElse(INITIAL_SCORE);
         Phase47To48ScoreRepository.ScoreFacts facts = repository.calculateFacts(nurseId);
         repository.saveScore(nurseId, facts, user.userId());
         if (before.compareTo(facts.totalScore()) != 0) {

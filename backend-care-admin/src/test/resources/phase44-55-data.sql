@@ -39,7 +39,7 @@ INSERT INTO complaint VALUES
   ('complaint_1',NULL,'order_1','family_1','RESOLVED','Late arrival',
    'admin_1','Resolved',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP);
 INSERT INTO nurse_profile VALUES ('nurse_1');
-INSERT INTO nurse_score VALUES ('nurse_1',80.00,0,0.00,0,NULL,'admin_1');
+INSERT INTO nurse_score VALUES ('nurse_1',100.00,0,0.00,0,NULL,'admin_1');
 INSERT INTO metric_score_rule VALUES ('rule_complaint',NULL,'COMPLAINT',-5.00,1);
 INSERT INTO order_metric_item VALUES
   ('metric_1','order_1',10.00,'EXEMPT_REJECTED',CURRENT_TIMESTAMP);
