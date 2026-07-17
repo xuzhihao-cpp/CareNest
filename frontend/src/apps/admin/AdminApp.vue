@@ -19,6 +19,7 @@ import StageFiftyFourFiftyFiveDeliveryPanel from '@/components/StageFiftyFourFif
 import type { HomeCard } from '@/types/stageFour';
 import type { AuthUser } from '@/types/stageTwo';
 import StageFortyThreeCustomerServicePanel from '@/components/StageFortyThreeCustomerServicePanel.vue';
+import StageFortyFiveAdminReviewPanel from '@/components/StageFortyFiveAdminReviewPanel.vue';
 import StageFortyFiveToFortyEightAdminPanel from '@/components/StageFortyFiveToFortyEightAdminPanel.vue';
 import StageThirtyFourToFortyAdminPanel from '@/components/StageThirtyFourToFortyAdminPanel.vue';
 
@@ -162,6 +163,7 @@ onMounted(initialize);
         <StageFifteenServiceReportPanel v-if="view === 'reports' && isAdmin" role-code="ADMIN" :auth-user="user" />
         <StageTwentyOneMedicalReviewPanel v-if="view === 'medical-files'" :role-code="isCustomerService && !isAdmin ? 'CUSTOMER_SERVICE' : 'ADMIN'" :auth-user="user" />
         <StageFortyThreeCustomerServicePanel v-if="view === 'customer-service'" />
+        <StageFortyFiveAdminReviewPanel v-if="view === 'service-supervision' && (canHandleComplaints || canReviewNurseAppeals)" />
         <StageFortyFiveToFortyEightAdminPanel v-if="view === 'service-supervision' && (canHandleComplaints || canReviewNurseAppeals)" />
         <StageThirtyFourToFortyAdminPanel v-if="view === 'care-metrics' && (canManageCareMetrics || canReviewCareEvidence)" :permissions="permissions" />
         <StageTwentyThreeReviewTaskList v-if="view === 'health-review'" :role-code="isCustomerService && !isAdmin ? 'CUSTOMER_SERVICE' : 'ADMIN'" :auth-user="user" />

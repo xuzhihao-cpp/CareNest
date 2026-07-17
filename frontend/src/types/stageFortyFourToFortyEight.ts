@@ -29,6 +29,20 @@ export interface ReviewComplaintResult {
   createdAt: string;
 }
 
+export interface AdminReview {
+  reviewId: string;
+  orderId: string;
+  serviceName: string;
+  elderName: string;
+  reviewerName: string;
+  reviewerRole: 'ELDER' | 'FAMILY';
+  rating: number;
+  satisfaction: number | null;
+  tags: string[];
+  content: string | null;
+  createdAt: string;
+}
+
 export interface NurseAppeal {
   appealId: string;
   nurseId: string;

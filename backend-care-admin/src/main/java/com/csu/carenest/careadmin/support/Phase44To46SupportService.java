@@ -129,6 +129,12 @@ public class Phase44To46SupportService {
         return repository.findComplaints().stream().map(this::complaintResponse).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<SupportDtos.ReviewResponse> reviews(CurrentUser user) {
+        requirePermission(user, COMPLAINT_PERMISSION);
+        return repository.findReviews().stream().map(this::reviewResponse).toList();
+    }
+
     @Transactional
     public SupportDtos.ReviewComplaintResponse handleComplaint(
             CurrentUser user, String complaintId, SupportDtos.ReviewComplaintRequest request) {
@@ -252,6 +258,16 @@ public class Phase44To46SupportService {
                 record.complainantName(), record.status(), null, List.of(),
                 data.path("reasonType").asText(null), data.path("content").asText(record.storedContent()),
                 readStringList(data.path("fileIds")), record.handleResult(), record.createdAt());
+    }
+
+    private SupportDtos.ReviewResponse reviewResponse(
+            Phase44To46SupportRepository.ReviewRecord record) {
+        JsonNode data = readObject(record.storedContent());
+        return new SupportDtos.ReviewResponse(
+                record.reviewId(), record.orderId(), record.serviceName(), record.elderName(),
+                record.reviewerName(), record.reviewerRole(), record.rating(), record.satisfaction(),
+                readStringList(data.path("tags")), data.path("content").isNull()
+                        ? null : data.path("content").asText(null), record.createdAt());
     }
 
     private SupportDtos.AppealResponse appealResponse(

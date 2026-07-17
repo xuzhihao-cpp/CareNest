@@ -2,6 +2,7 @@ import { request } from '@/api/client';
 import type { PageResult } from '@/types/api';
 import type {
   AdminNurseScore,
+  AdminReview,
   AiAuditDetail,
   AiAuditSession,
   FollowUpMethod,
@@ -35,6 +36,10 @@ export const submitFamilyComplaint = (orderId: string, data: {
 
 export const listComplaints = () => request<ReviewComplaintResult[]>({
   method: 'GET', url: '/admin/complaints'
+});
+
+export const listAdminReviews = () => request<AdminReview[]>({
+  method: 'GET', url: '/admin/reviews'
 });
 
 export const handleComplaint = (complaintId: string, status: 'RESOLVED' | 'REJECTED', content: string) =>

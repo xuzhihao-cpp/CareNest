@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** 验证阶段44-48最容易越权或重复计分的核心业务规则。 */
@@ -97,5 +98,28 @@ class Phase44To48SupportScoreServiceTest {
 
         CurrentUser family = new CurrentUser("family_1", List.of(RoleCode.FAMILY));
         assertThrows(ForbiddenException.class, () -> service.myScore(family, 1, 20));
+    }
+
+    @Test
+    void adminReviewsExposeStoredReviewContentWithoutScoreOrApprovalFlow() {
+        Phase44To46SupportRepository repository = mock(Phase44To46SupportRepository.class);
+        Phase47To48ScoreService scoreService = mock(Phase47To48ScoreService.class);
+        Phase44To46SupportService service = new Phase44To46SupportService(
+                repository, new ObjectMapper(), scoreService);
+        when(repository.hasPermission("admin_1", "COMPLAINT_HANDLE")).thenReturn(true);
+        when(repository.findReviews()).thenReturn(List.of(
+                new Phase44To46SupportRepository.ReviewRecord(
+                        "review_1", "order_1", "基础上门护理", "长辈演示账号",
+                        "家属演示账号", "FAMILY", 5, 5,
+                        "{\"content\":\"服务很好\",\"tags\":[\"态度认真\"],\"fileIds\":[]}",
+                        java.time.LocalDateTime.of(2026, 7, 17, 10, 0))));
+
+        List<SupportDtos.ReviewResponse> reviews = service.reviews(ADMIN);
+
+        assertEquals(1, reviews.size());
+        assertEquals("服务很好", reviews.get(0).content());
+        assertEquals(List.of("态度认真"), reviews.get(0).tags());
+        verify(repository).findReviews();
+        verifyNoInteractions(scoreService);
     }
 }

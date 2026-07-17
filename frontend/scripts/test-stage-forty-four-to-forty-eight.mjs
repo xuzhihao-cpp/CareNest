@@ -77,6 +77,17 @@ test('all three role surfaces mount stage 44-48 product pages', () => {
   assert.ok(family.includes('StageFortyFiveFamilyFeedbackPanel'));
   assert.ok(nurse.includes('StageFortySixToFortyEightNurseScorePanel'));
   assert.ok(admin.includes('StageFortyFiveToFortyEightAdminPanel'));
+  assert.ok(admin.includes('StageFortyFiveAdminReviewPanel'));
+});
+
+test('admin review list is a read-only view of the review table', async () => {
+  responses.push(ok([{ reviewId: 'review-1', rating: 5 }]));
+  await api.listAdminReviews();
+  assert.equal(requests.shift().url, '/api/v1/admin/reviews');
+  const component = readFileSync(path.join(root, 'src/components/StageFortyFiveAdminReviewPanel.vue'), 'utf8');
+  assert.ok(component.includes('listAdminReviews'));
+  assert.ok(!component.includes('handleComplaint'));
+  assert.ok(!component.includes('reviewNurseAppeal'));
 });
 
 test('product forms select business records instead of asking for IDs', () => {

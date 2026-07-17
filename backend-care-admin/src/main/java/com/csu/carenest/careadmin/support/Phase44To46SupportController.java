@@ -67,6 +67,12 @@ public class Phase44To46SupportController {
         return ApiResponse.success(supportService.complaints(adminUser(authorization)));
     }
 
+    @GetMapping("/admin/reviews")
+    public ApiResponse<List<SupportDtos.ReviewResponse>> reviews(
+            @RequestHeader("Authorization") String authorization) {
+        return ApiResponse.success(supportService.reviews(adminUser(authorization)));
+    }
+
     @PostMapping("/admin/complaints/{complaintId}/handle")
     public ApiResponse<SupportDtos.ReviewComplaintResponse> handleComplaint(
             @RequestHeader("Authorization") String authorization,

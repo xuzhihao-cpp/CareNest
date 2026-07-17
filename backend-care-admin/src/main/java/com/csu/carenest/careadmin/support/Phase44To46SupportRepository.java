@@ -126,6 +126,25 @@ public class Phase44To46SupportRepository {
                 """, complaintId, orderId, complainantId, content);
     }
 
+    public List<ReviewRecord> findReviews() {
+        return jdbcTemplate.query("""
+                SELECT r.review_id,r.order_id,si.service_name,
+                       ep.elder_name,u.display_name AS reviewer_name,
+                       r.reviewer_role,r.rating,r.satisfaction,r.content,r.created_at
+                FROM review r
+                JOIN nursing_order o ON o.order_id=r.order_id
+                JOIN service_item si ON si.service_id=o.service_id
+                JOIN elder_profile ep ON ep.elder_id=o.elder_id
+                JOIN sys_user u ON u.user_id=r.reviewer_id
+                ORDER BY r.created_at DESC,r.review_id DESC
+                """, (rs, rowNum) -> new ReviewRecord(
+                rs.getString("review_id"), rs.getString("order_id"),
+                rs.getString("service_name"), rs.getString("elder_name"),
+                rs.getString("reviewer_name"), rs.getString("reviewer_role"),
+                rs.getInt("rating"), (Integer) rs.getObject("satisfaction"),
+                rs.getString("content"), rs.getTimestamp("created_at").toLocalDateTime()));
+    }
+
     public List<ComplaintRecord> findComplaints() {
         return jdbcTemplate.query("""
                 SELECT c.review_id,c.complaint_id,c.order_id,c.complaint_status,
@@ -337,6 +356,12 @@ public class Phase44To46SupportRepository {
             String reviewId, String complaintId, String orderId, String serviceName,
             String complainantName, String status, String storedContent,
             String handleResult, LocalDateTime createdAt) {
+    }
+
+    public record ReviewRecord(
+            String reviewId, String orderId, String serviceName, String elderName,
+            String reviewerName, String reviewerRole, Integer rating, Integer satisfaction,
+            String storedContent, LocalDateTime createdAt) {
     }
 
     public record AppealRecord(

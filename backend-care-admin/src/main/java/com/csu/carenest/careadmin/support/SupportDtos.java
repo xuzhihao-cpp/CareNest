@@ -57,6 +57,20 @@ public final class SupportDtos {
             LocalDateTime createdAt) {
     }
 
+    public record ReviewResponse(
+            String reviewId,
+            String orderId,
+            String serviceName,
+            String elderName,
+            String reviewerName,
+            String reviewerRole,
+            Integer rating,
+            Integer satisfaction,
+            List<String> tags,
+            String content,
+            LocalDateTime createdAt) {
+    }
+
     public record AppealRequest(
             @NotBlank @Size(max = 64) String targetType,
             @NotBlank @Size(max = 32) String targetId,
