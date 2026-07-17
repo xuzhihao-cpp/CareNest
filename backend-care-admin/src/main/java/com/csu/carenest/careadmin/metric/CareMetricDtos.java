@@ -32,7 +32,9 @@ public final class CareMetricDtos {
             @Size(max = 500) String description) {
     }
 
-    public record ConfigVersionResponse(Integer configVersion) {
+    public record ConfigVersionResponse(
+            Integer configVersion,
+            List<CareMetricConfigItem> items) {
     }
 
     public record MetricChecklistResponse(List<MetricChecklistItem> items) {
@@ -63,6 +65,9 @@ public final class CareMetricDtos {
             String description,
             String fileId,
             LocalDateTime submittedAt) {
+    }
+
+    public record EvidenceFilePreview(byte[] content, String mimeType, String originalName) {
     }
 
     public record EvidenceReviewRequest(

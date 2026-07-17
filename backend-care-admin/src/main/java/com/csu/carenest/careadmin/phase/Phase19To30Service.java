@@ -564,7 +564,25 @@ public class Phase19To30Service {
             String orderId) {
         Map<String, Object> order = requireOrder(orderId);
         requireOrderAccess(currentUser, order, false);
-        return toRecommendResponse(repository.findOrderRecommendations(orderId));
+        LocalDateTime scheduledStart = toLocalDateTime(order.get("scheduled_start_at"));
+        LocalDateTime scheduledEnd = toLocalDateTime(order.get("scheduled_end_at"));
+        String serviceId = string(order, "service_id");
+        List<NurseRecommendationEntity> recordedRecommendations = repository.findOrderRecommendations(orderId);
+        if (recordedRecommendations.isEmpty()) {
+            // Orders created without a family recommendation still need a live dispatch roster.
+            return toRecommendResponse(repository.findRecommendableNurses(
+                    serviceId, string(order, "elder_id"), scheduledStart, scheduledEnd));
+        }
+        List<NurseRecommendationEntity> currentRecommendations = recordedRecommendations
+                .stream()
+                // Recommendation logs preserve the original reason and score, but availability must
+                // always reflect the current roster so dispatch cannot present a stale candidate.
+                .map(item -> new NurseRecommendationEntity(
+                        item.nurseId(), item.nurseName(), item.score(), item.matchedSkills(),
+                        item.recommendReason(), repository.nurseEligibleForService(
+                                item.nurseId(), serviceId, scheduledStart, scheduledEnd, orderId)))
+                .toList();
+        return toRecommendResponse(currentRecommendations);
     }
 
     @Transactional

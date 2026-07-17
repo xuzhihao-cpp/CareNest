@@ -8,6 +8,7 @@ import com.csu.carenest.careadmin.common.ConflictException;
 import com.csu.carenest.careadmin.common.ForbiddenException;
 import com.csu.carenest.careadmin.common.NotFoundException;
 import com.csu.carenest.careadmin.common.PageData;
+import com.csu.carenest.careadmin.metric.Phase34To40MetricService;
 import com.csu.carenest.careadmin.phase.dto.*;
 import com.csu.carenest.careadmin.redis.RedisCacheService;
 import com.csu.carenest.careadmin.redis.RedisKeyFactory;
@@ -59,6 +60,25 @@ public class CareAdminPhaseService {
     private final RedisLockService lockService;
     private final HomeCacheInvalidator homeCacheInvalidator;
     private final Phase31AttentionService attentionService;
+    private final Phase34To40MetricService metricService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CareAdminPhaseService(
+            JdbcTemplate jdbcTemplate,
+            ObjectMapper objectMapper,
+            RedisCacheService cacheService,
+            RedisLockService lockService,
+            HomeCacheInvalidator homeCacheInvalidator,
+            Phase31AttentionService attentionService,
+            Phase34To40MetricService metricService) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = objectMapper;
+        this.cacheService = cacheService;
+        this.lockService = lockService;
+        this.homeCacheInvalidator = homeCacheInvalidator;
+        this.attentionService = attentionService;
+        this.metricService = metricService;
+    }
 
     public CareAdminPhaseService(
             JdbcTemplate jdbcTemplate,
@@ -67,12 +87,7 @@ public class CareAdminPhaseService {
             RedisLockService lockService,
             HomeCacheInvalidator homeCacheInvalidator,
             Phase31AttentionService attentionService) {
-        this.jdbcTemplate = jdbcTemplate;
-        this.objectMapper = objectMapper;
-        this.cacheService = cacheService;
-        this.lockService = lockService;
-        this.homeCacheInvalidator = homeCacheInvalidator;
-        this.attentionService = attentionService;
+        this(jdbcTemplate, objectMapper, cacheService, lockService, homeCacheInvalidator, attentionService, null);
     }
 
     public HomeSummaryResponse nurseWorkbenchSummary(CurrentUser currentUser) {
@@ -358,6 +373,9 @@ public class CareAdminPhaseService {
                         """, taskId, orderId, request.nurseId(), DISPATCHED, request.dispatchRemark());
             } catch (DuplicateKeyException duplicate) {
                 throw new ConflictException();
+            }
+            if (metricService != null) {
+                metricService.ensureChecklistForDispatch(orderId, currentUser.userId());
             }
             changeOrderStatus(currentUser.userId(), order, DISPATCHED, "DISPATCH_ORDER");
             saveOperationLog(currentUser, "DISPATCH_ORDER", "NURSE_TASK", taskId, null, request);

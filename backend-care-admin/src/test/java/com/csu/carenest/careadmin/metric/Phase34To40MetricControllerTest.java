@@ -52,7 +52,7 @@ class Phase34To40MetricControllerTest {
                 eq("Bearer token"), eq(RoleCode.ADMIN), eq(RoleCode.CUSTOMER_SERVICE)))
                 .thenReturn(ADMIN);
         when(metricService.saveMetricConfig(eq(ADMIN), eq("service_1"), any()))
-                .thenReturn(new CareMetricDtos.ConfigVersionResponse(2));
+                .thenReturn(new CareMetricDtos.ConfigVersionResponse(2, List.of()));
 
         mockMvc.perform(put("/api/v1/admin/service-items/service_1/care-metric-config")
                         .header("Authorization", "Bearer token")

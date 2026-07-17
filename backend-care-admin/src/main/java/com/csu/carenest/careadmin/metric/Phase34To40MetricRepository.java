@@ -157,6 +157,20 @@ public class Phase34To40MetricRepository {
                 rs.getBigDecimal("score_weight")), configId);
     }
 
+    public List<CareMetricDtos.CareMetricConfigItem> findConfigEditorItems(String configId) {
+        return jdbcTemplate.query("""
+                SELECT metric_code, metric_name, metric_type, required, evidence_type,
+                       score_weight, description
+                FROM care_metric_item
+                WHERE config_id = ? AND enabled = 1
+                ORDER BY sort, metric_item_id
+                """, (rs, rowNum) -> new CareMetricDtos.CareMetricConfigItem(
+                rs.getString("metric_code"), rs.getString("metric_name"),
+                rs.getString("metric_type"), rs.getBoolean("required"),
+                rs.getString("evidence_type"), rs.getBigDecimal("score_weight"),
+                rs.getString("description")), configId);
+    }
+
     public void insertOrderMetricItem(
             String orderMetricItemId, String checklistId, String orderId, ConfigMetricItem item) {
         jdbcTemplate.update("""
@@ -252,6 +266,18 @@ public class Phase34To40MetricRepository {
                 rs.getString("metric_name"), rs.getString("evidence_type"),
                 rs.getString("description"), rs.getString("file_id"),
                 rs.getTimestamp("submitted_at").toLocalDateTime()));
+    }
+
+    public Optional<EvidenceFile> findEvidenceFile(String evidenceId) {
+        List<EvidenceFile> rows = jdbcTemplate.query("""
+                SELECT f.storage_bucket, f.object_key, f.mime_type, f.original_name
+                FROM care_service_evidence e
+                JOIN file_asset f ON f.file_id = e.file_id
+                WHERE e.evidence_id = ?
+                """, (rs, rowNum) -> new EvidenceFile(
+                rs.getString("storage_bucket"), rs.getString("object_key"),
+                rs.getString("mime_type"), rs.getString("original_name")), evidenceId);
+        return rows.stream().findFirst();
     }
 
     public Optional<EvidenceContext> findEvidence(String evidenceId) {
@@ -456,6 +482,9 @@ public class Phase34To40MetricRepository {
     }
 
     public record FileAsset(String fileId, String uploadedBy, String mimeType) {
+    }
+
+    public record EvidenceFile(String bucket, String objectKey, String mimeType, String originalName) {
     }
 
     public record EvidenceContext(

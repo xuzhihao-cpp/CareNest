@@ -140,7 +140,12 @@ async function handleDispatch() {
   const response = await dispatchAdminOrder(selectedOrder.value.orderId, dispatchForm.value);
   loading.value = false;
   if (response.code !== 0) {
-    error.value = response.code === 409 ? '该订单状态已变化，请刷新订单列表。' : response.message;
+    error.value = response.code === 409
+      ? '该订单状态已变化，请刷新订单列表。'
+      : response.code === 422
+        ? '该护理员在此预约时段已有服务安排，请重新选择护理员。'
+        : '派单暂时未完成，请稍后重试。';
+    if (response.code === 422) await loadNurseOptions(selectedOrder.value.orderId);
     return;
   }
   message.value = `已将“${selectedOrder.value.serviceName || '上门护理服务'}”安排给${nurseOptions.value.find((item) => item.nurseId === dispatchForm.value.nurseId)?.nurseName || '护理员'}。`;

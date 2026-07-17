@@ -1,9 +1,11 @@
-import { failure, request } from '@/api/client';
+import { failure, getApiBase, readAuthSession, request } from '@/api/client';
 import type { ApiResponse } from '@/types/api';
 import type {
+  CareMetricConfigItem,
   CareMetricConfigRequest,
   CareMetricEvidenceType,
   CareMetricStatus,
+  CareMetricType,
   ConfigVersionResponse,
   EvidenceAuditStatus,
   EvidenceRequest,
@@ -21,6 +23,7 @@ import type {
 import {
   CARE_METRIC_EVIDENCE_TYPES,
   CARE_METRIC_STATUSES,
+  CARE_METRIC_TYPES,
   EVIDENCE_AUDIT_STATUSES,
   PROOF_STATUSES,
   PROOF_REASON_TYPES,
@@ -30,7 +33,7 @@ import {
   validateProofReview
 } from '@/utils/stageThirtyFourToFortyRules';
 
-const emptyConfigVersion: ConfigVersionResponse = { configVersion: 0 };
+const emptyConfigVersion: ConfigVersionResponse = { configVersion: 0, items: [] };
 const emptyChecklist: MetricChecklistResponse = { items: [] };
 const emptyMetricCheck: MetricCheckResponse = { items: [] };
 const emptyEvidence: EvidenceResponse = { evidenceId: '', auditStatus: 'PENDING' };
@@ -49,6 +52,8 @@ const orderEvidencePath = (orderId: string) =>
   `/orders/${encodeURIComponent(orderId)}/evidences`;
 const evidenceReviewPath = (evidenceId: string) =>
   `/admin/evidences/${encodeURIComponent(evidenceId)}/review`;
+const evidencePreviewPath = (evidenceId: string) =>
+  `/admin/evidences/${encodeURIComponent(evidenceId)}/preview`;
 const metricCheckPath = (orderId: string) =>
   `/orders/${encodeURIComponent(orderId)}/metric-check`;
 const metricCheckResultPath = (orderId: string) =>
@@ -73,6 +78,10 @@ function isCareMetricEvidenceType(value: unknown): value is CareMetricEvidenceTy
   return typeof value === 'string' && CARE_METRIC_EVIDENCE_TYPES.includes(value as CareMetricEvidenceType);
 }
 
+function isCareMetricType(value: unknown): value is CareMetricType {
+  return typeof value === 'string' && CARE_METRIC_TYPES.includes(value as CareMetricType);
+}
+
 function isCareMetricStatus(value: unknown): value is CareMetricStatus {
   return typeof value === 'string' && CARE_METRIC_STATUSES.includes(value as CareMetricStatus);
 }
@@ -90,7 +99,35 @@ function isScoreDecision(value: unknown): value is ScoreDecision {
 }
 
 function validConfigVersion(value: unknown): value is ConfigVersionResponse {
-  return isRecord(value) && Number.isInteger(value.configVersion);
+  if (!isRecord(value) || !Number.isInteger(value.configVersion) || !Array.isArray(value.items)) return false;
+  return value.items.every((item) => {
+    if (!isRecord(item)) return false;
+    const scoreWeight = asNumber(item.scoreWeight);
+    return typeof item.metricCode === 'string'
+      && Boolean(item.metricCode.trim())
+      && typeof item.metricName === 'string'
+      && Boolean(item.metricName.trim())
+      && isCareMetricType(item.metricType)
+      && typeof item.required === 'boolean'
+      && isCareMetricEvidenceType(item.evidenceType)
+      && scoreWeight !== null
+      && (typeof item.description === 'undefined' || typeof item.description === 'string');
+  });
+}
+
+function normalizeConfigVersion(value: ConfigVersionResponse): ConfigVersionResponse {
+  return {
+    configVersion: value.configVersion,
+    items: value.items.map((item): CareMetricConfigItem => ({
+      metricCode: item.metricCode.trim(),
+      metricName: item.metricName.trim(),
+      metricType: item.metricType,
+      required: item.required,
+      evidenceType: item.evidenceType,
+      scoreWeight: Number(item.scoreWeight),
+      description: item.description?.trim() || ''
+    }))
+  };
 }
 
 function normalizeChecklist(value: unknown): MetricChecklistResponse | null {
@@ -227,7 +264,7 @@ export async function getCareMetricConfig(serviceId: string): Promise<ApiRespons
   const response = await request<unknown>({ method: 'GET', url: metricConfigPath(normalizedId) });
   if (response.code !== 0) return { ...response, data: emptyConfigVersion };
   return validConfigVersion(response.data)
-    ? { ...response, data: response.data }
+    ? { ...response, data: normalizeConfigVersion(response.data) }
     : failure(502, '护理指标配置响应不完整。', emptyConfigVersion, response.traceId);
 }
 
@@ -246,8 +283,28 @@ export async function saveCareMetricConfig(
   });
   if (response.code !== 0) return { ...response, data: emptyConfigVersion };
   return validConfigVersion(response.data)
-    ? { ...response, data: response.data }
+    ? { ...response, data: normalizeConfigVersion(response.data) }
     : failure(502, '护理指标配置响应不完整。', emptyConfigVersion, response.traceId);
+}
+
+export async function getCareEvidencePreview(
+  evidenceId: string,
+  signal?: AbortSignal
+): Promise<{ code: number; blob: Blob | null }> {
+  const normalizedId = evidenceId.trim();
+  if (!normalizedId) return { code: 422, blob: null };
+  const target = new URL(`${getApiBase()}${evidencePreviewPath(normalizedId)}`, window.location.origin);
+  const session = readAuthSession();
+  try {
+    const response = await fetch(target.toString(), {
+      headers: session ? { Authorization: `Bearer ${session.token}` } : {},
+      signal
+    });
+    if (!response.ok) return { code: response.status, blob: null };
+    return { code: 0, blob: await response.blob() };
+  } catch {
+    return { code: signal?.aborted ? 499 : 500, blob: null };
+  }
 }
 
 export async function generateMetricChecklist(orderId: string): Promise<ApiResponse<MetricChecklistResponse>> {
