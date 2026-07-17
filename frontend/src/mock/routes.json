@@ -6,7 +6,7 @@
       "appTitle": "长辈端",
       "entryLabel": "长辈端入口",
       "emptyStateTitle": "长辈端业务模块待接入",
-      "emptyStateDescription": "阶段1仅建立路由、布局和空状态，后续阶段再接入健康档案、提醒和报告确认。"
+      "emptyStateDescription": "当前暂无档案、提醒或报告内容。"
     },
     {
       "roleCode": "FAMILY",
@@ -14,7 +14,7 @@
       "appTitle": "家属端",
       "entryLabel": "家属端入口",
       "emptyStateTitle": "家属端业务模块待接入",
-      "emptyStateDescription": "阶段1仅建立路由、布局和空状态，后续阶段再接入绑定、预约下单和服务确认。"
+      "emptyStateDescription": "当前暂无绑定、预约或服务确认内容。"
     },
     {
       "roleCode": "NURSE",
@@ -22,7 +22,7 @@
       "appTitle": "护理端",
       "entryLabel": "护理端入口",
       "emptyStateTitle": "护理端业务模块待接入",
-      "emptyStateDescription": "阶段1仅建立路由、布局和空状态，后续阶段再接入任务工作台、服务记录和留档。"
+      "emptyStateDescription": "当前暂无护理任务、服务记录或留档内容。"
     },
     {
       "roleCode": "ADMIN",
@@ -30,7 +30,7 @@
       "appTitle": "管理端",
       "entryLabel": "管理端入口",
       "emptyStateTitle": "管理端业务模块待接入",
-      "emptyStateDescription": "阶段1仅建立路由、布局和空状态，后续阶段再接入订单管理、派单和看板。"
+      "emptyStateDescription": "当前暂无订单、派单或运营看板内容。"
     }
   ]
 }

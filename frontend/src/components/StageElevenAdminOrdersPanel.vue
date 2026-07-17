@@ -198,7 +198,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <view class="stage-eleven-panel glass-panel" aria-label="阶段11管理端订单列表">
+  <view class="stage-eleven-panel glass-panel" aria-label="管理端订单列表">
     <view class="section-title">
       <text>订单查询</text>
     </view>

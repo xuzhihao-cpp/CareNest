@@ -71,7 +71,7 @@ test('creates elder feedback from login identity without accepting an elder id',
   const payload = {
     feedbackType: 'DIZZINESS', severity: 'MEDIUM', content: '起床后有些头晕', inputType: 'TEXT', fileId: null
   };
-  enqueue(apiSuccess({ feedbackId: 'feedback-001', createdAt: '2026-07-13T09:30:00+08:00' }));
+  enqueue(apiSuccess({ feedbackId: 'feedback-001', createdAt: '2026-07-13T09:30:00+08:00', aiAdvice: '请先休息并留意变化。' }));
   const response = await api.createElderHealthFeedback(payload);
   const request = takeRequest();
 
@@ -80,6 +80,7 @@ test('creates elder feedback from login identity without accepting an elder id',
   assert.deepEqual(request.data, payload);
   assert.equal(Object.hasOwn(request.data, 'elderId'), false);
   assert.equal(response.data.feedbackId, 'feedback-001');
+  assert.equal(response.data.aiAdvice, '请先休息并留意变化。');
 });
 
 test('reads an encoded family resource and removes inactive filters', async () => {
@@ -151,9 +152,13 @@ test('validates voice extension, MIME, size and duration together', () => {
   assert.equal(rules.validateVoiceFileDescriptor(
     { name: 'feedback.mp3', size: 1024, mimeType: 'audio/mpeg', durationSeconds: 59 }, 2048, 0.002
   ), '');
+  assert.equal(rules.validateVoiceFileDescriptor(
+    { name: 'feedback.webm', size: 1024, mimeType: 'audio/webm;codecs=opus', durationSeconds: 12 }, 2048, 0.002
+  ), '');
+  assert.equal(rules.normalizeVoiceMimeType(' Audio/WebM; codecs=opus '), 'audio/webm');
   assert.match(rules.validateVoiceFileDescriptor(
     { name: 'feedback.pdf', size: 1024, mimeType: 'application/pdf' }, 2048, 0.002
-  ), /MP3/);
+  ), /录音格式/);
   assert.match(rules.validateVoiceFileDescriptor(
     { name: 'feedback.mp3', size: 1024, mimeType: 'application/pdf' }, 2048, 0.002
   ), /真实格式/);
@@ -168,7 +173,9 @@ test('validates voice extension, MIME, size and duration together', () => {
 test('uploads voice with authorization and rejects a successful response missing fileId', async () => {
   uploadResponses.push({ body: JSON.stringify(apiSuccess({ fileId: 'voice-file-001' })) });
   const progress = [];
-  const uploaded = await api.uploadHealthFeedbackVoice('/tmp/feedback.mp3', (value) => progress.push(value));
+  const uploaded = await api.uploadHealthFeedbackVoice({
+    path: '/tmp/feedback.mp3', name: 'feedback.mp3', size: 1024, mimeType: 'audio/mpeg'
+  }, (value) => progress.push(value));
   const firstUpload = uploads.shift();
   assert.equal(firstUpload.url, '/api/v1/files');
   assert.equal(firstUpload.header.Authorization, 'Bearer stage-22-test-token');
@@ -176,9 +183,46 @@ test('uploads voice with authorization and rejects a successful response missing
   assert.deepEqual(progress, [64]);
 
   uploadResponses.push({ body: JSON.stringify(apiSuccess({})) });
-  const malformed = await api.uploadHealthFeedbackVoice('/tmp/feedback.mp3', () => {});
+  const malformed = await api.uploadHealthFeedbackVoice({
+    path: '/tmp/feedback.mp3', name: 'feedback.mp3', size: 1024, mimeType: 'audio/mpeg'
+  }, () => {});
   uploads.shift();
   assert.equal(malformed.code, 502);
+});
+
+test('uploads a browser recording blob as authenticated multipart data', async () => {
+  let capturedUrl = '';
+  let capturedAuthorization = '';
+  let capturedFile = null;
+  globalThis.fetch = async (url, options) => {
+    capturedUrl = String(url);
+    capturedAuthorization = options.headers.Authorization;
+    capturedFile = options.body.get('file');
+    return new Response(JSON.stringify(apiSuccess({ fileId: 'voice-browser-001' })), {
+      status: 200,
+      headers: { 'content-type': 'application/json' }
+    });
+  };
+
+  const progress = [];
+  const blob = new Blob(['recorded-voice'], { type: 'audio/webm' });
+  const uploaded = await api.uploadHealthFeedbackVoice({
+    path: '',
+    name: 'health-feedback.webm',
+    size: blob.size,
+    mimeType: blob.type,
+    durationSeconds: 3,
+    blob
+  }, (value) => progress.push(value));
+
+  assert.equal(capturedUrl, '/api/v1/files');
+  assert.equal(capturedAuthorization, 'Bearer stage-22-test-token');
+  assert.ok(capturedFile instanceof Blob);
+  assert.equal(capturedFile.name, 'health-feedback.webm');
+  assert.equal(capturedFile.type, 'audio/webm');
+  assert.equal(uploaded.data.fileId, 'voice-browser-001');
+  assert.deepEqual(progress, [20, 100]);
+  globalThis.fetch = originalFetch;
 });
 
 test('downloads protected voice with bearer token and returns a local blob URL', async () => {
@@ -203,6 +247,14 @@ test('separates same-origin protected media from trusted signed media without le
   assert.deepEqual(
     rules.classifyHealthFeedbackVoiceUrl('/api/v1/files/voice', 'https://care.example', []),
     { mode: 'PROTECTED_SAME_ORIGIN', url: 'https://care.example/api/v1/files/voice' }
+  );
+  assert.equal(
+    rules.classifyHealthFeedbackVoiceUrl(
+      'http://localhost:39000/smart-nursing/voice.webm?signature=local',
+      'http://127.0.0.1:3000',
+      []
+    ).mode,
+    'SIGNED_TRUSTED_ORIGIN'
   );
   assert.deepEqual(
     rules.classifyHealthFeedbackVoiceUrl(
@@ -251,10 +303,19 @@ test('keeps real permission and malformed response failures', async () => {
   assert.equal(denied.code, 403);
   assert.deepEqual(denied.data.records, []);
 
-  enqueue(apiSuccess({ createdAt: '2026-07-13T09:30:00+08:00' }));
+  enqueue(apiSuccess({ createdAt: '2026-07-13T09:30:00+08:00', aiAdvice: '请休息。' }));
   const malformed = await api.createElderHealthFeedback({
     feedbackType: 'DIET', severity: 'LOW', content: '', inputType: 'BUTTON', fileId: null
   });
   takeRequest();
   assert.equal(malformed.code, 502);
+});
+
+test('elder feedback uses direct browser recording and displays returned AI advice', async () => {
+  const component = await fs.readFile(path.join(frontendRoot, 'src/components/StageTwentyTwoHealthFeedbackPanel.vue'), 'utf8');
+  assert.match(component, /navigator\.mediaDevices\?\.getUserMedia/);
+  assert.match(component, /new MediaRecorder/);
+  assert.match(component, /AI 照护建议/);
+  assert.doesNotMatch(component, /选择已有语音/);
+  assert.doesNotMatch(component, /chooseVoice/);
 });

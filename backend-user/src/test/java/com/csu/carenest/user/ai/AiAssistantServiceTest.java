@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -78,5 +79,19 @@ class AiAssistantServiceTest {
         assertTrue(result.customerServiceTicketCreated());
         verify(repository).assistance(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
         verify(repository).customerTicket(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void healthFeedbackAdviceUsesExistingProviderAndRemovesFalseTicketClaim() {
+        when(provider.answer(anyString()))
+                .thenReturn(new AiProvider.Result("请休息并留意变化。", "NORMAL", "DAILY_CARE", "NORMAL"));
+        assertEquals("请休息并留意变化。",
+                service.healthFeedbackAdvice("DIZZINESS", "MEDIUM", "起身后头晕"));
+
+        when(provider.answer(anyString()))
+                .thenReturn(new AiProvider.Result("已提交工单。", "CRITICAL", "EMERGENCY", "URGENT"));
+        String critical = service.healthFeedbackAdvice("PAIN", "HIGH", "胸口疼");
+        assertFalse(critical.contains("已提交"));
+        assertTrue(critical.contains("紧急风险"));
     }
 }

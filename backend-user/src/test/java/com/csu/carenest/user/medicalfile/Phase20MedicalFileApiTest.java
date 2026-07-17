@@ -164,6 +164,20 @@ class Phase20MedicalFileApiTest {
     }
 
     @Test
+    void acceptsBrowserWebmRecordingWithCodecMimeParameter() throws Exception {
+        String token = loginAndReadToken("elder_demo");
+        byte[] webm = new byte[]{0x1a, 0x45, (byte) 0xdf, (byte) 0xa3, 0x01, 0x00, 0x00, 0x00};
+
+        mockMvc.perform(multipart("/api/v1/files")
+                        .file(new MockMultipartFile(
+                                "file", "health-feedback.webm", "audio/webm;codecs=opus", webm))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.originalName").value("health-feedback.webm"))
+                .andExpect(jsonPath("$.data.mimeType").value("audio/webm"));
+    }
+
+    @Test
     void rejectsFilesOverTwentyMebibytes() throws Exception {
         String token = loginAndReadToken("family_demo");
         byte[] oversized = new byte[(20 * 1024 * 1024) + 1];

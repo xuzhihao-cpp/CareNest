@@ -123,7 +123,7 @@ public class MedicalFileService {
         try {
             byte[] header = file.getInputStream().readNBytes(16);
             String detected = detect(header);
-            String declared = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
+            String declared = normalizeDeclaredMime(file.getContentType());
             if (!compatibleMime(detected, declared)) {
                 throw new ApiException(422, "文件类型与内容不一致");
             }
@@ -134,6 +134,13 @@ public class MedicalFileService {
         } catch (IOException exception) {
             throw new ApiException(422, "无法读取文件");
         }
+    }
+
+    private String normalizeDeclaredMime(String contentType) {
+        if (contentType == null) return "";
+        int parameterStart = contentType.indexOf(';');
+        String baseType = parameterStart >= 0 ? contentType.substring(0, parameterStart) : contentType;
+        return baseType.trim().toLowerCase(Locale.ROOT);
     }
 
     private String detect(byte[] bytes) {

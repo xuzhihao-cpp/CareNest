@@ -65,10 +65,9 @@ onMounted(() => refreshStatus());
 </script>
 
 <template>
-  <view class="stage-eighteen-panel glass-panel" aria-label="Stage 18 integration">
+  <view class="stage-eighteen-panel glass-panel" aria-label="系统运行状态">
     <view class="section-title">
-      <text>Stage 18</text>
-      <text>MVP integration status</text>
+      <text>系统运行状态</text>
     </view>
 
     <view class="stage-eighteen-summary">

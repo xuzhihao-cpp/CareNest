@@ -376,7 +376,7 @@ onMounted(initialize);
   <view class="care-metric-admin-panel">
     <view class="metric-admin-heading">
       <view>
-        <text class="metric-kicker">阶段 34-40</text>
+        <text class="metric-kicker">运营质控</text>
         <text class="metric-title">护理指标与留档质控</text>
         <text class="metric-subtitle">配置护理指标、生成订单清单，并审核留档和未完成原因证明。</text>
       </view>
