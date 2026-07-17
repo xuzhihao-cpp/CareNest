@@ -6,6 +6,7 @@ public record HealthResponse(
         String status,
         String appName,
         String version,
+        boolean ready,
         boolean dbConnected,
         OffsetDateTime serverTime
 ) {

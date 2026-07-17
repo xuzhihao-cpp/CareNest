@@ -2,9 +2,11 @@
 
 ## Scope
 
-The MVP uses MySQL as the source of truth and a deterministic rule provider. AI
-responses are safety-oriented guidance only and never diagnosis, prescription,
-dosage changes, or emergency medical judgment.
+The MVP uses MySQL as the source of truth. Docker defaults to the deterministic
+local safety provider and can switch to an OpenAI-compatible cloud provider with
+environment variables. Local classification always runs first, so cloud output
+can never override medication, diagnosis, treatment, self-harm, or emergency
+safety decisions.
 
 ## User APIs (`backend-user`)
 
@@ -36,8 +38,10 @@ Response data: `sessionId`, user and assistant message IDs, `answer`,
 Safety classification:
 
 - `NORMAL`: daily care and product usage guidance.
-- `WARNING`: medication, dosage, diagnosis, treatment changes, or uncertain symptoms.
-  Refuse clinical decisions and create a normal-priority assistance ticket.
+- `WARNING`: medication, dosage, diagnosis, or treatment changes. Refuse the
+  clinical decision and direct the user to the original medical advice,
+  physician, or platform service. This level does not falsely claim that a
+  ticket was created.
 - `CRITICAL`: chest pain, breathing difficulty, unconsciousness, serious fall, or
   self-harm wording. Create urgent assistance and customer-service tickets.
 
@@ -58,10 +62,27 @@ binding. Supports `elderId`, `status`, `page`, and `size`.
   `PROCESSING`, `RESOLVED`, or `CLOSED` with optional `handleResult`.
 - `POST /api/v1/customer-service/tickets/{ticketId}/messages`: add a text reply.
 - `GET /api/v1/admin/ai/sessions`: admin/customer-service AI audit list.
+- `GET /api/v1/admin/ai/sessions/{sessionId}`: risk session detail with
+  privacy-limited message summaries.
 
 Only `ADMIN` and `CUSTOMER_SERVICE` may use management APIs. Allowed ticket
 transitions are `PENDING -> PROCESSING`, `PROCESSING -> RESOLVED`, and either
-active state to `CLOSED`.
+active state to `CLOSED`. An urgent ticket cannot be resolved or closed before
+at least one follow-up record has been stored.
+
+## Cloud provider configuration
+
+```dotenv
+AI_PROVIDER=cloud
+AI_ENDPOINT=https://dashscope.aliyuncs.com/compatible-mode/v1
+DASHSCOPE_API_KEY=<secret>
+AI_MODEL=qwen-plus
+AI_TIMEOUT=15s
+```
+
+The endpoint is OpenAI-compatible and the backend appends
+`/chat/completions`. Missing keys, network failures, non-2xx responses,
+malformed payloads, or unsafe model output fall back to the local safe response.
 
 ## Persistence and privacy
 

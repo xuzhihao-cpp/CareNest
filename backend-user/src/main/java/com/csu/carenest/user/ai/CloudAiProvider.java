@@ -38,7 +38,9 @@ public class CloudAiProvider extends AiProvider {
 
     @Override public Result answer(String content) {
         Result safety = classifier.classify(content);
-        if ("CRITICAL".equals(safety.safetyLevel())) return safety;
+        // Safety decisions are deterministic. A cloud response must never downgrade
+        // medication, diagnosis or emergency requests classified by local rules.
+        if (!"NORMAL".equals(safety.safetyLevel())) return safety;
         Result fallback = classifier.classify("");
         if (properties.apiKey().isBlank()) return fallback;
         try {

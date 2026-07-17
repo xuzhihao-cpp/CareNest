@@ -164,6 +164,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/elder/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/elder/reminders/{reminderId}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["act"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/elder/reminders/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["records"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/elder/reports/{reportId}/ack": {
         parameters: {
             query?: never;
@@ -424,6 +472,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ActionRequest: {
+            action: string;
+            note: string;
+            /** Format: int32 */
+            snoozeMinutes: number;
+        };
+        ActionResult: {
+            record: components["schemas"]["RecordItem"];
+            reminder: components["schemas"]["Item"];
+        };
         AllergyInput: {
             allergenName: string;
             reaction?: string;
@@ -435,6 +493,13 @@ export interface components {
             reaction: string;
             remark: string;
             severity: string;
+        };
+        ApiResponseActionResult: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["ActionResult"];
+            message: string;
+            traceId: string;
         };
         ApiResponseArchiveResponse: {
             /** Format: int32 */
@@ -531,6 +596,13 @@ export interface components {
             /** Format: int32 */
             code: number;
             data: components["schemas"]["PageResultItem"];
+            message: string;
+            traceId: string;
+        };
+        ApiResponsePageResultRecordItem: {
+            /** Format: int32 */
+            code: number;
+            data: components["schemas"]["PageResultRecordItem"];
             message: string;
             traceId: string;
         };
@@ -685,23 +757,26 @@ export interface components {
         HealthResponse: {
             appName: string;
             dbConnected: boolean;
+            ready: boolean;
             /** Format: date-time */
             serverTime: string;
             status: string;
             version: string;
         };
         Item: {
+            /** Format: date-time */
+            completedAt: string;
             content: string;
             /** Format: date-time */
-            createdAt: string;
-            elderId: string;
-            elderName: string;
-            feedbackId: string;
-            feedbackType: string;
-            fileId: string;
-            inputType: string;
-            severity: string;
-            voiceUrl: string;
+            needsHelpAt: string;
+            /** Format: date-time */
+            reminderAt: string;
+            reminderId: string;
+            /** Format: date-time */
+            snoozedUntil: string;
+            sourceType: string;
+            status: string;
+            title: string;
         };
         LoginRequest: {
             password: string;
@@ -773,12 +848,31 @@ export interface components {
             /** Format: int64 */
             total: number;
         };
+        PageResultRecordItem: {
+            /** Format: int32 */
+            page: number;
+            records: components["schemas"]["RecordItem"][];
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
         PermissionRequest: {
             permissionCodes: string[];
         };
         PermissionResponse: {
             permissions: string[];
             roleCode: string;
+        };
+        RecordItem: {
+            /** Format: date-time */
+            actedAt: string;
+            action: string;
+            fromStatus: string;
+            note: string;
+            reminderId: string;
+            title: string;
+            toStatus: string;
         };
         RegisterRequest: {
             fileId: string;
@@ -1076,6 +1170,86 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseCreateResult"];
+                };
+            };
+        };
+    };
+    list_2: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                status?: string;
+            };
+            header?: {
+                Authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResultItem"];
+                };
+            };
+        };
+    };
+    act: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                reminderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseActionResult"];
+                };
+            };
+        };
+    };
+    records: {
+        parameters: {
+            query?: {
+                elderId?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                Authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResultRecordItem"];
                 };
             };
         };

@@ -3,6 +3,11 @@ SET NAMES utf8mb4;
 
 DELETE FROM care_report_ack WHERE ack_id = 'ack_001';
 DELETE FROM health_info_review_task WHERE review_task_id = 'review_task_001';
+DELETE FROM complaint
+WHERE review_id IN (
+  SELECT review_id FROM review WHERE report_id = 'report_001'
+);
+DELETE FROM review WHERE report_id = 'report_001';
 DELETE FROM service_report_item WHERE item_id IN ('report_item_001', 'report_item_002', 'report_item_003');
 DELETE FROM service_report WHERE report_id = 'report_001';
 DELETE FROM vital_sign_record WHERE vital_id = 'vital_001';

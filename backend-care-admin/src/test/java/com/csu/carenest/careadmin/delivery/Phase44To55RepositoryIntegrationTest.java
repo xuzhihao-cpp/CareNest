@@ -11,6 +11,7 @@ import com.csu.carenest.careadmin.support.SupportDtos;
 import com.csu.carenest.careadmin.training.Phase49To50TrainingRepository;
 import com.csu.carenest.careadmin.training.Phase49To50TrainingService;
 import com.csu.carenest.careadmin.training.TrainingDtos;
+import com.csu.carenest.careadmin.redis.RedisCacheService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,10 +60,11 @@ class Phase44To55RepositoryIntegrationTest {
         supportService = new Phase44To46SupportService(
                 new Phase44To46SupportRepository(jdbcTemplate), objectMapper, scoreService);
         trainingService = new Phase49To50TrainingService(
-                new Phase49To50TrainingRepository(jdbcTemplate), objectMapper);
+                new Phase49To50TrainingRepository(jdbcTemplate), objectMapper,
+                mock(RedisCacheService.class));
         deliveryService = new Phase51To55DeliveryService(
                 new Phase51To55DeliveryRepository(jdbcTemplate),
-                mock(DemoDataSeedExecutor.class), objectMapper);
+                mock(DemoDataSeedExecutor.class), objectMapper, mock(RedisCacheService.class));
     }
 
     @Test
@@ -98,6 +100,10 @@ class Phase44To55RepositoryIntegrationTest {
     void publishedArticleMatchesServiceAndRiskThenCanBeMarkedRead() {
         TrainingDtos.ArticleRequest draft = articleRequest("DRAFT");
         TrainingDtos.ArticleResponse created = trainingService.createArticle(ADMIN, draft);
+        assertEquals("Fall prevention", created.title());
+        assertEquals(List.of("service_1"), created.serviceIds());
+        assertEquals(List.of("FALL_RISK"), created.riskTags());
+        assertTrue(created.requiredRead());
         trainingService.publishArticle(ADMIN, created.articleId(), articleRequest("PUBLISHED"));
 
         List<TrainingDtos.ReadResponse> recommended =
@@ -130,6 +136,8 @@ class Phase44To55RepositoryIntegrationTest {
         DeliveryDtos.DemoDataStatusResponse status = deliveryService.demoDataStatus(ADMIN);
 
         assertNotNull(followUp.createdReminderTaskId());
+        assertTrue(deliveryService.familyFollowUps(FAMILY, "elder_1").stream()
+                .anyMatch(item -> item.followUpId().equals(followUp.followUpId())));
         assertEquals(new BigDecimal("100.00"), basic.serviceCompletionRate());
         assertEquals(new BigDecimal("100.00"), basic.reminderDoneRate());
         assertEquals(new BigDecimal("100.00"), quality.archiveCompleteRate());

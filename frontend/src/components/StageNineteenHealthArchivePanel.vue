@@ -746,7 +746,7 @@ onMounted(loadContext);
 .archive-title { margin-top:6rpx; font-size:36rpx; font-weight:800; }
 .archive-subtitle { margin-top:8rpx; color:#607671; font-size:25rpx; line-height:1.55; }
 .icon-command,.secondary-command,.primary-command,.inline-command,.editor-section-heading button,.time-row button { min-height:88rpx; padding:0 24rpx; border:1rpx solid #bfd4cf; border-radius:4rpx; background:#fff; color:#176d65; font-size:25rpx; font-weight:700; }
-.icon-command { flex:none; min-height:80rpx; padding:0 20rpx; }
+.icon-command { display:inline-flex; align-items:center; justify-content:center; flex:none; min-height:42px; padding:0 14px; line-height:1.2; }
 button[disabled] { opacity:.48; }
 .primary-command { border-color:#137f75; background:#137f75; color:#fff; }
 .elder-selector { margin:0 -24rpx; width:calc(100% + 48rpx); white-space:nowrap; }

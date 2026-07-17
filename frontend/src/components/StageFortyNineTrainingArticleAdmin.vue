@@ -21,7 +21,6 @@ const form = ref({
   title: '', summary: '', contentUrl: '', tagsText: '', riskTagsText: '',
   serviceIds: [] as string[], requiredRead: false
 });
-const sessionDetails = ref<Record<string, TrainingArticleInput>>({});
 
 const selected = computed(() => articles.value.find((item) => item.articleId === selectedId.value) ?? null);
 const statusLabels: Record<TrainingArticleStatus, string> = { DRAFT: '草稿', PUBLISHED: '已发布', OFFLINE: '已下线' };
@@ -79,10 +78,7 @@ async function load() {
   error.value = '';
   const [articleResponse, serviceResponse] = await Promise.all([getTrainingArticles(), getServiceItems('normal', true)]);
   if (articleResponse.code === 0) {
-    articles.value = articleResponse.data.map((article) => ({
-      ...article,
-      ...(sessionDetails.value[article.articleId] ?? {})
-    }));
+    articles.value = articleResponse.data;
   }
   else error.value = articleResponse.message || '培训文章暂时无法读取。';
   if (serviceResponse.code === 0) services.value = serviceResponse.data.records;
@@ -100,7 +96,6 @@ async function saveDraft() {
     : await createTrainingArticle(payload('DRAFT'));
   saving.value = false;
   if (response.code !== 0) { error.value = response.message || '文章暂时无法保存。'; return; }
-  sessionDetails.value[response.data.articleId] = payload('DRAFT');
   notice.value = '草稿已保存。';
   await load();
   selectedId.value = response.data.articleId;
@@ -114,7 +109,6 @@ async function changeStatus(article: TrainingArticle, status: 'PUBLISHED' | 'OFF
   const response = await changeTrainingArticleStatus(article.articleId, source);
   saving.value = false;
   if (response.code !== 0) { error.value = response.message || '文章状态暂时无法更新。'; return; }
-  sessionDetails.value[article.articleId] = source;
   notice.value = status === 'PUBLISHED' ? '文章已发布。' : '文章已下线，不再参与推荐。';
   await load();
 }

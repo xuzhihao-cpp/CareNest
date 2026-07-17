@@ -34,8 +34,11 @@
     "test:stage54": "node --test scripts/test-stage-fifty-four.mjs",
     "test:stage55": "node --test scripts/test-stage-fifty-five.mjs",
     "test:stage49-55": "pnpm test:stage49 && pnpm test:stage50 && pnpm test:stage51 && pnpm test:stage52 && pnpm test:stage53 && pnpm test:stage54 && pnpm test:stage55",
+    "test:stage32-55": "pnpm test:stage32 && pnpm test:stage34-40 && pnpm test:stage41 && pnpm test:stage44-48 && pnpm test:stage49-55",
     "test:stage41": "node scripts/test-stage-forty-one.mjs",
+    "test:stage44-48": "node --test scripts/test-stage-forty-four-to-forty-eight.mjs",
     "test:elder-care-ui": "node scripts/test-elder-care-shell.mjs",
+    "test:all-ui": "node scripts/test-all-surface-ui.mjs",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview --host 127.0.0.1 --port 5173"
   },

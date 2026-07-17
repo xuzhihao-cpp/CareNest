@@ -35,17 +35,21 @@ function parseArticle(value: unknown): TrainingArticle | null {
   if (!isRecord(value)) return null;
   const articleId = text(value.articleId);
   const status = text(value.status) as TrainingArticleStatus;
-  if (!articleId || !articleStatuses.includes(status)) return null;
+  if (!articleId || !text(value.title) || !articleStatuses.includes(status)
+    || !Array.isArray(value.tags) || value.tags.some((item) => typeof item !== 'string')
+    || !Array.isArray(value.serviceIds) || value.serviceIds.some((item) => typeof item !== 'string')
+    || !Array.isArray(value.riskTags) || value.riskTags.some((item) => typeof item !== 'string')
+    || typeof value.requiredRead !== 'boolean') return null;
   return {
     articleId,
     status,
     title: text(value.title),
     summary: text(value.summary),
     contentUrl: text(value.contentUrl),
-    tags: Array.isArray(value.tags) ? value.tags.filter((item): item is string => typeof item === 'string') : [],
-    serviceIds: Array.isArray(value.serviceIds) ? value.serviceIds.filter((item): item is string => typeof item === 'string') : [],
-    riskTags: Array.isArray(value.riskTags) ? value.riskTags.filter((item): item is string => typeof item === 'string') : [],
-    requiredRead: value.requiredRead === true
+    tags: value.tags as string[],
+    serviceIds: value.serviceIds as string[],
+    riskTags: value.riskTags as string[],
+    requiredRead: value.requiredRead
   };
 }
 
@@ -81,7 +85,7 @@ async function saveTrainingArticle(
   if (response.code !== 0) return { ...response, data: {} as TrainingArticle };
   const article = parseArticle(response.data);
   if (!article) return failure(502, '培训文章保存结果不完整', {} as TrainingArticle, response.traceId);
-  return { ...response, data: { ...payload, ...article } };
+  return { ...response, data: article };
 }
 
 export function createTrainingArticle(payload: TrainingArticleInput) {
@@ -96,18 +100,19 @@ export function changeTrainingArticleStatus(articleId: string, payload: Training
   return saveTrainingArticle('POST', `/admin/training-articles/${encodeURIComponent(articleId)}/publish`, payload);
 }
 
-function parseRecommendedArticle(value: unknown, index: number): RecommendedTrainingArticle | null {
+function parseRecommendedArticle(value: unknown): RecommendedTrainingArticle | null {
   if (!isRecord(value)) return null;
   const articleId = text(value.articleId);
   const readStatus = text(value.readStatus) as TrainingReadStatus;
-  if (!articleId || !readStatuses.includes(readStatus)) return null;
+  if (!articleId || !text(value.title) || !readStatuses.includes(readStatus)
+    || typeof value.requiredRead !== 'boolean') return null;
   return {
     articleId,
     readStatus,
-    title: text(value.title) || `服务前学习资料 ${index + 1}`,
+    title: text(value.title),
     summary: text(value.summary),
     contentUrl: text(value.contentUrl),
-    requiredRead: value.requiredRead === true
+    requiredRead: value.requiredRead
   };
 }
 
@@ -132,7 +137,7 @@ export async function markTrainingArticleRead(articleId: string, orderId: string
     data: { orderId, readDurationSeconds }
   });
   if (response.code !== 0) return { ...response, data: {} as RecommendedTrainingArticle };
-  const parsed = parseRecommendedArticle(response.data, 0);
+  const parsed = parseRecommendedArticle(response.data);
   return parsed
     ? { ...response, data: parsed }
     : failure(502, '阅读状态更新结果不完整', {} as RecommendedTrainingArticle, response.traceId);
@@ -233,16 +238,15 @@ export function resetDemoData() { return requestDemoStatus('POST'); }
 export async function getServiceHealth(): Promise<ApiResponse<ServiceHealthStatus>> {
   const response = await request<unknown>({ method: 'GET', url: '/health' });
   if (response.code !== 0) return { ...response, data: {} as ServiceHealthStatus };
-  if (!isRecord(response.data) || !text(response.data.status) || typeof response.data.dbConnected !== 'boolean') {
+  if (!isRecord(response.data) || !text(response.data.status)
+    || typeof response.data.ready !== 'boolean' || typeof response.data.dbConnected !== 'boolean') {
     return failure(502, '平台运行状态不完整', {} as ServiceHealthStatus, response.traceId);
   }
   return {
     ...response,
     data: {
       status: text(response.data.status),
-      ready: typeof response.data.ready === 'boolean'
-        ? response.data.ready
-        : text(response.data.status) === 'UP' && response.data.dbConnected,
+      ready: response.data.ready,
       databaseConnected: response.data.dbConnected, version: text(response.data.version),
       serverTime: text(response.data.serverTime)
     }

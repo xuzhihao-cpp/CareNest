@@ -70,7 +70,9 @@ public class StatusService {
         } catch (Exception ignored) {
             dbConnected = false;
         }
-        return new HealthResponse(dbConnected ? "UP" : "DOWN", "CareNest", version, dbConnected, OffsetDateTime.now(SHANGHAI));
+        return new HealthResponse(
+                dbConnected ? "UP" : "DOWN", "CareNest", version,
+                dbConnected, dbConnected, OffsetDateTime.now(SHANGHAI));
     }
 
     public VersionResponse version() {

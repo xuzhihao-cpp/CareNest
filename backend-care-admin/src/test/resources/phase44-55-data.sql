@@ -17,7 +17,7 @@ INSERT INTO sys_permission VALUES
 INSERT INTO role_permission SELECT 'role_admin',permission_id FROM sys_permission;
 INSERT INTO elder_profile VALUES ('elder_1','elder_user_1');
 INSERT INTO elder_family_binding VALUES
-  ('binding_1','elder_1','family_1','ACTIVE','["REPORT_VIEW"]');
+  ('binding_1','elder_1','family_1','ACTIVE','["HEALTH_VIEW","REPORT_VIEW"]');
 INSERT INTO service_item VALUES ('service_1','Basic care','ON_SHELF');
 INSERT INTO nursing_order VALUES
   ('order_1','service_1','elder_1','family_1','COMPLETED',CURRENT_TIMESTAMP);

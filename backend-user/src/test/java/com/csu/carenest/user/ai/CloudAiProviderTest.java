@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class CloudAiProviderTest {
     @Test
-    void callsOpenAiCompatibleEndpointForEveryNonCriticalQuestion() throws Exception {
+    void callsOpenAiCompatibleEndpointOnlyForNormalQuestions() throws Exception {
         AtomicReference<String> requestBody = new AtomicReference<>();
         AtomicInteger requestCount = new AtomicInteger();
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
@@ -33,34 +33,33 @@ class CloudAiProviderTest {
                     "cloud", "http://127.0.0.1:" + server.getAddress().getPort(), "test-key", "qwen-plus", Duration.ofSeconds(2));
             CloudAiProvider provider = provider(properties);
 
-            for (String question : new String[]{"血压应该怎么记录？", "我可以停药吗？", "这是什么病？"}) {
-                AiProvider.Result result = provider.answer(question);
-                assertEquals("NORMAL", result.safetyLevel());
-                assertEquals("请提前准备服务记录和常用物品。", result.answer());
-            }
+            AiProvider.Result result = provider.answer("血压应该怎么记录？");
+            assertEquals("NORMAL", result.safetyLevel());
+            assertEquals("请提前准备服务记录和常用物品。", result.answer());
+            assertEquals("WARNING", provider.answer("我可以停药吗？").safetyLevel());
+            assertEquals("WARNING", provider.answer("这是什么病？").safetyLevel());
             assertTrue(requestBody.get().contains("qwen-plus"));
-            assertTrue(requestBody.get().contains("这是什么病？"));
+            assertTrue(requestBody.get().contains("血压应该怎么记录？"));
             assertTrue(requestBody.get().contains("不能提供诊断"));
             assertTrue(requestBody.get().contains("纯文本"));
             assertTrue(requestBody.get().contains("不得编造电话号码"));
             assertTrue(requestBody.get().contains("不得虚构 CareNest 功能"));
             assertTrue(requestBody.get().contains("具体临床阈值"));
-            assertEquals(3, requestCount.get());
+            assertEquals(1, requestCount.get());
         } finally {
             server.stop(0);
         }
     }
 
     @Test
-    void fallsBackToNormalWhenWarningQuestionHasNoApiKey() {
+    void blocksWarningQuestionWithoutCallingCloudWhenNoApiKey() {
         AiProviderProperties properties = new AiProviderProperties(
                 "cloud", "https://dashscope.aliyuncs.com/compatible-mode/v1", "", "qwen-plus", Duration.ofSeconds(2));
         CloudAiProvider provider = provider(properties);
 
         AiProvider.Result result = provider.answer("我可以停药吗？");
 
-        assertEquals("NORMAL", result.safetyLevel());
-        assertEquals("DAILY_CARE", result.category());
+        assertEquals("WARNING", result.safetyLevel());
     }
 
     @Test
@@ -79,7 +78,7 @@ class CloudAiProviderTest {
                     "cloud", "http://127.0.0.1:" + server.getAddress().getPort(), "test-key", "qwen-plus", Duration.ofSeconds(2));
             CloudAiProvider provider = provider(properties);
 
-            AiProvider.Result result = provider.answer("我可以停药吗？");
+            AiProvider.Result result = provider.answer("我今天应该如何安排散步？");
 
             assertEquals("NORMAL", result.safetyLevel());
             assertFalse(result.answer().contains("24小时"));
@@ -105,7 +104,7 @@ class CloudAiProviderTest {
             AiProviderProperties properties = new AiProviderProperties(
                     "cloud", "http://127.0.0.1:" + server.getAddress().getPort(), "test-key", "qwen-plus", Duration.ofSeconds(2));
 
-            AiProvider.Result result = provider(properties).answer("我可以停药吗？");
+            AiProvider.Result result = provider(properties).answer("我今天应该如何安排散步？");
 
             assertEquals("NORMAL", result.safetyLevel());
             assertFalse(result.answer().contains("停药"));
@@ -116,7 +115,7 @@ class CloudAiProviderTest {
     }
 
     @Test
-    void fallsBackToNormalWhenWarningCloudRequestReturnsHttpError() throws Exception {
+    void fallsBackToNormalWhenNormalCloudRequestReturnsHttpError() throws Exception {
         AtomicInteger requestCount = new AtomicInteger();
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/chat/completions", exchange -> {
@@ -129,7 +128,7 @@ class CloudAiProviderTest {
             AiProviderProperties properties = new AiProviderProperties(
                     "cloud", "http://127.0.0.1:" + server.getAddress().getPort(), "test-key", "qwen-plus", Duration.ofSeconds(2));
 
-            AiProvider.Result result = provider(properties).answer("我可以停药吗？");
+            AiProvider.Result result = provider(properties).answer("我今天应该如何安排散步？");
 
             assertEquals("NORMAL", result.safetyLevel());
             assertEquals(1, requestCount.get());
@@ -139,7 +138,7 @@ class CloudAiProviderTest {
     }
 
     @Test
-    void fallsBackToNormalWhenWarningCloudResponseCannotBeParsed() throws Exception {
+    void fallsBackToNormalWhenNormalCloudResponseCannotBeParsed() throws Exception {
         AtomicInteger requestCount = new AtomicInteger();
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/chat/completions", exchange -> {
@@ -154,7 +153,7 @@ class CloudAiProviderTest {
             AiProviderProperties properties = new AiProviderProperties(
                     "cloud", "http://127.0.0.1:" + server.getAddress().getPort(), "test-key", "qwen-plus", Duration.ofSeconds(2));
 
-            AiProvider.Result result = provider(properties).answer("这是什么病？");
+            AiProvider.Result result = provider(properties).answer("我今天应该如何安排散步？");
 
             assertEquals("NORMAL", result.safetyLevel());
             assertEquals(1, requestCount.get());

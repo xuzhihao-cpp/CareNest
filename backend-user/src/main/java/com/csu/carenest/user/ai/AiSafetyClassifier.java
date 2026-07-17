@@ -19,7 +19,7 @@ public class AiSafetyClassifier {
                         "能吃吗", "可以吃吗", "该吃吗", "多吃", "少吃", "几片", "多少片",
                         "能不能停", "该不该停", "可以停吗", "增加", "减少"))
                 || (contains(text, "改成", "改为") && contains(text, "片", "粒", "毫克", "mg"))) {
-            return new AiProvider.Result("我不能替代医生进行诊断、开药或调整剂量。请联系医生或平台客服获取专业帮助；我已为你提交协助工单。", "WARNING", "MEDICAL_GUIDANCE", "NORMAL");
+            return new AiProvider.Result("我不能替代医生进行诊断、开药或调整剂量。请保持原医嘱，并联系医生或平台客服获取专业帮助。", "WARNING", "MEDICAL_GUIDANCE", "NORMAL");
         }
         return new AiProvider.Result("我可以帮助记录照护需求、提醒事项和联系平台服务。涉及身体不适时，请及时联系家属或专业医护人员。", "NORMAL", "DAILY_CARE", "NORMAL");
     }

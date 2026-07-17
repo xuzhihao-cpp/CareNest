@@ -39,6 +39,30 @@ public class Phase51To55DeliveryRepository {
         return count("SELECT COUNT(*) FROM nursing_order WHERE order_id=? AND elder_id=?", orderId, elderId) > 0;
     }
 
+    public Optional<String> findActiveBindingScopes(String familyId, String elderId) {
+        List<String> rows = jdbcTemplate.query("""
+                SELECT scope_codes FROM elder_family_binding
+                WHERE family_id=? AND elder_id=? AND binding_status='ACTIVE'
+                ORDER BY binding_id DESC LIMIT 1
+                """, (rs, rowNum) -> rs.getString("scope_codes"), familyId, elderId);
+        return rows.stream().findFirst();
+    }
+
+    public List<DeliveryDtos.FollowUpRecordResponse> findFollowUps(String elderId) {
+        return jdbcTemplate.query("""
+                SELECT follow_up_id,elder_id,order_id,follow_up_type,content,next_follow_up_at,
+                       need_reminder,created_reminder_task_id,created_at
+                FROM follow_up_record WHERE elder_id=?
+                ORDER BY created_at DESC,follow_up_id DESC
+                """, (rs, rowNum) -> new DeliveryDtos.FollowUpRecordResponse(
+                rs.getString("follow_up_id"), rs.getString("elder_id"), rs.getString("order_id"),
+                rs.getString("follow_up_type"), rs.getString("content"),
+                rs.getTimestamp("next_follow_up_at") == null ? null
+                        : rs.getTimestamp("next_follow_up_at").toLocalDateTime(),
+                rs.getBoolean("need_reminder"), rs.getString("created_reminder_task_id"),
+                rs.getTimestamp("created_at").toLocalDateTime()), elderId);
+    }
+
     public void insertFollowUp(
             String followUpId, DeliveryDtos.FollowUpRequest request, String userId) {
         jdbcTemplate.update("""

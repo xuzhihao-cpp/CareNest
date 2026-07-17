@@ -25,7 +25,16 @@ public final class TrainingDtos {
             @NotBlank String status) {
     }
 
-    public record ArticleResponse(String articleId, String status) {
+    public record ArticleResponse(
+            String articleId,
+            String title,
+            String summary,
+            String contentUrl,
+            List<String> tags,
+            List<String> serviceIds,
+            List<String> riskTags,
+            boolean requiredRead,
+            String status) {
     }
 
     public record ReadRequest(
@@ -33,6 +42,15 @@ public final class TrainingDtos {
             @NotNull @Min(0) @Max(86400) Integer readDurationSeconds) {
     }
 
-    public record ReadResponse(String articleId, String readStatus) {
+    public record ReadResponse(
+            String articleId,
+            String title,
+            String summary,
+            String contentUrl,
+            boolean requiredRead,
+            String readStatus) {
+    }
+
+    public record RecommendedArticleList(List<ReadResponse> records) {
     }
 }

@@ -6,11 +6,16 @@ import com.csu.carenest.careadmin.common.BusinessRuleException;
 import com.csu.carenest.careadmin.common.ConflictException;
 import com.csu.carenest.careadmin.common.ForbiddenException;
 import com.csu.carenest.careadmin.common.NotFoundException;
+import com.csu.carenest.careadmin.redis.RedisCacheService;
+import com.csu.carenest.careadmin.redis.RedisKeyFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -26,11 +31,15 @@ public class Phase49To50TrainingService {
 
     private final Phase49To50TrainingRepository repository;
     private final ObjectMapper objectMapper;
+    private final RedisCacheService cacheService;
 
     public Phase49To50TrainingService(
-            Phase49To50TrainingRepository repository, ObjectMapper objectMapper) {
+            Phase49To50TrainingRepository repository,
+            ObjectMapper objectMapper,
+            RedisCacheService cacheService) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.cacheService = cacheService;
     }
 
     @Transactional(readOnly = true)
@@ -54,7 +63,8 @@ public class Phase49To50TrainingService {
         repository.replaceTagsAndRules(
                 articleId, normalized.tags(), normalized.riskTags(), normalized.serviceIds(), this::nextId);
         log(user, "CREATE_TRAINING_ARTICLE", articleId, null, Map.of("status", "DRAFT"));
-        return new TrainingDtos.ArticleResponse(articleId, "DRAFT");
+        evictRecommendationsAfterCommit();
+        return requireArticleResponse(articleId);
     }
 
     @Transactional
@@ -76,7 +86,8 @@ public class Phase49To50TrainingService {
                 articleId, normalized.tags(), normalized.riskTags(), normalized.serviceIds(), this::nextId);
         log(user, "UPDATE_TRAINING_ARTICLE", articleId,
                 Map.of("status", article.status()), Map.of("status", status.name()));
-        return new TrainingDtos.ArticleResponse(articleId, status.name());
+        evictRecommendationsAfterCommit();
+        return requireArticleResponse(articleId);
     }
 
     @Transactional
@@ -90,19 +101,39 @@ public class Phase49To50TrainingService {
                 && target != TrainingEnums.ArticleStatus.OFFLINE) {
             throw new BusinessRuleException();
         }
+        NormalizedArticle normalized = normalize(request);
+        if (target == TrainingEnums.ArticleStatus.PUBLISHED
+                && normalized.request().requiredRead()
+                && normalized.request().contentUrl() == null) {
+            throw new BusinessRuleException();
+        }
+        repository.updateArticleContent(
+                articleId, normalized.request(), normalized.firstServiceId());
+        repository.replaceTagsAndRules(
+                articleId, normalized.tags(), normalized.riskTags(), normalized.serviceIds(), this::nextId);
         if (repository.updateArticleStatus(articleId, target.name()) == 0) {
             throw new ConflictException();
         }
         log(user, "PUBLISH_TRAINING_ARTICLE", articleId,
                 Map.of("status", article.status()), Map.of("status", target.name()));
-        return new TrainingDtos.ArticleResponse(articleId, target.name());
+        evictRecommendationsAfterCommit();
+        return requireArticleResponse(articleId);
     }
 
     @Transactional(readOnly = true)
     public List<TrainingDtos.ReadResponse> recommendedArticles(CurrentUser user, String orderId) {
         Phase49To50TrainingRepository.OrderContext order = requireOrder(orderId);
         requireOrderAccess(user, order);
-        return repository.findRecommended(orderId, order.nurseId());
+        String cacheKey = RedisKeyFactory.trainingRecommendationKey(orderId, order.nurseId());
+        return cacheService.get(cacheKey, TrainingDtos.RecommendedArticleList.class)
+                .map(TrainingDtos.RecommendedArticleList::records)
+                .orElseGet(() -> {
+                    List<TrainingDtos.ReadResponse> records =
+                            repository.findRecommended(orderId, order.nurseId());
+                    cacheService.put(cacheKey, new TrainingDtos.RecommendedArticleList(records),
+                            Duration.ofMinutes(10));
+                    return records;
+                });
     }
 
     @Transactional
@@ -119,7 +150,10 @@ public class Phase49To50TrainingService {
         log(user, "READ_TRAINING_ARTICLE", articleId, null,
                 Map.of("orderId", order.orderId(),
                         "readDurationSeconds", request.readDurationSeconds(), "readStatus", "READ"));
-        return new TrainingDtos.ReadResponse(articleId, "READ");
+        evictRecommendationsAfterCommit();
+        return repository.findRecommended(order.orderId(), order.nurseId()).stream()
+                .filter(item -> item.articleId().equals(articleId))
+                .findFirst().orElseThrow(NotFoundException::new);
     }
 
     private NormalizedArticle normalize(TrainingDtos.ArticleRequest request) {
@@ -158,6 +192,24 @@ public class Phase49To50TrainingService {
 
     private Phase49To50TrainingRepository.ArticleContext requireArticle(String articleId) {
         return repository.findArticle(articleId).orElseThrow(NotFoundException::new);
+    }
+
+    private TrainingDtos.ArticleResponse requireArticleResponse(String articleId) {
+        return repository.findArticleResponse(articleId).orElseThrow(NotFoundException::new);
+    }
+
+    private void evictRecommendationsAfterCommit() {
+        Runnable evict = () -> cacheService.evictByPrefix(RedisKeyFactory.trainingRecommendationPrefix());
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            evict.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                evict.run();
+            }
+        });
     }
 
     private Phase49To50TrainingRepository.OrderContext requireOrder(String orderId) {

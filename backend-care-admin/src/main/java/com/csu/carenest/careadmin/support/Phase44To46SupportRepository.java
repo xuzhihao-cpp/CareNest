@@ -59,33 +59,40 @@ public class Phase44To46SupportRepository {
                 content, nextFollowUpAt, userId);
     }
 
-    public List<SupportDtos.FollowUpResponse> findTicketFollowUps(String ticketId) {
+    public List<FollowUpRecord> findTicketFollowUps(String ticketId) {
         return jdbcTemplate.query("""
-                SELECT f.follow_up_id,t.ticket_status
+                SELECT f.follow_up_id,t.ticket_status,f.follow_up_type,f.content,
+                       f.next_follow_up_at,f.created_at
                 FROM follow_up_record f
                 JOIN customer_service_ticket t ON t.ticket_id=f.ticket_id
                 WHERE f.ticket_id=? ORDER BY f.created_at,f.follow_up_id
-                """, (rs, rowNum) -> new SupportDtos.FollowUpResponse(
-                rs.getString("follow_up_id"), rs.getString("ticket_status")), ticketId);
+                """, (rs, rowNum) -> new FollowUpRecord(
+                rs.getString("follow_up_id"), rs.getString("ticket_status"),
+                rs.getString("follow_up_type"), rs.getString("content"),
+                rs.getTimestamp("next_follow_up_at") == null ? null
+                        : rs.getTimestamp("next_follow_up_at").toLocalDateTime(),
+                rs.getTimestamp("created_at").toLocalDateTime()), ticketId);
     }
 
     public Optional<OrderReviewContext> findOrderForReview(String orderId) {
         List<OrderReviewContext> rows = jdbcTemplate.query("""
                 SELECT o.order_id,o.elder_id,o.family_id,o.order_status,
-                       sr.report_id,nt.nurse_id
+                       sr.report_id,nt.nurse_id,si.service_name
                 FROM nursing_order o
                 JOIN service_report sr ON sr.order_id=o.order_id
                 JOIN nurse_task nt ON nt.order_id=o.order_id
+                JOIN service_item si ON si.service_id=o.service_id
                 WHERE o.order_id=?
                 """, (rs, rowNum) -> new OrderReviewContext(
                 rs.getString("order_id"), rs.getString("elder_id"),
                 rs.getString("family_id"), rs.getString("order_status"),
-                rs.getString("report_id"), rs.getString("nurse_id")), orderId);
+                rs.getString("report_id"), rs.getString("nurse_id"),
+                rs.getString("service_name")), orderId);
         return rows.stream().findFirst();
     }
 
     public boolean familyCanReview(String familyId, OrderReviewContext order) {
-        return familyId.equals(order.familyId()) || count("""
+        return count("""
                 SELECT COUNT(*) FROM elder_family_binding
                 WHERE elder_id=? AND family_id=? AND binding_status='ACTIVE'
                   AND scope_codes LIKE '%\"REPORT_VIEW\"%'
@@ -119,13 +126,22 @@ public class Phase44To46SupportRepository {
                 """, complaintId, orderId, complainantId, content);
     }
 
-    public List<SupportDtos.ReviewComplaintResponse> findComplaints() {
+    public List<ComplaintRecord> findComplaints() {
         return jdbcTemplate.query("""
-                SELECT review_id,complaint_id,complaint_status FROM complaint
-                ORDER BY created_at,complaint_id
-                """, (rs, rowNum) -> new SupportDtos.ReviewComplaintResponse(
+                SELECT c.review_id,c.complaint_id,c.order_id,c.complaint_status,
+                       c.content,c.handle_result,c.created_at,
+                       si.service_name,u.display_name AS complainant_name
+                FROM complaint c
+                JOIN nursing_order o ON o.order_id=c.order_id
+                JOIN service_item si ON si.service_id=o.service_id
+                JOIN sys_user u ON u.user_id=c.complainant_id
+                ORDER BY c.created_at DESC,c.complaint_id DESC
+                """, (rs, rowNum) -> new ComplaintRecord(
                 rs.getString("review_id"), rs.getString("complaint_id"),
-                rs.getString("complaint_status")));
+                rs.getString("order_id"), rs.getString("service_name"),
+                rs.getString("complainant_name"), rs.getString("complaint_status"),
+                rs.getString("content"), rs.getString("handle_result"),
+                rs.getTimestamp("created_at").toLocalDateTime()));
     }
 
     public Optional<ComplaintContext> findComplaint(String complaintId) {
@@ -208,22 +224,34 @@ public class Phase44To46SupportRepository {
                 """, appealId, nurseId, targetType, targetId, reason, fileIdsJson);
     }
 
-    public List<SupportDtos.AppealResponse> findAppeals(String nurseId) {
+    public List<AppealRecord> findAppeals(String nurseId) {
         return jdbcTemplate.query("""
-                SELECT appeal_id,appeal_status,score_adjustment FROM nurse_appeal
-                WHERE nurse_id=? ORDER BY created_at,appeal_id
-                """, (rs, rowNum) -> new SupportDtos.AppealResponse(
-                rs.getString("appeal_id"), rs.getString("appeal_status"),
-                rs.getBigDecimal("score_adjustment")), nurseId);
+                SELECT a.appeal_id,a.nurse_id,u.display_name AS nurse_name,
+                       a.target_type,a.target_id,a.reason,a.file_ids,a.appeal_status,
+                       a.score_adjustment,a.review_comment,a.created_at
+                FROM nurse_appeal a JOIN sys_user u ON u.user_id=a.nurse_id
+                WHERE a.nurse_id=? ORDER BY a.created_at DESC,a.appeal_id DESC
+                """, appealMapper(), nurseId);
     }
 
-    public List<SupportDtos.AppealResponse> findAllAppeals() {
+    public List<AppealRecord> findAllAppeals() {
         return jdbcTemplate.query("""
-                SELECT appeal_id,appeal_status,score_adjustment FROM nurse_appeal
-                ORDER BY created_at,appeal_id
-                """, (rs, rowNum) -> new SupportDtos.AppealResponse(
-                rs.getString("appeal_id"), rs.getString("appeal_status"),
-                rs.getBigDecimal("score_adjustment")));
+                SELECT a.appeal_id,a.nurse_id,u.display_name AS nurse_name,
+                       a.target_type,a.target_id,a.reason,a.file_ids,a.appeal_status,
+                       a.score_adjustment,a.review_comment,a.created_at
+                FROM nurse_appeal a JOIN sys_user u ON u.user_id=a.nurse_id
+                ORDER BY a.created_at DESC,a.appeal_id DESC
+                """, appealMapper());
+    }
+
+    private org.springframework.jdbc.core.RowMapper<AppealRecord> appealMapper() {
+        return (rs, rowNum) -> new AppealRecord(
+                rs.getString("appeal_id"), rs.getString("nurse_id"),
+                rs.getString("nurse_name"), rs.getString("target_type"),
+                rs.getString("target_id"), rs.getString("reason"),
+                rs.getString("file_ids"), rs.getString("appeal_status"),
+                rs.getBigDecimal("score_adjustment"), rs.getString("review_comment"),
+                rs.getTimestamp("created_at").toLocalDateTime());
     }
 
     public Optional<AppealContext> findAppeal(String appealId) {
@@ -288,7 +316,7 @@ public class Phase44To46SupportRepository {
 
     public record OrderReviewContext(
             String orderId, String elderId, String familyId, String orderStatus,
-            String reportId, String nurseId) {
+            String reportId, String nurseId, String serviceName) {
     }
 
     public record ComplaintContext(
@@ -298,5 +326,22 @@ public class Phase44To46SupportRepository {
     public record AppealContext(
             String appealId, String nurseId, String targetType,
             String targetId, String status) {
+    }
+
+    public record FollowUpRecord(
+            String followUpId, String ticketStatus, String method,
+            String storedContent, LocalDateTime nextFollowUpAt, LocalDateTime createdAt) {
+    }
+
+    public record ComplaintRecord(
+            String reviewId, String complaintId, String orderId, String serviceName,
+            String complainantName, String status, String storedContent,
+            String handleResult, LocalDateTime createdAt) {
+    }
+
+    public record AppealRecord(
+            String appealId, String nurseId, String nurseName, String targetType,
+            String targetId, String reason, String fileIdsJson, String status,
+            BigDecimal scoreAdjustment, String reviewComment, LocalDateTime createdAt) {
     }
 }

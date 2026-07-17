@@ -2276,6 +2276,9 @@
           "version" : {
             "type" : "string"
           },
+          "ready" : {
+            "type" : "boolean"
+          },
           "dbConnected" : {
             "type" : "boolean"
           },
