@@ -16,4 +16,8 @@ if(!component.includes("messageType = voiceDraftPending.value ? 'VOICE' : 'TEXT'
 if(!component.includes('已经听清，请确认文字后发送')) throw new Error('voice query bypasses elder confirmation')
 if(!component.includes('deleteAiSession')) throw new Error('AI conversation history cannot be deleted')
 if(!component.includes('删除这段对话？')) throw new Error('AI history deletion lacks elder confirmation')
+if(!types.includes('familyAssistanceRequested:boolean')) throw new Error('AI response is missing family assistance intent')
+if(!component.includes('uni.showModal({')) throw new Error('elder family assistance lacks confirmation dialog')
+if(!component.includes('uni.makePhoneCall({')) throw new Error('elder family assistance lacks real phone call')
+if(!component.includes('requestFamilyCall')) throw new Error('elder family assistance is not wired to message response')
 console.log('stage 41 api contract smoke passed')
