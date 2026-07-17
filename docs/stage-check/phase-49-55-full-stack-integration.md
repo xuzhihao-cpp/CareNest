@@ -20,7 +20,7 @@
 5. 基础看板、质量看板和培训推荐接入 Redis；权限校验在缓存读取之前，Redis 不可用时回源 MySQL。
 6. 健康接口增加明确的 `ready` 字段，并同步 OpenAPI 契约快照。
 7. 修复演示重置的外键顺序：重建 `report_001` 前先清理其评价和投诉依赖，全部种子可重复执行。
-8. 培训文章使用站内真实内容页 `/training/fall-prevention.html`，不依赖 mock 或空地址。
+8. 培训文章使用随 H5 构建发布的站内真实内容页 `/static/training/fall-prevention.html`，不依赖 mock、登录页回退或空地址。
 
 ## 自动化结果
 

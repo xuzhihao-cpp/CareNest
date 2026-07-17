@@ -372,7 +372,7 @@ INSERT INTO training_article (
   article_id, title, content_summary, content_url, file_id, service_id,
   required_reading, article_status, created_by, published_at
 ) VALUES (
-  'article_049_001', '跌倒风险护理要点', '面向基础上门护理的防跌倒观察、搀扶和记录要求。', '/training/fall-prevention.html',
+  'article_049_001', '跌倒风险护理要点', '面向基础上门护理的防跌倒观察、搀扶和记录要求。', '/static/training/fall-prevention.html',
   'file_article_049', 'service_001', 1, 'PUBLISHED', 'admin-001', '2026-07-15 11:00:00'
 ) ON DUPLICATE KEY UPDATE
   title = VALUES(title),

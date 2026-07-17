@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
@@ -12,3 +13,10 @@ const recommended=(readStatus='UNREAD')=>({articleId:'article-1',title:'服务�
 test('phase 50 reads complete recommendations for the selected real order',async()=>{responses.push(ok([recommended()]));const response=await api.getRecommendedTrainingArticles('order/50');const req=requests.shift();assert.equal(req.url,'/api/v1/nurse/orders/order%2F50/recommended-articles');assert.equal(response.data[0].title,'服务前安全准备');assert.equal(response.data[0].requiredRead,true);});
 test('phase 50 records order and bounded reading duration',async()=>{responses.push(ok(recommended('READ')));const response=await api.markTrainingArticleRead('article-1','order-50',38);const req=requests.shift();assert.equal(req.method,'POST');assert.deepEqual(req.data,{orderId:'order-50',readDurationSeconds:38});assert.equal(response.data.readStatus,'READ');});
 test('phase 50 rejects incomplete reading status responses',async()=>{responses.push(ok({articleId:'article-1',readStatus:'UNKNOWN'}));const response=await api.markTrainingArticleRead('article-1','order-50',1);assert.equal(response.code,502);});
+test('phase 50 ships the recommended article as a real uni-app static page',async()=>{
+  const article=await readFile(path.join(root,'src/static/training/fall-prevention.html'),'utf8');
+  const seed=await readFile(path.join(root,'../db/seed/phase-32-55-demo-data.sql'),'utf8');
+  assert.match(article,/<h1>跌倒风险护理要点<\/h1>/);
+  assert.match(seed,/\/static\/training\/fall-prevention\.html/);
+  assert.doesNotMatch(seed,/'\/training\/fall-prevention\.html'/);
+});
