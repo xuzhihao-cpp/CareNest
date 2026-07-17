@@ -152,6 +152,7 @@ public class Phase44To46SupportService {
                 complaintId, status, request.content().trim(), user.userId()) == 0) {
             throw new ConflictException();
         }
+        scoreService.recalculateAfterComplaint(user, complaint.nurseId(), complaintId);
         log(user, "HANDLE_COMPLAINT", "COMPLAINT", complaintId,
                 Map.of("status", complaint.status()), Map.of("status", status));
         return new SupportDtos.ReviewComplaintResponse(

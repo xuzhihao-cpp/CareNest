@@ -62,7 +62,7 @@ public class Phase47To48ScoreRepository {
         int complaintCount = count("""
                 SELECT COUNT(*) FROM complaint c
                 JOIN nurse_task nt ON nt.order_id=c.order_id
-                WHERE nt.nurse_id=? AND c.complaint_status<>'REJECTED'
+                WHERE nt.nurse_id=? AND c.complaint_status='RESOLVED'
                 """, nurseId);
         BigDecimal appealAdjustment = decimal("""
                 SELECT COALESCE(SUM(score_adjustment),0) FROM nurse_appeal
