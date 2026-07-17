@@ -16,21 +16,25 @@ const api = await vite.ssrLoadModule('/src/api/stageFortyNineToFiftyFive.ts');
 after(async () => { await vite.close(); delete globalThis.uni; });
 const ok = (data) => ({ code: 0, message: 'success', traceId: 'stage49', data });
 
-test('phase 49 reads the real article route and accepts the deployed compact response', async () => {
-  responses.push(ok([{ articleId: 'article-1', status: 'DRAFT' }]));
+const article = (status = 'DRAFT') => ({ articleId: 'article-1', title: '安全护理', summary: '摘要', contentUrl: '/training/safety.html', tags: ['安全'], serviceIds: ['service-1'], riskTags: ['跌倒风险'], requiredRead: true, status });
+
+test('phase 49 reads the complete persisted article model', async () => {
+  responses.push(ok([article()]));
   const response = await api.getTrainingArticles();
   const request = requests.shift();
   assert.equal(request.method, 'GET');
   assert.equal(request.url, '/api/v1/admin/training-articles');
   assert.equal(response.data[0].status, 'DRAFT');
+  assert.equal(response.data[0].title, '安全护理');
+  assert.deepEqual(response.data[0].serviceIds, ['service-1']);
 });
 
 test('phase 49 sends the complete article payload and reuses the frozen publish route', async () => {
   const payload = { title: '安全护理', summary: '摘要', contentUrl: '', tags: ['安全'], serviceIds: [], riskTags: ['跌倒风险'], requiredRead: true, status: 'DRAFT' };
-  responses.push(ok({ articleId: 'article-2', status: 'DRAFT' }));
+  responses.push(ok({ ...article(), articleId: 'article-2', ...payload }));
   await api.createTrainingArticle(payload);
   assert.deepEqual(requests.shift().data, payload);
-  responses.push(ok({ articleId: 'article-2', status: 'PUBLISHED' }));
+  responses.push(ok({ ...article('PUBLISHED'), articleId: 'article-2', ...payload, status: 'PUBLISHED' }));
   await api.changeTrainingArticleStatus('article-2', { ...payload, status: 'PUBLISHED' });
   assert.equal(requests.shift().url, '/api/v1/admin/training-articles/article-2/publish');
 });

@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** 阶段44-46成员3后端接口；阶段43客服工单功能不在本次交付范围内。 */
+/** 阶段44-46回访、评价投诉与护理申诉接口。 */
 @RestController
 @RequestMapping("/api/v1")
 public class Phase44To46SupportController {
@@ -80,14 +80,15 @@ public class Phase44To46SupportController {
     public ApiResponse<SupportDtos.AppealResponse> submitAppeal(
             @RequestHeader("Authorization") String authorization,
             @Valid @RequestBody SupportDtos.AppealRequest request) {
-        CurrentUser user = authService.requireAnyRole(authorization, RoleCode.NURSE, RoleCode.ADMIN);
+        CurrentUser user = authService.requireRole(authorization, RoleCode.NURSE);
         return ApiResponse.success(supportService.submitAppeal(user, request));
     }
 
     @GetMapping("/nurse/appeals")
     public ApiResponse<List<SupportDtos.AppealResponse>> appeals(
             @RequestHeader("Authorization") String authorization) {
-        CurrentUser user = authService.requireAnyRole(authorization, RoleCode.NURSE, RoleCode.ADMIN);
+        CurrentUser user = authService.requireAnyRole(
+                authorization, RoleCode.NURSE, RoleCode.ADMIN, RoleCode.CUSTOMER_SERVICE);
         return ApiResponse.success(supportService.appeals(user));
     }
 

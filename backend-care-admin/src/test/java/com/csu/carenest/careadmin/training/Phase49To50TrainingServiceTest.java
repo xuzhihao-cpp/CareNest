@@ -5,6 +5,7 @@ import com.csu.carenest.careadmin.auth.RoleCode;
 import com.csu.carenest.careadmin.common.BusinessRuleException;
 import com.csu.carenest.careadmin.common.ForbiddenException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.csu.carenest.careadmin.redis.RedisCacheService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -30,9 +31,14 @@ class Phase49To50TrainingServiceTest {
     @Test
     void articleStartsAsDraftAndKeepsNormalizedRecommendationRules() {
         Phase49To50TrainingRepository repository = mock(Phase49To50TrainingRepository.class);
-        Phase49To50TrainingService service = new Phase49To50TrainingService(repository, new ObjectMapper());
+        Phase49To50TrainingService service = new Phase49To50TrainingService(
+                repository, new ObjectMapper(), mock(RedisCacheService.class));
         when(repository.hasPermission("admin_1", "TRAINING_ARTICLE_MANAGE")).thenReturn(true);
         when(repository.serviceExists("service_1")).thenReturn(true);
+        when(repository.findArticleResponse(anyString())).thenAnswer(invocation -> Optional.of(
+                new TrainingDtos.ArticleResponse(invocation.getArgument(0), "术后照护", "摘要",
+                        "/articles/1", List.of("术后"), List.of("service_1"),
+                        List.of("FALL_RISK"), true, "DRAFT")));
         TrainingDtos.ArticleRequest request = new TrainingDtos.ArticleRequest(
                 "  术后照护  ", "摘要", "/articles/1", List.of("术后"),
                 List.of("service_1"), List.of("FALL_RISK"), true, "draft");
@@ -53,7 +59,8 @@ class Phase49To50TrainingServiceTest {
     @Test
     void duplicateRuleValuesAreRejectedInsteadOfSilentlyChangingContract() {
         Phase49To50TrainingRepository repository = mock(Phase49To50TrainingRepository.class);
-        Phase49To50TrainingService service = new Phase49To50TrainingService(repository, new ObjectMapper());
+        Phase49To50TrainingService service = new Phase49To50TrainingService(
+                repository, new ObjectMapper(), mock(RedisCacheService.class));
         when(repository.hasPermission("admin_1", "TRAINING_ARTICLE_MANAGE")).thenReturn(true);
         TrainingDtos.ArticleRequest request = new TrainingDtos.ArticleRequest(
                 "标题", null, null, List.of("康复", "康复"),
@@ -65,7 +72,8 @@ class Phase49To50TrainingServiceTest {
     @Test
     void recommendationCanOnlyBeReadByAssignedNurse() {
         Phase49To50TrainingRepository repository = mock(Phase49To50TrainingRepository.class);
-        Phase49To50TrainingService service = new Phase49To50TrainingService(repository, new ObjectMapper());
+        Phase49To50TrainingService service = new Phase49To50TrainingService(
+                repository, new ObjectMapper(), mock(RedisCacheService.class));
         when(repository.findOrder("order_1")).thenReturn(Optional.of(
                 new Phase49To50TrainingRepository.OrderContext(
                         "order_1", "elder_1", "service_1", "SERVING", "nurse_1")));

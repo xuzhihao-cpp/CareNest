@@ -33,6 +33,7 @@ INSERT INTO role_permission (role_id, permission_id, sort) VALUES
 ('role_customer_service', 'perm_evidence_review', 3702),
 ('role_admin', 'perm_ai_session_review', 4201),
 ('role_customer_service', 'perm_ai_session_review', 4202),
+('role_admin', 'perm_cs_ticket_handle', 4301),
 ('role_customer_service', 'perm_complaint_handle', 4501),
 ('role_admin', 'perm_complaint_handle', 4502),
 ('role_admin', 'perm_nurse_appeal_review', 4601),
@@ -47,6 +48,10 @@ INSERT INTO role_permission (role_id, permission_id, sort) VALUES
 ('role_customer_service', 'perm_dashboard_quality_view', 5302),
 ('role_admin', 'perm_demo_data_manage', 5401),
 ('role_customer_service', 'perm_demo_data_manage', 5402)
+ON DUPLICATE KEY UPDATE sort = VALUES(sort);
+
+INSERT INTO role_permission (role_id, permission_id, sort) VALUES
+('role_nurse', 'perm_nurse_appeal_create', 4600)
 ON DUPLICATE KEY UPDATE sort = VALUES(sort);
 
 INSERT INTO reminder_task (
@@ -334,10 +339,24 @@ INSERT INTO nurse_appeal (
   reviewed_by = VALUES(reviewed_by),
   reviewed_at = VALUES(reviewed_at);
 
+INSERT INTO nurse_score (
+  nurse_id, total_score, service_count, positive_rate, complaint_count,
+  last_service_at, updated_by
+) VALUES (
+  'nurse-001', 88.00, 6, 96.00, 1, '2026-07-20 10:00:00', 'admin-001'
+) ON DUPLICATE KEY UPDATE
+  total_score = VALUES(total_score),
+  service_count = VALUES(service_count),
+  positive_rate = VALUES(positive_rate),
+  complaint_count = VALUES(complaint_count),
+  last_service_at = VALUES(last_service_at),
+  updated_by = VALUES(updated_by);
+
 INSERT INTO nurse_score_change_log (
   change_log_id, nurse_id, source_event_type, source_event_id,
   before_score, after_score, score_delta, reason, changed_by
 ) VALUES
+('score_log_047_nurse_demo', 'nurse-001', 'COMPLAINT', 'complaint_045', 92.00, 88.00, -4.00, '收到服务资料完整性投诉，暂扣护理评分，护理人员可提交申诉复核。', 'admin-001'),
 ('score_log_047_metric', 'nurse-reco-a-029', 'METRIC', 'metric_record_bp', 96.50, 97.00, 0.50, '按要求完成血压测量。', 'admin-001'),
 ('score_log_047_appeal', 'nurse-reco-a-029', 'APPEAL', 'appeal_046_001', 95.00, 97.00, 2.00, '申诉通过，恢复照片缺失扣分。', 'admin-001')
 ON DUPLICATE KEY UPDATE
@@ -353,11 +372,12 @@ INSERT INTO training_article (
   article_id, title, content_summary, content_url, file_id, service_id,
   required_reading, article_status, created_by, published_at
 ) VALUES (
-  'article_049_001', '跌倒风险护理要点', '面向基础上门护理的防跌倒观察、搀扶和记录要求。', NULL,
+  'article_049_001', '跌倒风险护理要点', '面向基础上门护理的防跌倒观察、搀扶和记录要求。', '/training/fall-prevention.html',
   'file_article_049', 'service_001', 1, 'PUBLISHED', 'admin-001', '2026-07-15 11:00:00'
 ) ON DUPLICATE KEY UPDATE
   title = VALUES(title),
   content_summary = VALUES(content_summary),
+  content_url = VALUES(content_url),
   file_id = VALUES(file_id),
   service_id = VALUES(service_id),
   required_reading = VALUES(required_reading),

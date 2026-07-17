@@ -23,6 +23,7 @@ function emptyHealth(): HealthStatusResponse {
     appName: 'carenest-user',
     version: 'unknown',
     dbConnected: false,
+    ready: false,
     serverTime: new Date().toISOString()
   };
 }

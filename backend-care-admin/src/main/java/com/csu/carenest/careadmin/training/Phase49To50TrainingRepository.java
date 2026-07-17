@@ -52,11 +52,26 @@ public class Phase49To50TrainingRepository {
     }
 
     public List<TrainingDtos.ArticleResponse> findArticles() {
-        return jdbcTemplate.query("""
-                SELECT article_id,article_status FROM training_article
+        List<String> articleIds = jdbcTemplate.query("""
+                SELECT article_id FROM training_article
                 ORDER BY created_at,article_id
-                """, (rs, rowNum) -> new TrainingDtos.ArticleResponse(
-                rs.getString("article_id"), rs.getString("article_status")));
+                """, (rs, rowNum) -> rs.getString("article_id"));
+        return articleIds.stream().map(this::findArticleResponse)
+                .flatMap(Optional::stream).toList();
+    }
+
+    public Optional<TrainingDtos.ArticleResponse> findArticleResponse(String articleId) {
+        List<ArticleDetails> rows = jdbcTemplate.query("""
+                SELECT article_id,title,content_summary,content_url,required_reading,article_status
+                FROM training_article WHERE article_id=?
+                """, (rs, rowNum) -> new ArticleDetails(
+                rs.getString("article_id"), rs.getString("title"),
+                rs.getString("content_summary"), rs.getString("content_url"),
+                rs.getBoolean("required_reading"), rs.getString("article_status")), articleId);
+        return rows.stream().findFirst().map(details -> new TrainingDtos.ArticleResponse(
+                details.articleId(), details.title(), value(details.summary()), value(details.contentUrl()),
+                findTags(articleId, false), findServiceIds(articleId), findTags(articleId, true),
+                details.requiredRead(), details.status()));
     }
 
     public void updateArticle(
@@ -66,6 +81,15 @@ public class Phase49To50TrainingRepository {
                     required_reading=?,article_status=? WHERE article_id=?
                 """, request.title().trim(), trim(request.summary()), trim(request.contentUrl()),
                 firstServiceId, request.requiredRead(), request.status(), articleId);
+    }
+
+    public void updateArticleContent(
+            String articleId, TrainingDtos.ArticleRequest request, String firstServiceId) {
+        jdbcTemplate.update("""
+                UPDATE training_article SET title=?,content_summary=?,content_url=?,service_id=?,
+                    required_reading=? WHERE article_id=?
+                """, request.title().trim(), trim(request.summary()), trim(request.contentUrl()),
+                firstServiceId, request.requiredRead(), articleId);
     }
 
     public int updateArticleStatus(String articleId, String status) {
@@ -122,7 +146,8 @@ public class Phase49To50TrainingRepository {
 
     public List<TrainingDtos.ReadResponse> findRecommended(String orderId, String nurseId) {
         return jdbcTemplate.query("""
-                SELECT DISTINCT a.article_id,COALESCE(r.reading_status,'UNREAD') AS reading_status
+                SELECT DISTINCT a.article_id,a.title,a.content_summary,a.content_url,
+                       a.required_reading,COALESCE(r.reading_status,'UNREAD') AS reading_status
                 FROM nursing_order o
                 JOIN training_article a ON a.article_status='PUBLISHED'
                 JOIN article_recommend_rule ar ON ar.article_id=a.article_id AND ar.enabled=1
@@ -131,14 +156,20 @@ public class Phase49To50TrainingRepository {
                 WHERE o.order_id=?
                   AND (NOT EXISTS (
                         SELECT 1 FROM article_tag at
-                        WHERE at.article_id=a.article_id AND at.tag_code LIKE 'RISK:%')
+                        WHERE at.article_id=a.article_id AND
+                          (at.tag_code LIKE 'RISK:%' OR EXISTS (
+                            SELECT 1 FROM risk_tag rt0
+                            WHERE rt0.tag_code=at.tag_code OR rt0.tag_code=at.tag_name)))
                        OR EXISTS (
                         SELECT 1 FROM article_tag at JOIN risk_tag rt
                           ON at.tag_code=CONCAT('RISK:',rt.tag_code)
+                             OR at.tag_name=rt.tag_code OR at.tag_code=rt.tag_code
                         WHERE at.article_id=a.article_id AND rt.elder_id=o.elder_id))
                 ORDER BY a.article_id
                 """, (rs, rowNum) -> new TrainingDtos.ReadResponse(
-                rs.getString("article_id"), rs.getString("reading_status")), nurseId, orderId);
+                rs.getString("article_id"), rs.getString("title"),
+                value(rs.getString("content_summary")), value(rs.getString("content_url")),
+                rs.getBoolean("required_reading"), rs.getString("reading_status")), nurseId, orderId);
     }
 
     public boolean isRecommended(String orderId, String articleId, String nurseId) {
@@ -181,7 +212,37 @@ public class Phase49To50TrainingRepository {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private String value(String value) {
+        return value == null ? "" : value;
+    }
+
+    private List<String> findTags(String articleId, boolean risk) {
+        String riskCondition = """
+                (at.tag_code LIKE 'RISK:%' OR EXISTS (
+                  SELECT 1 FROM risk_tag rt
+                  WHERE rt.tag_code=at.tag_code OR rt.tag_code=at.tag_name))
+                """;
+        return jdbcTemplate.query("""
+                SELECT at.tag_name FROM article_tag at
+                WHERE at.article_id=? AND """ + (risk ? riskCondition : " NOT " + riskCondition) + """
+                ORDER BY at.tag_id
+                """, (rs, rowNum) -> rs.getString("tag_name"), articleId);
+    }
+
+    private List<String> findServiceIds(String articleId) {
+        return jdbcTemplate.query("""
+                SELECT service_id FROM article_recommend_rule
+                WHERE article_id=? AND enabled=1 AND service_id IS NOT NULL
+                ORDER BY sort,rule_id
+                """, (rs, rowNum) -> rs.getString("service_id"), articleId);
+    }
+
     public record ArticleContext(String articleId, String status, boolean requiredReading) {
+    }
+
+    private record ArticleDetails(
+            String articleId, String title, String summary, String contentUrl,
+            boolean requiredRead, String status) {
     }
 
     public record OrderContext(

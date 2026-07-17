@@ -61,7 +61,7 @@ public class Phase47To48ScoreController {
             @RequestHeader("Authorization") String authorization,
             @RequestParam("page") @Min(1) int page,
             @RequestParam("size") @Min(1) @Max(100) int size) {
-        CurrentUser user = authService.requireAnyRole(authorization, RoleCode.NURSE, RoleCode.ADMIN);
+        CurrentUser user = authService.requireRole(authorization, RoleCode.NURSE);
         return ApiResponse.success(scoreService.myScore(user, page, size));
     }
 
@@ -70,7 +70,7 @@ public class Phase47To48ScoreController {
             @RequestHeader("Authorization") String authorization,
             @RequestParam("page") @Min(1) int page,
             @RequestParam("size") @Min(1) @Max(100) int size) {
-        CurrentUser user = authService.requireAnyRole(authorization, RoleCode.NURSE, RoleCode.ADMIN);
+        CurrentUser user = authService.requireRole(authorization, RoleCode.NURSE);
         return ApiResponse.success(scoreService.myScore(user, page, size));
     }
 

@@ -19,8 +19,10 @@ import StageFiftyFourFiftyFiveDeliveryPanel from '@/components/StageFiftyFourFif
 import type { HomeCard } from '@/types/stageFour';
 import type { AuthUser } from '@/types/stageTwo';
 import StageFortyThreeCustomerServicePanel from '@/components/StageFortyThreeCustomerServicePanel.vue';
+import StageFortyFiveToFortyEightAdminPanel from '@/components/StageFortyFiveToFortyEightAdminPanel.vue';
+import StageThirtyFourToFortyAdminPanel from '@/components/StageThirtyFourToFortyAdminPanel.vue';
 
-type AdminView = 'overview' | 'services' | 'orders' | 'reports' | 'medical-files' | 'health-review' | 'qualifications' | 'training' | 'training-articles' | 'follow-ups' | 'dashboard' | 'delivery' | 'customer-service' | 'care-metrics';
+type AdminView = 'overview' | 'services' | 'orders' | 'reports' | 'medical-files' | 'health-review' | 'qualifications' | 'training' | 'training-articles' | 'follow-ups' | 'dashboard' | 'delivery' | 'customer-service' | 'service-supervision' | 'care-metrics';
 const view = ref<AdminView>('overview');
 const user = ref<AuthUser | null>(null);
 const overviewCards = ref<HomeCard[]>([]);
@@ -37,20 +39,28 @@ const canManageFollowUps = computed(() => permissions.value.includes('FOLLOW_UP_
 const canViewBasicDashboard = computed(() => permissions.value.includes('DASHBOARD_BASIC_VIEW'));
 const canViewQualityDashboard = computed(() => permissions.value.includes('DASHBOARD_QUALITY_VIEW'));
 const canManageDemoData = computed(() => permissions.value.includes('DEMO_DATA_MANAGE'));
+const canHandleComplaints = computed(() => permissions.value.includes('COMPLAINT_HANDLE'));
+const canReviewNurseAppeals = computed(() => permissions.value.includes('NURSE_APPEAL_REVIEW'));
+const canManageCareMetrics = computed(() => permissions.value.includes('CARE_METRIC_CONFIG_MANAGE'));
+const canReviewCareEvidence = computed(() => permissions.value.includes('CARE_EVIDENCE_REVIEW'));
 const nav: Array<{ key: AdminView; label: string }> = [
   { key: 'overview', label: '运营概览' }, { key: 'services', label: '服务项目' },
   { key: 'orders', label: '订单调度' }, { key: 'reports', label: '服务报告' },
   { key: 'medical-files', label: '病历审核' }, { key: 'health-review', label: '档案建议' },
   { key: 'qualifications', label: '护理资质' }, { key: 'training', label: '培训资格' },
   { key: 'training-articles', label: '培训文章' }, { key: 'follow-ups', label: '随访管理' },
+  { key: 'care-metrics', label: '护理质控' },
   { key: 'dashboard', label: '数据看板' }, { key: 'delivery', label: '交付检查' }
 ];
+nav.push({ key: 'service-supervision', label: '服务监督' });
  const visibleNav = computed(() => {
   const permissionFilteredNav = nav.filter((item) =>
     (item.key !== 'training-articles' || canManageTrainingArticles.value)
     && (item.key !== 'follow-ups' || canManageFollowUps.value)
     && (item.key !== 'dashboard' || canViewBasicDashboard.value || canViewQualityDashboard.value)
     && (item.key !== 'delivery' || canManageDemoData.value)
+    && (item.key !== 'service-supervision' || canHandleComplaints.value || canReviewNurseAppeals.value)
+    && (item.key !== 'care-metrics' || canManageCareMetrics.value || canReviewCareEvidence.value)
   );
   if (!isCustomerService.value || isAdmin.value) return permissionFilteredNav;
   const customerServiceNav = permissionFilteredNav.filter((item) =>
@@ -63,6 +73,8 @@ const nav: Array<{ key: AdminView; label: string }> = [
     || (item.key === 'follow-ups' && canManageFollowUps.value)
     || (item.key === 'dashboard' && (canViewBasicDashboard.value || canViewQualityDashboard.value))
     || (item.key === 'delivery' && canManageDemoData.value)
+    || (item.key === 'service-supervision' && (canHandleComplaints.value || canReviewNurseAppeals.value))
+    || (item.key === 'care-metrics' && (canManageCareMetrics.value || canReviewCareEvidence.value))
   );
   return canReviewAttentionNotices.value
     ? [{ key: 'orders' as AdminView, label: '服务前审阅' }, ...customerServiceNav]
@@ -150,6 +162,8 @@ onMounted(initialize);
         <StageFifteenServiceReportPanel v-if="view === 'reports' && isAdmin" role-code="ADMIN" :auth-user="user" />
         <StageTwentyOneMedicalReviewPanel v-if="view === 'medical-files'" :role-code="isCustomerService && !isAdmin ? 'CUSTOMER_SERVICE' : 'ADMIN'" :auth-user="user" />
         <StageFortyThreeCustomerServicePanel v-if="view === 'customer-service'" />
+        <StageFortyFiveToFortyEightAdminPanel v-if="view === 'service-supervision' && (canHandleComplaints || canReviewNurseAppeals)" />
+        <StageThirtyFourToFortyAdminPanel v-if="view === 'care-metrics' && (canManageCareMetrics || canReviewCareEvidence)" :permissions="permissions" />
         <StageTwentyThreeReviewTaskList v-if="view === 'health-review'" :role-code="isCustomerService && !isAdmin ? 'CUSTOMER_SERVICE' : 'ADMIN'" :auth-user="user" />
         <StageTwentySevenQualificationReviewWorkbench v-if="view === 'qualifications'" />
         <StageTwentyEightTrainingReviewWorkbench v-if="view === 'training'" />

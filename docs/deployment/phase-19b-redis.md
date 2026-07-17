@@ -43,6 +43,9 @@ mvn -pl backend-care-admin spring-boot:run
 | 护理/管理后端 | `carenest:home:NURSE:{userHash}:v1` | 30 秒 | 当前护理员任务计数 | 派单、接单、任务状态、服务记录、报告变化 | 身份校验后查询 MySQL |
 | 护理/管理后端 | `carenest:home:ADMIN:{userHash}:v1` | 30 秒 | 当前管理员业务计数 | 订单、任务、报告变化 | 角色校验后查询 MySQL |
 | 护理/管理后端 | `carenest:home:CUSTOMER_SERVICE:{userHash}:v1` | 30 秒 | 当前客服业务计数 | 订单、任务、报告变化 | 角色校验后查询 MySQL |
+| 护理/管理后端 | `carenest:training:recommendation:{requestHash}:v1` | 10 分钟 | 已校验订单护理员后的培训文章推荐读模型 | 文章创建、编辑、发布、下线或阅读状态变化 | 校验订单归属后查询 MySQL |
+| 护理/管理后端 | `carenest:dashboard:basic:{dateFrom}:{dateTo}:v1` | 30 秒 | 基础运营统计 | 随访及相关业务变化；TTL 兜底 | 校验管理权限后查询 MySQL |
+| 护理/管理后端 | `carenest:dashboard:quality:{dateFrom}:{dateTo}:v1` | 30 秒 | 质量统计 | 质量业务变化；TTL 兜底 | 校验管理权限后查询 MySQL |
 
 `userHash` 为用户 ID 的 SHA-256 十六进制结果，key 中不出现原始用户 ID。同一事务涉及多个首页时，key 会去重并在提交后一次批量删除；回滚不删除缓存。
 

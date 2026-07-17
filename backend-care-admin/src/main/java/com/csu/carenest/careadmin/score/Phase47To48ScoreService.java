@@ -57,7 +57,7 @@ public class Phase47To48ScoreService {
     @Transactional(readOnly = true)
     public ScoreDtos.MyScoreResponse myScore(CurrentUser user, int page, int size) {
         String nurseId = user.userId();
-        if (!user.hasRole(RoleCode.NURSE) && !user.hasRole(RoleCode.ADMIN)) {
+        if (!user.hasRole(RoleCode.NURSE)) {
             throw new ForbiddenException();
         }
         BigDecimal score = repository.currentScore(nurseId).orElseThrow(NotFoundException::new);

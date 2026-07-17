@@ -52,7 +52,7 @@ onMounted(load);
       <section><view class="section-head"><h3>标准演示场景</h3><text :class="demo?.ready ? 'good' : 'warn'">{{ demo?.ready ? '已就绪' : '未就绪' }}</text></view><dl><div><dt>可用演示账号</dt><dd>{{ demo?.accounts.length ?? 0 }} 个</dd></div><div><dt>标准业务场景</dt><dd>{{ demo?.scenarioCount ?? 0 }} 组</dd></div><div><dt>最近恢复时间</dt><dd>{{ formatTime(demo?.lastResetAt || '') }}</dd></div></dl></section>
       <section><view class="section-head"><h3>平台运行状态</h3><text :class="health?.ready ? 'good' : 'warn'">{{ health?.ready ? '运行正常' : '服务异常' }}</text></view><dl><div><dt>应用服务</dt><dd>{{ health?.status === 'UP' ? '正常' : '异常' }}</dd></div><div><dt>数据服务</dt><dd>{{ health?.databaseConnected ? '连接正常' : '连接异常' }}</dd></div><div><dt>检查时间</dt><dd>{{ formatTime(health?.serverTime || '') }}</dd></div></dl></section>
     </view>
-    <section class="reset-area"><view><h3>恢复标准演示数据</h3><p>该操作会清理演示过程中产生的数据，并重新载入标准账号和业务场景。</p></view><label class="confirm-row"><checkbox :checked="confirmReset" @click="confirmReset = !confirmReset" /><text>我已了解该操作会覆盖当前演示数据</text></label><button type="button" class="danger" :disabled="!confirmReset || resetting" @click="executeReset">{{ resetting ? '正在恢复...' : '恢复标准演示数据' }}</button></section>
+    <section class="reset-area"><view><h3>恢复标准演示基线</h3><p>该操作会重新载入标准账号与业务场景，不删除其他业务记录。</p></view><label class="confirm-row"><checkbox :checked="confirmReset" @click="confirmReset = !confirmReset" /><text>我已了解该操作会恢复标准演示基线</text></label><button type="button" class="danger" :disabled="!confirmReset || resetting" @click="executeReset">{{ resetting ? '正在恢复...' : '恢复标准演示基线' }}</button></section>
   </view>
 </template>
 

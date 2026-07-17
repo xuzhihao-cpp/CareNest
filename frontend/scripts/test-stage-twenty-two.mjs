@@ -235,8 +235,8 @@ test('separates same-origin protected media from trusted signed media without le
 test('provides a real emergency view with family, platform and 120 actions', async () => {
   const elderApp = await fs.readFile(path.join(frontendRoot, 'src/apps/elder/ElderApp.vue'), 'utf8');
   const assistancePanel = await fs.readFile(path.join(frontendRoot, 'src/components/EmergencyAssistancePanel.vue'), 'utf8');
-  assert.match(elderApp, /view === 'emergency'/);
-  assert.match(elderApp, /activeTab='assistance'/);
+  assert.match(elderApp, /requested === 'emergency'/);
+  assert.match(elderApp, /homeView\.value = 'assistance'/);
   assert.match(assistancePanel, /makePhoneCall/);
   assert.match(assistancePanel, /VITE_PLATFORM_ASSISTANCE_PHONE/);
   assert.match(assistancePanel, /拨打 120/);

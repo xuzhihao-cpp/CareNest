@@ -10,6 +10,7 @@ const loading = ref(false);
 const error = ref('');
 const workingId = ref('');
 const openedAt = new Map<string, number>();
+const openedIds = ref<string[]>([]);
 let controller: AbortController | null = null;
 let sequence = 0;
 const requiredPending = computed(() => records.value.filter((item) => item.requiredRead && item.readStatus === 'UNREAD'));
@@ -37,6 +38,7 @@ async function load() {
 
 function openArticle(article: RecommendedTrainingArticle) {
   openedAt.set(article.articleId, Date.now());
+  if (!openedIds.value.includes(article.articleId)) openedIds.value = [...openedIds.value, article.articleId];
   if (!article.contentUrl) return;
   try {
     const target = new URL(article.contentUrl, window.location.origin);
@@ -49,6 +51,10 @@ function openArticle(article: RecommendedTrainingArticle) {
 
 async function markRead(article: RecommendedTrainingArticle) {
   if (workingId.value || article.readStatus !== 'UNREAD') return;
+  if (article.requiredRead && (!article.contentUrl || !openedIds.value.includes(article.articleId))) {
+    error.value = article.contentUrl ? '请先打开并阅读这份必读资料。' : '必读资料暂时无法打开，请联系平台维护人员。';
+    return;
+  }
   workingId.value = article.articleId;
   error.value = '';
   const seconds = Math.max(1, Math.min(86400, Math.round((Date.now() - (openedAt.get(article.articleId) ?? Date.now())) / 1000)));
@@ -74,7 +80,7 @@ onBeforeUnmount(() => { sequence += 1; controller?.abort(); });
     <view v-else class="article-list">
       <article v-for="article in records" :key="article.articleId" class="article-card">
         <view class="article-head"><view><strong>{{ article.title }}</strong><text v-if="article.summary">{{ article.summary }}</text></view><view class="chips"><text v-if="article.requiredRead" class="required">必读</text><text class="read-status" :class="article.readStatus.toLowerCase()">{{ readLabel(article.readStatus) }}</text></view></view>
-        <view class="actions"><button v-if="article.contentUrl" type="button" class="secondary" @click="openArticle(article)">打开文章</button><button v-if="article.readStatus === 'UNREAD'" type="button" class="primary" :disabled="workingId === article.articleId" @click="markRead(article)">{{ workingId === article.articleId ? '保存中...' : '确认已阅读' }}</button></view>
+        <view class="actions"><button v-if="article.contentUrl" type="button" class="secondary" @click="openArticle(article)">打开文章</button><button v-if="article.readStatus === 'UNREAD'" type="button" class="primary" :disabled="workingId === article.articleId || (article.requiredRead && (!article.contentUrl || !openedIds.includes(article.articleId)))" @click="markRead(article)">{{ workingId === article.articleId ? '保存中...' : '确认已阅读' }}</button></view>
       </article>
     </view>
   </view>

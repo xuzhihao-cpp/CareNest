@@ -5,15 +5,21 @@ import com.csu.carenest.careadmin.auth.RoleCode;
 import com.csu.carenest.careadmin.common.BusinessRuleException;
 import com.csu.carenest.careadmin.common.ForbiddenException;
 import com.csu.carenest.careadmin.common.NotFoundException;
+import com.csu.carenest.careadmin.redis.RedisCacheService;
+import com.csu.carenest.careadmin.redis.RedisKeyFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,14 +37,17 @@ public class Phase51To55DeliveryService {
     private final Phase51To55DeliveryRepository repository;
     private final DemoDataSeedExecutor seedExecutor;
     private final ObjectMapper objectMapper;
+    private final RedisCacheService cacheService;
 
     public Phase51To55DeliveryService(
             Phase51To55DeliveryRepository repository,
             DemoDataSeedExecutor seedExecutor,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            RedisCacheService cacheService) {
         this.repository = repository;
         this.seedExecutor = seedExecutor;
         this.objectMapper = objectMapper;
+        this.cacheService = cacheService;
     }
 
     @Transactional
@@ -73,7 +82,26 @@ public class Phase51To55DeliveryService {
         }
         log(user, "CREATE_FOLLOW_UP", "FOLLOW_UP", followUpId,
                 Map.of("needReminder", request.needReminder()));
+        evictAfterCommit(RedisKeyFactory.basicDashboardPrefix());
         return new DeliveryDtos.FollowUpResponse(followUpId, reminderId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeliveryDtos.FollowUpRecordResponse> familyFollowUps(
+            CurrentUser user, String elderId) {
+        if (!user.hasRole(RoleCode.FAMILY)) {
+            throw new ForbiddenException();
+        }
+        String scopes = repository.findActiveBindingScopes(user.userId(), elderId)
+                .orElseThrow(ForbiddenException::new);
+        try {
+            if (!List.of(objectMapper.readValue(scopes, String[].class)).contains("HEALTH_VIEW")) {
+                throw new ForbiddenException();
+            }
+        } catch (JsonProcessingException exception) {
+            throw new ForbiddenException();
+        }
+        return repository.findFollowUps(elderId);
     }
 
     @Transactional(readOnly = true)
@@ -81,7 +109,14 @@ public class Phase51To55DeliveryService {
             CurrentUser user, LocalDate dateFrom, LocalDate dateTo) {
         requirePermission(user, BASIC_PERMISSION);
         DateRange range = requireRange(dateFrom, dateTo);
-        return repository.basicStatistics(range.from(), range.toExclusive());
+        String cacheKey = RedisKeyFactory.basicDashboardKey(dateFrom.toString(), dateTo.toString());
+        return cacheService.get(cacheKey, DeliveryDtos.BasicStatisticsResponse.class)
+                .orElseGet(() -> {
+                    DeliveryDtos.BasicStatisticsResponse response =
+                            repository.basicStatistics(range.from(), range.toExclusive());
+                    cacheService.put(cacheKey, response, Duration.ofSeconds(30));
+                    return response;
+                });
     }
 
     @Transactional(readOnly = true)
@@ -89,13 +124,23 @@ public class Phase51To55DeliveryService {
             CurrentUser user, LocalDate dateFrom, LocalDate dateTo) {
         requirePermission(user, QUALITY_PERMISSION);
         DateRange range = requireRange(dateFrom, dateTo);
-        return repository.qualityStatistics(range.from(), range.toExclusive());
+        String cacheKey = RedisKeyFactory.qualityDashboardKey(dateFrom.toString(), dateTo.toString());
+        return cacheService.get(cacheKey, DeliveryDtos.QualityStatisticsResponse.class)
+                .orElseGet(() -> {
+                    DeliveryDtos.QualityStatisticsResponse response =
+                            repository.qualityStatistics(range.from(), range.toExclusive());
+                    cacheService.put(cacheKey, response, Duration.ofSeconds(30));
+                    return response;
+                });
     }
 
     public DeliveryDtos.DemoDataStatusResponse resetDemoData(CurrentUser user) {
         requirePermission(user, DEMO_PERMISSION);
         seedExecutor.reset();
         log(user, "RESET_DEMO_DATA", "DEMO_DATA", "phase-54", Map.of("reset", true));
+        cacheService.evictByPrefix(RedisKeyFactory.trainingRecommendationPrefix());
+        cacheService.evictByPrefix(RedisKeyFactory.basicDashboardPrefix());
+        cacheService.evictByPrefix(RedisKeyFactory.qualityDashboardPrefix());
         return repository.demoStatus();
     }
 
@@ -125,6 +170,20 @@ public class Phase51To55DeliveryService {
         repository.insertOperationLog(
                 nextId("op"), user.userId(), user.primaryRole(), operation, bizType, bizId,
                 null, json(after), nextId("trace"));
+    }
+
+    private void evictAfterCommit(String prefix) {
+        Runnable evict = () -> cacheService.evictByPrefix(prefix);
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            evict.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                evict.run();
+            }
+        });
     }
 
     private String json(Object value) {

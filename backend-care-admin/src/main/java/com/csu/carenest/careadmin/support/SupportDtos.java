@@ -23,7 +23,14 @@ public final class SupportDtos {
             @NotBlank @Size(max = 128) String result) {
     }
 
-    public record FollowUpResponse(String followUpId, String ticketStatus) {
+    public record FollowUpResponse(
+            String followUpId,
+            String ticketStatus,
+            String method,
+            String content,
+            LocalDateTime nextFollowUpAt,
+            String result,
+            LocalDateTime createdAt) {
     }
 
     public record ReviewComplaintRequest(
@@ -37,7 +44,17 @@ public final class SupportDtos {
     public record ReviewComplaintResponse(
             String reviewId,
             String complaintId,
-            String status) {
+            String orderId,
+            String serviceName,
+            String complainantName,
+            String status,
+            Integer rating,
+            List<String> tags,
+            String reasonType,
+            String content,
+            List<String> fileIds,
+            String handleResult,
+            LocalDateTime createdAt) {
     }
 
     public record AppealRequest(
@@ -49,7 +66,16 @@ public final class SupportDtos {
 
     public record AppealResponse(
             String appealId,
+            String nurseId,
+            String nurseName,
+            String targetType,
+            String targetId,
+            String targetLabel,
+            String reason,
+            List<String> fileIds,
             String status,
-            BigDecimal scoreAdjustment) {
+            BigDecimal scoreAdjustment,
+            String reviewComment,
+            LocalDateTime createdAt) {
     }
 }

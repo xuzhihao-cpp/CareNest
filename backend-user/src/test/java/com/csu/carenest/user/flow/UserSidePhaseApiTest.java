@@ -343,6 +343,7 @@ class UserSidePhaseApiTest {
                 .andExpect(jsonPath("$.data.appName").value("CareNest"))
                 .andExpect(jsonPath("$.data.version").value("0.1.0"))
                 .andExpect(jsonPath("$.data.dbConnected").value(true))
+                .andExpect(jsonPath("$.data.ready").value(true))
                 .andExpect(jsonPath("$.data.serverTime").isNotEmpty());
 
         mockMvc.perform(get("/api/v1/admin/demo-data/status")

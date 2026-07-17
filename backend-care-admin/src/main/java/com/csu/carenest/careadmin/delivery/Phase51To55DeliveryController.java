@@ -12,13 +12,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /** 阶段51-55成员3管理端随访、看板和演示数据接口。 */
 @RestController
-@RequestMapping("/api/v1/admin")
+@RequestMapping("/api/v1")
 public class Phase51To55DeliveryController {
 
     private final AuthService authService;
@@ -29,14 +31,22 @@ public class Phase51To55DeliveryController {
         this.deliveryService = deliveryService;
     }
 
-    @PostMapping("/follow-ups")
+    @PostMapping("/admin/follow-ups")
     public ApiResponse<DeliveryDtos.FollowUpResponse> createFollowUp(
             @RequestHeader("Authorization") String authorization,
             @Valid @RequestBody DeliveryDtos.FollowUpRequest request) {
         return ApiResponse.success(deliveryService.createFollowUp(adminUser(authorization), request));
     }
 
-    @GetMapping("/dashboard/basic-statistics")
+    @GetMapping("/elders/{elderId}/follow-ups")
+    public ApiResponse<List<DeliveryDtos.FollowUpRecordResponse>> familyFollowUps(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable("elderId") String elderId) {
+        return ApiResponse.success(deliveryService.familyFollowUps(
+                authService.requireRole(authorization, RoleCode.FAMILY), elderId));
+    }
+
+    @GetMapping("/admin/dashboard/basic-statistics")
     public ApiResponse<DeliveryDtos.BasicStatisticsResponse> basicStatistics(
             @RequestHeader("Authorization") String authorization,
             @RequestParam("dateFrom") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
@@ -45,7 +55,7 @@ public class Phase51To55DeliveryController {
                 adminUser(authorization), dateFrom, dateTo));
     }
 
-    @GetMapping("/dashboard/quality-statistics")
+    @GetMapping("/admin/dashboard/quality-statistics")
     public ApiResponse<DeliveryDtos.QualityStatisticsResponse> qualityStatistics(
             @RequestHeader("Authorization") String authorization,
             @RequestParam("dateFrom") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
@@ -54,7 +64,7 @@ public class Phase51To55DeliveryController {
                 adminUser(authorization), dateFrom, dateTo));
     }
 
-    @PostMapping("/demo-data/reset")
+    @PostMapping("/admin/demo-data/reset")
     public ApiResponse<DeliveryDtos.DemoDataStatusResponse> resetDemoData(
             @RequestHeader("Authorization") String authorization) {
         return ApiResponse.success(deliveryService.resetDemoData(adminUser(authorization)));

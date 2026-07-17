@@ -27,6 +27,18 @@ public final class DeliveryDtos {
     public record FollowUpResponse(String followUpId, String createdReminderTaskId) {
     }
 
+    public record FollowUpRecordResponse(
+            String followUpId,
+            String elderId,
+            String orderId,
+            String followUpType,
+            String content,
+            LocalDateTime nextFollowUpAt,
+            boolean needReminder,
+            String createdReminderTaskId,
+            LocalDateTime createdAt) {
+    }
+
     public record TrendPoint(String date, BigDecimal value) {
     }
 

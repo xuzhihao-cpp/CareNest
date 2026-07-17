@@ -202,7 +202,8 @@ test('wires independent nurse and admin entries without mock fallback or interna
   assert.match(nurseApp, /建议更新健康档案/);
   assert.match(adminApp, /health-review/);
   assert.match(adminApp, /档案建议/);
-  assert.match(adminApp, /item\.key === 'medical-files' \|\| item\.key === 'health-review'/);
+  assert.match(adminApp, /item\.key === 'medical-files'/);
+  assert.match(adminApp, /item\.key === 'health-review'/);
   assert.doesNotMatch(adminApp, /view === 'health-review' && isAdmin/);
   assert.doesNotMatch(stageApi, /mock/i);
   assert.doesNotMatch(nursePanel, /v-model="[^\"]*(orderId|sourceId|fieldName)/);

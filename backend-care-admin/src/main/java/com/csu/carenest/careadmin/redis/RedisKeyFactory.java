@@ -37,6 +37,30 @@ public final class RedisKeyFactory {
         return "recommend:nurses:";
     }
 
+    public static String trainingRecommendationKey(String orderId, String nurseId) {
+        return trainingRecommendationPrefix() + userHash(orderId + ":" + nurseId) + ":v1";
+    }
+
+    public static String trainingRecommendationPrefix() {
+        return "carenest:training:recommendation:";
+    }
+
+    public static String basicDashboardKey(String from, String to) {
+        return basicDashboardPrefix() + from + ":" + to + ":v1";
+    }
+
+    public static String basicDashboardPrefix() {
+        return "carenest:dashboard:basic:";
+    }
+
+    public static String qualityDashboardKey(String from, String to) {
+        return qualityDashboardPrefix() + from + ":" + to + ":v1";
+    }
+
+    public static String qualityDashboardPrefix() {
+        return "carenest:dashboard:quality:";
+    }
+
     public static String userHash(String userId) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(userId.getBytes(StandardCharsets.UTF_8));

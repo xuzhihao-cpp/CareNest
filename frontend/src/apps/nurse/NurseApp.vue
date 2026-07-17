@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import {
+  ClipboardCheck,
+  FilePenLine,
+  GraduationCap,
+  LogOut,
+  RefreshCw,
+  ShieldCheck,
+  Star,
+  UserRound
+} from '@lucide/vue';
 import { getCurrentUser, logout } from '@/api/stageTwo';
 import { generateServiceReport } from '@/api/stageFifteen';
 import { createServiceRecord, getOrderServiceRecords } from '@/api/stageFourteen';
 import { getNurseTasks } from '@/api/stageThirteen';
 import { acceptNurseTask, updateNurseTaskStatus } from '@/api/stageTwelve';
 import StageTwentyThreeSuggestionPanel from '@/components/StageTwentyThreeSuggestionPanel.vue';
+import StageFortySixToFortyEightNurseScorePanel from '@/components/StageFortySixToFortyEightNurseScorePanel.vue';
 import StageTwentyFivePreServiceSummary from '@/components/StageTwentyFivePreServiceSummary.vue';
 import StageTwentySixQualificationPanel from '@/components/StageTwentySixQualificationPanel.vue';
 import StageFiftyRecommendedArticles from '@/components/StageFiftyRecommendedArticles.vue';
@@ -24,7 +35,9 @@ const recentRecordId = ref('');
 const selectedTaskId = ref('');
 const summaryTaskId = ref('');
 const attentionRefreshKey = ref(0);
-const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'quality' | 'qualification' | 'health-summary' | 'articles'>('tasks');
+type NursePrimaryView = 'tasks' | 'records' | 'learning' | 'account';
+const primaryView = ref<NursePrimaryView>('tasks');
+const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'quality' | 'qualification' | 'health-summary' | 'articles' | 'score'>('tasks');
 const articleTaskId = ref('');
 const isEditingRecord = ref(false);
 const suggestionOrderId = ref('');
@@ -65,6 +78,12 @@ const completedTasks = computed(() => tasks.value.filter((task) => task.orderSta
 const canceledTasks = computed(() => tasks.value.filter((task) => task.orderStatus === 'CANCELED'));
 const completedCount = computed(() => completedTasks.value.length);
 const recordableTask = computed(() => pendingRecordTasks.value.find((task) => task.taskId === selectedTaskId.value) ?? null);
+const pageTitle = computed(() => ({
+  tasks: '我的任务',
+  records: '服务记录',
+  learning: '学习资料',
+  account: '我的'
+}[primaryView.value]));
 
 type RecordTimeField = 'startTime' | 'endTime';
 
@@ -155,6 +174,7 @@ async function loadTasks() {
   tasks.value = taskResponse.data.records;
   if (summaryTaskId.value && !tasks.value.some((task) => task.taskId === summaryTaskId.value)) {
     summaryTaskId.value = '';
+    primaryView.value = 'tasks';
     activeTab.value = 'tasks';
   }
   if (!selectedTaskId.value || !tasks.value.some((task) => task.taskId === selectedTaskId.value)) {
@@ -174,8 +194,10 @@ async function loadServiceRecords() {
 
 function openRecords() {
   summaryTaskId.value = '';
+  primaryView.value = 'records';
   activeTab.value = 'records';
   isEditingRecord.value = false;
+  scrollTop();
 }
 
 function openRecordEditor(task = pendingRecordTasks.value[0]) {
@@ -187,31 +209,39 @@ function openRecordEditor(task = pendingRecordTasks.value[0]) {
   summaryTaskId.value = '';
   resetRecordForm(task);
   error.value = '';
+  primaryView.value = 'records';
   activeTab.value = 'records';
   isEditingRecord.value = true;
+  scrollTop();
 }
 
 function openRecordsForTask(task: NurseTaskDetailRecord) {
   selectedTaskId.value = task.taskId;
   summaryTaskId.value = '';
+  primaryView.value = 'records';
   activeTab.value = 'records';
   isEditingRecord.value = false;
+  scrollTop();
 }
 
 function openSuggestions(task?: NurseTaskDetailRecord) {
   summaryTaskId.value = '';
   suggestionOrderId.value = task?.orderId ?? selectedTask.value?.orderId ?? suggestionOrderId.value;
+  primaryView.value = 'records';
   activeTab.value = 'suggestions';
   isEditingRecord.value = false;
   error.value = '';
+  scrollTop();
 }
 
 function openQuality(task?: NurseTaskDetailRecord) {
   if (task) selectedTaskId.value = task.taskId;
   summaryTaskId.value = '';
+  primaryView.value = 'tasks';
   activeTab.value = 'quality';
   isEditingRecord.value = false;
   error.value = '';
+  scrollTop();
 }
 
 function openHealthSummary(task: NurseTaskDetailRecord) {
@@ -224,19 +254,49 @@ function openHealthSummary(task: NurseTaskDetailRecord) {
   error.value = '';
   notice.value = '';
   isEditingRecord.value = false;
+  primaryView.value = 'tasks';
   activeTab.value = 'health-summary';
+  scrollTop();
 }
 
 function openArticles(task: NurseTaskDetailRecord) {
   selectedTaskId.value = task.taskId;
   articleTaskId.value = task.taskId;
+  primaryView.value = 'learning';
   activeTab.value = 'articles';
   error.value = '';
+  scrollTop();
 }
 
 function closeHealthSummary() {
   summaryTaskId.value = '';
+  primaryView.value = 'tasks';
   activeTab.value = 'tasks';
+  scrollTop();
+}
+
+function scrollTop() {
+  uni.pageScrollTo({ scrollTop: 0, duration: 160 });
+}
+
+function selectPrimary(next: NursePrimaryView) {
+  primaryView.value = next;
+  summaryTaskId.value = '';
+  isEditingRecord.value = false;
+  if (next === 'tasks') activeTab.value = 'tasks';
+  if (next === 'records') activeTab.value = 'records';
+  if (next === 'learning') {
+    activeTab.value = 'articles';
+    articleTaskId.value = selectedTask.value?.taskId ?? '';
+  }
+  if (next === 'account' && !['qualification', 'score'].includes(activeTab.value)) activeTab.value = 'qualification';
+  scrollTop();
+}
+
+function openAccount(tab: 'qualification' | 'score') {
+  primaryView.value = 'account';
+  activeTab.value = tab;
+  scrollTop();
 }
 
 async function generateReportForTask(task: NurseTaskDetailRecord) {
@@ -368,32 +428,41 @@ onMounted(loadTasks);
 
 <template>
   <view class="nurse-app">
-    <view class="nurse-header">
+    <header class="shell-header">
       <view>
-        <text class="header-kicker">护理工作台</text>
-        <text class="header-title">{{ user?.displayName || '护理工作台' }}</text>
-        <text class="header-date">{{ new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }) }}</text>
+        <text class="shell-brand">CareNest</text>
+        <text class="shell-title">{{ pageTitle }}</text>
       </view>
-      <button v-if="activeTab !== 'health-summary' && activeTab !== 'qualification'" class="refresh-button" type="button" :disabled="loading" @click="loadTasks">刷新</button>
-    </view>
+      <view class="shell-identity" aria-label="当前用户">
+        <UserRound :size="18" :stroke-width="2" aria-hidden="true" />
+        <text>{{ user?.displayName || '护理人员' }}</text>
+      </view>
+    </header>
 
-    <view v-if="activeTab !== 'health-summary' && activeTab !== 'qualification'" class="summary-strip">
-      <view class="summary-item"><text>{{ activeServiceTasks.length }}</text><text>服务中</text></view>
-      <view class="summary-item"><text>{{ pendingRecordTasks.length }}</text><text>待填写</text></view>
-      <view class="summary-item"><text>{{ completedCount }}</text><text>已完成</text></view>
-    </view>
+    <main class="shell-main">
+      <section v-if="primaryView === 'tasks' && activeTab === 'tasks'" class="work-overview">
+        <view class="overview-heading">
+          <view><text class="overview-kicker">护理工作台</text><text class="overview-date">{{ new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }) }}</text></view>
+          <button class="refresh-icon" type="button" :disabled="loading" aria-label="刷新任务" title="刷新任务" @click="loadTasks"><RefreshCw :size="20" aria-hidden="true" /></button>
+        </view>
+        <view class="summary-strip">
+          <view class="summary-item"><text>{{ activeServiceTasks.length }}</text><text>进行中</text></view>
+          <view class="summary-item"><text>{{ pendingRecordTasks.length }}</text><text>待填写</text></view>
+          <view class="summary-item"><text>{{ completedCount }}</text><text>已完成</text></view>
+        </view>
+      </section>
 
-    <view v-if="notice" class="notice success">{{ notice }}</view>
-    <view v-if="error" class="notice error">{{ error }}</view>
+      <view v-if="notice" class="notice success">{{ notice }}</view>
+      <view v-if="error" class="notice error">{{ error }}</view>
 
-    <view v-if="activeTab !== 'health-summary'" class="tabbar">
-      <button :class="{ active: activeTab === 'tasks' }" type="button" @click="activeTab = 'tasks'">我的任务</button>
-      <button :class="{ active: activeTab === 'records' }" type="button" @click="openRecords">服务记录</button>
-      <button :class="{ active: activeTab === 'suggestions' }" type="button" @click="openSuggestions()">档案建议</button>
-      <button :class="{ active: activeTab === 'quality' }" type="button" @click="openQuality()">质量留证</button>
-      <button :class="{ active: activeTab === 'qualification' }" type="button" @click="activeTab = 'qualification'">准入资格</button>
-      <button :class="{ active: activeTab === 'articles' }" type="button" @click="selectedTask && openArticles(selectedTask)">学习资料</button>
-    </view>
+      <nav v-if="primaryView === 'records'" class="section-nav" aria-label="记录功能">
+        <button :class="{ active: activeTab === 'records' }" type="button" @click="openRecords"><FilePenLine :size="19" aria-hidden="true" />服务记录</button>
+        <button :class="{ active: activeTab === 'suggestions' }" type="button" @click="openSuggestions()"><ClipboardCheck :size="19" aria-hidden="true" />档案建议</button>
+      </nav>
+      <nav v-if="primaryView === 'account'" class="section-nav" aria-label="我的功能">
+        <button :class="{ active: activeTab === 'qualification' }" type="button" @click="openAccount('qualification')"><ShieldCheck :size="19" aria-hidden="true" />准入资格</button>
+        <button :class="{ active: activeTab === 'score' }" type="button" @click="openAccount('score')"><Star :size="19" aria-hidden="true" />护理评分</button>
+      </nav>
 
     <view v-if="activeTab === 'tasks'" class="task-board">
       <view v-for="group in activeTaskGroups" :key="group.status" class="task-section">
@@ -482,8 +551,9 @@ onMounted(loadTasks);
       v-else-if="activeTab === 'articles' && tasks.find((item) => item.taskId === articleTaskId)"
       :order-id="tasks.find((item) => item.taskId === articleTaskId)!.orderId"
       :service-name="tasks.find((item) => item.taskId === articleTaskId)!.serviceName"
-      @close="activeTab = 'tasks'"
+      @close="selectPrimary('tasks')"
     />
+    <view v-else-if="activeTab === 'articles'" class="record-empty learning-empty">当前没有可关联的服务任务，接到任务后即可查看对应学习资料。</view>
 
     <view v-else-if="activeTab === 'records' && isEditingRecord && recordableTask" class="record-panel">
       <view class="record-editor-heading"><view><text>填写服务记录</text><text>{{ recordableTask.serviceName || '上门护理服务' }} · {{ taskTime(recordableTask.scheduledStart) }}</text></view><button class="text-action" type="button" @click="openRecords">返回记录列表</button></view>
@@ -528,7 +598,17 @@ onMounted(loadTasks);
       @submitted="notice = '健康档案建议已提交管理端审核，正式档案暂未修改。'"
     />
 
-    <view class="nurse-footer"><button class="logout-button" type="button" @click="signOut">退出登录</button></view>
+    <StageFortySixToFortyEightNurseScorePanel v-else-if="activeTab === 'score'" />
+
+      <view v-if="primaryView === 'account'" class="nurse-footer"><button class="logout-button" type="button" @click="signOut"><LogOut :size="20" aria-hidden="true" />退出登录</button></view>
+    </main>
+
+    <nav class="bottom-nav" aria-label="主要导航">
+      <button type="button" :class="{ active: primaryView === 'tasks' }" @click="selectPrimary('tasks')"><ClipboardCheck :size="24" aria-hidden="true" /><text>任务</text></button>
+      <button type="button" :class="{ active: primaryView === 'records' }" @click="selectPrimary('records')"><FilePenLine :size="24" aria-hidden="true" /><text>记录</text></button>
+      <button type="button" :class="{ active: primaryView === 'learning' }" @click="selectPrimary('learning')"><GraduationCap :size="24" aria-hidden="true" /><text>学习</text></button>
+      <button type="button" :class="{ active: primaryView === 'account' }" @click="selectPrimary('account')"><UserRound :size="24" aria-hidden="true" /><text>我的</text></button>
+    </nav>
   </view>
 </template>
 
@@ -555,6 +635,9 @@ onMounted(loadTasks);
 .record-form { display: block; }
 .record-section { display: grid; gap: 12rpx; margin-bottom: 24rpx; }.record-history-heading, .saved-record { display: grid; gap: 10rpx; }.record-history-heading { grid-template-columns: 1fr auto; align-items: center; margin-bottom: 4rpx; font-size: 28rpx; font-weight: 700; }.record-history-heading text:last-child { color: #70817f; font-size: 23rpx; font-weight: 400; }.saved-record { margin: 0; padding: 18rpx; border: 1rpx solid #dce8e5; border-radius: 8rpx; color: #5c706d; font-size: 24rpx; }.saved-record-heading { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }.saved-record-title { color: #1b3632; font-size: 27rpx; font-weight: 700; }.recent-chip { flex: 0 0 auto; padding: 4rpx 12rpx; border-radius: 999rpx; background: #eef5f4; color: #52716c; font-size: 21rpx; }.pending-record-row { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 18rpx; border: 1rpx solid #dce8e5; border-radius: 8rpx; }.pending-record-row > view { display: grid; gap: 8rpx; min-width: 0; }.pending-record-row text:first-child { color: #1b3632; font-size: 27rpx; font-weight: 700; }.pending-record-row text:last-child { color: #70817f; font-size: 23rpx; }.pending-record-row .primary-action { flex:0 0 auto; min-height:88rpx; height:88rpx; padding:0 22rpx; font-size:24rpx; line-height:1.2; }.record-empty { margin: 0; padding: 18rpx; border-radius: 8rpx; background: #f1f6f5; color: #70817f; font-size: 24rpx; }
 .record-editor-heading, .record-entry-callout { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-bottom: 22rpx; }.record-editor-heading > view, .record-entry-callout > view { display: grid; gap: 8rpx; }.record-editor-heading text:first-child, .record-entry-callout text:first-child { color: #1b3632; font-size: 30rpx; font-weight: 700; }.record-editor-heading text:last-child, .record-entry-callout text:last-child { color: #70817f; font-size: 23rpx; }.record-entry-callout { padding: 18rpx; border: 1rpx solid #b8d9d4; border-radius: 8rpx; background: #f1faf7; }.text-action { width: auto; margin: 0; padding: 0; border: 0; background: transparent; color: #0f766e; font-size: 24rpx; }
-.suggestion-entry { width:100%; min-height:88rpx; height:88rpx; margin-top:16rpx; padding:0 22rpx; line-height:1.2; }.suggestion-record-entry { margin-top:4rpx; padding-top:12rpx; border-top:1rpx solid #e7eeec; text-align:left; }
+.suggestion-entry { width:100%; min-height:88rpx; height:88rpx; margin-top:16rpx; padding:0 22rpx; line-height:1.2; }.suggestion-record-entry { display:flex; align-items:center; min-height:40px; margin-top:4rpx; padding:8px 0 0; border-top:1rpx solid #e7eeec; text-align:left; }
 @media (min-width: 768px) { .nurse-app { width: 440px; margin: 0 auto; box-shadow: 0 0 0 1px #dde7e5, 0 16px 48px rgba(15, 49, 44, .1); } }
+
+/* Mobile product shell shared with the elder and family experiences. */
+.nurse-app{min-height:100vh;padding:0 0 calc(78px + env(safe-area-inset-bottom));background:#f4f6f3;color:#1f3029;overflow-x:hidden}.shell-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:17px 20px 14px;background:rgba(255,255,255,.96);border-bottom:1px solid #e4e9e5;backdrop-filter:blur(14px)}.shell-brand,.shell-title{display:block;letter-spacing:0}.shell-brand{color:#2c7461;font-size:12px;font-weight:800}.shell-title{margin-top:3px;font-size:24px;font-weight:750}.shell-identity{display:flex;align-items:center;gap:7px;max-width:46%;color:#506159;font-size:13px}.shell-identity text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.shell-main{min-height:calc(100vh - 150px);padding:18px 16px 28px}.work-overview{padding:6px 0 18px}.overview-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.overview-kicker,.overview-date{display:block}.overview-kicker{font-size:20px;font-weight:750;color:#263a32}.overview-date{margin-top:4px;color:#68786f;font-size:13px}.refresh-icon{display:grid;place-items:center;width:42px;height:42px;min-width:42px;min-height:42px;margin:0;padding:0;border:1px solid #d5dfd9;border-radius:7px;background:#fff;color:#2c7461}.refresh-icon:active{background:#edf5f1}.summary-strip{margin:0;padding:16px 8px;border-radius:8px;background:#2a7461}.summary-item text:first-child{font-size:24px}.summary-item text:last-child{font-size:12px}.section-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:0 0 18px;border-bottom:1px solid #dde5df}.section-nav button{display:flex;min-width:0;min-height:58px;align-items:center;justify-content:center;gap:6px;margin:0;padding:0 6px;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:#697970;font-size:13px}.section-nav button.active{border-bottom-color:#2d7c68;color:#245f50;font-weight:700}.bottom-nav{position:fixed;right:0;bottom:0;left:0;z-index:30;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));height:calc(70px + env(safe-area-inset-bottom));padding:4px max(8px,calc((100vw - 440px)/2)) env(safe-area-inset-bottom);border-top:1px solid #dfe6e1;background:rgba(255,255,255,.98);box-shadow:0 -8px 24px rgba(33,65,53,.06);box-sizing:border-box}.bottom-nav button{display:flex;min-width:0;min-height:60px;flex-direction:column;align-items:center;justify-content:center;gap:3px;margin:0;padding:0;border:0;border-radius:7px;background:transparent;color:#78847e;font-size:12px;line-height:1}.bottom-nav button.active{color:#236651;font-weight:750}.notice{margin:0 0 14px;border-radius:7px;font-size:13px;line-height:1.5}.task-board{gap:18px}.task-section{gap:10px}.task-section-heading{padding:2px 2px;font-size:17px}.task-section-heading text:last-child{font-size:12px}.task-card,.record-panel,.empty-card,.action-sheet{margin-bottom:0;padding:16px;border-radius:8px;box-shadow:none}.task-service{min-width:0;font-size:17px;overflow-wrap:anywhere}.task-person,.task-time,.task-remark,.action-meta{margin-top:7px;font-size:13px;line-height:1.45}.task-card-top{gap:10px}.status-chip{flex:none;padding:5px 9px;font-size:11px}.task-card-actions{gap:8px;margin-top:14px}.task-card-actions .primary-action,.task-card-actions .secondary-action{min-width:calc(50% - 4px);min-height:44px;height:auto;padding:8px 10px;font-size:13px;white-space:normal}.primary-action,.secondary-action{min-height:44px;border-radius:7px;font-size:14px}.record-panel{display:grid;gap:16px}.record-time-picker{grid-template-columns:minmax(0,1fr) 105px}.input,.textarea{min-width:0;max-width:100%;padding:12px;border-radius:7px;font-size:14px}.learning-empty{min-height:112px;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;line-height:1.7}.nurse-footer{padding:20px 0 0}.logout-button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border:1px solid #e3c7c2;border-radius:7px!important;background:#fff8f6;color:#93463d;font-size:15px}.shell-main :deep(.glass-panel),.shell-main :deep(.qualification-panel),.shell-main :deep(.score-panel){min-width:0;margin-top:0;border-radius:8px;box-shadow:none}.shell-main :deep(input),.shell-main :deep(textarea),.shell-main :deep(picker),.shell-main :deep(.input){min-width:0;max-width:100%;box-sizing:border-box}.shell-main :deep(text){max-width:100%;overflow-wrap:anywhere}.shell-main :deep(.form-grid),.shell-main :deep(.detail-grid),.shell-main :deep(.metric-grid),.shell-main :deep(.content-grid){grid-template-columns:minmax(0,1fr)!important}.shell-main :deep(button){max-width:100%}@media(min-width:768px){.nurse-app{width:440px;margin:0 auto;box-shadow:0 0 0 1px #e0e5e1,0 18px 48px rgba(31,52,41,.1)}}@media(max-width:360px){.shell-main{padding-right:12px;padding-left:12px}.task-card-actions .primary-action,.task-card-actions .secondary-action{min-width:100%}}
 </style>
