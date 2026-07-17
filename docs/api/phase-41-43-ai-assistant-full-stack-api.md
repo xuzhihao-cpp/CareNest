@@ -33,28 +33,7 @@ Request: `{ "content": "胸口很闷，呼吸困难", "messageType": "TEXT", "vo
 
 Response data: `sessionId`, user and assistant message IDs, `answer`,
 `safetyLevel`, `riskFlag`, `assistanceTicketId`, and
-`customerServiceTicketCreated`. The response also includes
-`triageLevel`, `triageCategory`, `followUpRequired`, and
-`followUpQuestion`.
-
-For `FOLLOW_UP`, the assistant returns a targeted clarification question and
-does not create a ticket:
-
-```json
-{
-  "triageLevel": "FOLLOW_UP",
-  "triageCategory": "ABDOMINAL_PAIN",
-  "followUpRequired": true,
-  "followUpQuestion": "请问疼痛持续多久，严重程度如何？是否伴有发热、呕吐或便血？",
-  "assistanceTicketId": null
-}
-```
-
-If the follow-up answer contains emergency signals, the combined context is
-classified as `CRITICAL` and the existing urgent assistance/customer-service
-ticket flow runs. `WARNING` is used for diagnosis or medication decisions and
-does not create an emergency ticket. `NORMAL` continues to the configured
-cloud provider.
+`customerServiceTicketCreated`.
 
 Safety classification:
 
@@ -74,21 +53,6 @@ Closes a session owned by the elder or an active family binding.
 
 Lists assistance tickets for elder self or a family member with an active
 binding. Supports `elderId`, `status`, `page`, and `size`.
-
-### `POST /api/v1/ai/speech/transcriptions`
-
-Accepts a short audio recording for the currently authenticated elder, or for
-an elder authorized through an active family binding. The multipart field is
-`audio`; the optional `elderId` is a form field. The backend sends the audio
-to the configured ASR provider and does not persist the source audio.
-
-Supported content types are `audio/aac`, `audio/mp3`, `audio/mpeg`, `audio/mp4`, `audio/ogg`,
-`audio/wav`, and `audio/webm`. The request is limited to 10 MB.
-
-Response data: `{ "transcript": "...", "model": "qwen3-asr-flash", "traceId": "..." }`.
-The frontend must show the transcript for editing and confirmation before
-calling the message endpoint. Transcription alone does not create an AI
-conversation message.
 
 ## Customer-service APIs (`backend-care-admin`)
 
@@ -114,17 +78,11 @@ AI_ENDPOINT=https://dashscope.aliyuncs.com/compatible-mode/v1
 DASHSCOPE_API_KEY=<secret>
 AI_MODEL=qwen-plus
 AI_TIMEOUT=15s
-AI_ASR_ENDPOINT=https://dashscope.aliyuncs.com/compatible-mode/v1
-AI_ASR_API_KEY=<secret>
-AI_ASR_MODEL=qwen3-asr-flash
-AI_ASR_TIMEOUT=20s
 ```
 
 The endpoint is OpenAI-compatible and the backend appends
 `/chat/completions`. Missing keys, network failures, non-2xx responses,
 malformed payloads, or unsafe model output fall back to the local safe response.
-ASR failures return an API error and never submit a message automatically. The
-ASR key is only read by the backend and is never exposed to the browser.
 
 ## Persistence and privacy
 

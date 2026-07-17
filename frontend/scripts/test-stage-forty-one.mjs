@@ -18,7 +18,4 @@ if(!component.includes('pendingVoiceReview')) throw new Error('transcription rev
 if(!component.includes("messageType: pendingVoiceReview.value ? 'VOICE' : 'TEXT'")) throw new Error('voice messages are not marked as VOICE')
 if(!component.includes('MediaRecorder')) throw new Error('H5 assistant has no browser recorder fallback')
 if(!component.includes('getUserMedia')) throw new Error('H5 assistant does not request microphone access')
-if(!component.includes('followUpRequired')) throw new Error('follow-up state is not rendered')
-if(!component.includes('followUpQuestion')) throw new Error('follow-up question is not rendered')
-if(!types.includes('triageCategory')) throw new Error('triage response type is missing')
 console.log('stage 41 api contract smoke passed')

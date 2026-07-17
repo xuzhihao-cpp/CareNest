@@ -11,9 +11,7 @@ public final class AiAssistantDtos {
                           String latestAssistanceTicketId, String latestAssistanceStatus, String createdAt) {}
     public record MessageResult(String sessionId, String userMessageId, String assistantMessageId,
                                 String answer, String safetyLevel, boolean riskFlag,
-                                String assistanceTicketId, boolean customerServiceTicketCreated,
-                                String triageLevel, String triageCategory,
-                                boolean followUpRequired, String followUpQuestion) {}
+                                String assistanceTicketId, boolean customerServiceTicketCreated) {}
     public record SpeechTranscription(String transcript, String model, String traceId) {}
     public record AssistanceTicket(String ticketId, String elderId, String elderName, String category,
                                     String priority, String ticketStatus, String description,

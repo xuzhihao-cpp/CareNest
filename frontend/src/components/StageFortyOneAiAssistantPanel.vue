@@ -11,10 +11,6 @@ type ChatMessage = {
   role: 'assistant' | 'user';
   content: string;
   safetyLevel?: AiSafetyLevel;
-  triageLevel?: 'FOLLOW_UP' | 'CRITICAL' | 'WARNING' | 'NORMAL';
-  triageCategory?: string;
-  followUpRequired?: boolean;
-  followUpQuestion?: string;
   assistanceCreated?: boolean;
   customerServiceCreated?: boolean;
 };
@@ -447,10 +443,6 @@ async function send() {
       {
         id: response.data.assistantMessageId || localId('assistant'), role: 'assistant', content: response.data.answer,
         safetyLevel: response.data.safetyLevel,
-        triageLevel: response.data.triageLevel || undefined,
-        triageCategory: response.data.triageCategory || undefined,
-        followUpRequired: response.data.followUpRequired,
-        followUpQuestion: response.data.followUpQuestion || undefined,
         assistanceCreated: Boolean(response.data.assistanceTicketId),
         customerServiceCreated: response.data.customerServiceTicketCreated
       }
@@ -521,7 +513,6 @@ onBeforeUnmount(() => {
           <view class="message-content">
             <view class="bubble">{{ message.content }}</view>
             <view v-if="message.safetyLevel === 'WARNING'" class="safety-note warning"><CircleAlert :size="19" aria-hidden="true" /><view><strong>请留意照护风险</strong><text>用药和诊断问题请咨询医生。</text></view></view>
-            <view v-if="message.followUpRequired" class="safety-note follow-up"><CircleAlert :size="19" aria-hidden="true" /><view><strong>需要补充一些情况</strong><text>{{ message.followUpQuestion || '请继续描述当前情况。' }}</text></view></view>
             <view v-if="message.safetyLevel === 'CRITICAL'" class="safety-note critical"><ShieldAlert :size="20" aria-hidden="true" /><view><strong>紧急协助工单已创建</strong><text>请立即联系家属、平台客服或当地急救，不要等待线上回复。</text></view></view>
           </view>
         </view>

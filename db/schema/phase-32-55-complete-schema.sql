@@ -244,12 +244,6 @@ CREATE TABLE IF NOT EXISTS ai_assistant_session (
   risk_flag TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Whether risk flag exists',
   trace_id VARCHAR(64) DEFAULT NULL COMMENT 'Trace ID',
   source_type VARCHAR(32) NOT NULL DEFAULT 'TEXT' COMMENT 'Session source type',
-  triage_level VARCHAR(32) DEFAULT NULL COMMENT 'Pending triage level',
-  triage_category VARCHAR(64) DEFAULT NULL COMMENT 'Pending triage category',
-  triage_question VARCHAR(500) DEFAULT NULL COMMENT 'Pending triage question',
-  triage_context VARCHAR(1000) DEFAULT NULL COMMENT 'Original symptom context',
-  triage_fingerprint VARCHAR(128) DEFAULT NULL COMMENT 'Triage deduplication fingerprint',
-  triage_awaiting_answer TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Whether follow-up is pending',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time',
   PRIMARY KEY (session_id),
@@ -260,7 +254,6 @@ CREATE TABLE IF NOT EXISTS ai_assistant_session (
   CONSTRAINT fk_ai_session_user FOREIGN KEY (user_id) REFERENCES sys_user (user_id),
   CONSTRAINT ck_ai_session_status CHECK (session_status IN ('ACTIVE','CLOSED')),
   CONSTRAINT ck_ai_session_safety CHECK (safety_level IN ('NORMAL','WARNING','CRITICAL')),
-  CONSTRAINT ck_ai_session_triage CHECK (triage_level IS NULL OR triage_level IN ('FOLLOW_UP','CRITICAL','WARNING','NORMAL')),
   CONSTRAINT ck_ai_session_source CHECK (source_type IN ('TEXT','VOICE'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AI assistant session log';
 

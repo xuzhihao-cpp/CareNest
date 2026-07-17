@@ -49,6 +49,55 @@ export function clearAuthSession() {
   uni.removeStorageSync(STORAGE_KEY);
 }
 
+export function uploadMultipart<T>(options: {
+  url: string;
+  filePath: string;
+  fileName: string;
+  blob?: Blob;
+  formData?: Record<string, string>;
+}): Promise<ApiResponse<T>> {
+  const session = readAuthSession();
+  if (options.blob && typeof fetch === 'function' && typeof FormData !== 'undefined') {
+    const formData = new FormData();
+    formData.append('audio', options.blob, options.fileName);
+    Object.entries(options.formData ?? {}).forEach(([key, value]) => formData.append(key, value));
+    return fetch(`${API_BASE}${options.url}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        ...(session ? { Authorization: `Bearer ${session.token}` } : {})
+      },
+      body: formData
+    }).then(async (response) => {
+      const payload = parseResponsePayload(await response.text());
+      return isApiResponse<T>(payload)
+        ? payload
+        : failure(response.status, '接口响应格式错误', {} as T, `frontend-${Date.now()}`);
+    }).catch(() => failure(500, '语音上传失败', {} as T, `frontend-${Date.now()}`));
+  }
+  return new Promise((resolve) => {
+    uni.uploadFile({
+      url: `${API_BASE}${options.url}`,
+      filePath: options.filePath,
+      name: 'audio',
+      formData: options.formData,
+      header: {
+        Accept: 'application/json',
+        ...(session ? { Authorization: `Bearer ${session.token}` } : {})
+      },
+      success: (response) => {
+        const payload = parseResponsePayload(response.data);
+        if (isApiResponse<T>(payload)) {
+          resolve(payload);
+          return;
+        }
+        resolve(failure(response.statusCode >= 400 ? response.statusCode : 500, '接口响应格式错误', {} as T, `frontend-${Date.now()}`));
+      },
+      fail: () => resolve(failure(500, '语音上传失败', {} as T, `frontend-${Date.now()}`))
+    });
+  });
+}
+
 function isApiResponse<T>(payload: unknown): payload is ApiResponse<T> {
   if (!payload || typeof payload !== 'object') {
     return false;
