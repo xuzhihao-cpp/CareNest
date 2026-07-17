@@ -252,8 +252,9 @@ test('wires stages 34-40 into admin and nurse apps without runtime mock fallback
   assert.match(nurseApp, /StageThirtyFiveToFortyNursePanel/);
   assert.match(nurseApp, /activeTab === 'quality'/);
   assert.match(nurseApp, /openQuality/);
-  assert.match(adminPanel, /generateMetricChecklist/);
-  assert.match(adminPanel, /reviewMetricExceptionProof/);
+  assert.match(adminPanel, /saveCareMetricConfig/);
+  assert.match(adminPanel, /reviewCareEvidence/);
+  assert.doesNotMatch(adminPanel, /generateMetricChecklist|reviewMetricExceptionProof|清单生成|豁免审核/);
   assert.match(nursePanel, /uploadMedicalFileAsset/);
   assert.match(nursePanel, /submitCareEvidence/);
   assert.match(nursePanel, /submitMetricExceptionProof/);

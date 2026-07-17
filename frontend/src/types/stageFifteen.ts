@@ -9,6 +9,11 @@ export interface ServiceReportResponse {
   nursingAdvice: string;
 }
 
+export interface GenerateServiceReportInput {
+  summary?: string;
+  nursingAdvice?: string;
+}
+
 export interface ServiceReportRecord extends ServiceReportResponse {
   generatedBy: string;
   generatedAt: string;

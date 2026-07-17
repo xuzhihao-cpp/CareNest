@@ -93,6 +93,9 @@ export interface AiAuditSession {
   sessionStatus: 'ACTIVE' | 'CLOSED';
   safetyLevel: 'NORMAL' | 'WARNING' | 'CRITICAL';
   riskFlag: boolean;
+  customerServiceTicketId: string | null;
+  customerServiceTicketStatus: 'PENDING' | 'PROCESSING' | 'RESOLVED' | 'CLOSED' | null;
+  pendingHumanReply: boolean;
   latestMessageSummary: string | null;
   createdAt: string;
   updatedAt: string;
@@ -102,6 +105,7 @@ export interface AiAuditMessage {
   senderRole: 'USER' | 'ASSISTANT' | 'SYSTEM';
   messageType: 'TEXT' | 'VOICE' | 'SYSTEM';
   contentSummary: string | null;
+  content: string | null;
   safetyFlag: boolean;
   createdAt: string;
 }

@@ -1,188 +1,160 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import {
-  addCustomerServiceTicketMessage,
-  getCustomerServiceTicket,
-  listCustomerServiceTickets,
-  updateCustomerServiceTicketStatus
-} from '@/api/stageFortyOne';
-import {
-  addTicketFollowUp,
-  getAiAuditSession,
-  listAiAuditSessions,
-  listTicketFollowUps
-} from '@/api/stageFortyFourToFortyEight';
-import type { CustomerServiceTicket, CustomerServiceTicketDetail } from '@/types/stageFortyOne';
-import type { AiAuditDetail, AiAuditSession, FollowUpMethod, TicketFollowUp } from '@/types/stageFortyFourToFortyEight';
+import { MessageCircleMore, RefreshCw, ShieldAlert } from '@lucide/vue';
+import { addCustomerServiceTicketMessage } from '@/api/stageFortyOne';
+import { getAiAuditSession, listAiAuditSessions } from '@/api/stageFortyFourToFortyEight';
+import type { AiAuditDetail, AiAuditSession } from '@/types/stageFortyFourToFortyEight';
 
-type Tab = 'TICKETS' | 'AI_AUDIT';
-const tab = ref<Tab>('TICKETS');
-const tickets = ref<CustomerServiceTicket[]>([]);
-const selected = ref<CustomerServiceTicketDetail | null>(null);
-const followUps = ref<TicketFollowUp[]>([]);
-const aiSessions = ref<AiAuditSession[]>([]);
-const aiDetail = ref<AiAuditDetail | null>(null);
+const sessions = ref<AiAuditSession[]>([]);
+const selected = ref<AiAuditDetail | null>(null);
+const loading = ref(false);
+const sending = ref(false);
 const error = ref('');
 const notice = ref('');
 const reply = ref('');
-const followUpContent = ref('');
-const followUpResult = ref('继续跟进');
-const followUpMethod = ref<FollowUpMethod>('PHONE');
-const nextDate = ref('');
-const nextTime = ref('09:00');
-const loading = ref(false);
-const requestSequence = ref(0);
+let requestSequence = 0;
+let replySequence = 0;
 
-const methodLabels: Record<FollowUpMethod, string> = {
-  PHONE: '电话回访', ONLINE: '在线回访', HOME: '上门回访', AI: '智能回访', CUSTOMER_SERVICE: '客服回访'
-};
-const statusLabels: Record<string, string> = {
-  PENDING: '待处理', PROCESSING: '处理中', RESOLVED: '已解决', CLOSED: '已关闭'
-};
-const priorityLabels: Record<string, string> = { NORMAL: '一般', URGENT: '紧急' };
-const safetyLabels: Record<string, string> = { NORMAL: '一般咨询', WARNING: '需要关注', CRITICAL: '高风险' };
-const canFinish = computed(() => selected.value?.ticket.priority !== 'URGENT' || followUps.value.length > 0);
+const selectedSessionId = computed(() => selected.value?.session.sessionId ?? '');
+const selectedTicketId = computed(() => selected.value?.session.customerServiceTicketId ?? '');
+const selectedNeedsReply = computed(() => Boolean(selected.value?.session.pendingHumanReply));
+const safetyLabel: Record<string, string> = { NORMAL: '日常咨询', WARNING: '需要关注', CRITICAL: '紧急关注' };
 
 function formatTime(value?: string | null) {
-  return value ? value.replace('T', ' ').slice(0, 16) : '无后续时间';
+  return value ? value.replace('T', ' ').slice(0, 16) : '';
 }
 
-async function loadTickets() {
-  const sequence = ++requestSequence.value;
-  loading.value = true;
-  error.value = '';
-  const response = await listCustomerServiceTickets({ size: 50 });
-  if (sequence !== requestSequence.value) return;
-  loading.value = false;
-  if (response.code === 0) tickets.value = response.data.records;
-  else {
-    tickets.value = [];
-    error.value = response.code === 403 ? '当前账号没有处理客服工单的权限。' : '客服工单暂时无法读取。';
-  }
+function senderLabel(role: string) {
+  if (role === 'USER') return '长辈';
+  if (role === 'SYSTEM') return '人工客服';
+  return '照护助手';
 }
 
-async function openTicket(ticket: CustomerServiceTicket) {
-  const sequence = ++requestSequence.value;
-  error.value = '';
-  const [detailResponse, followUpResponse] = await Promise.all([
-    getCustomerServiceTicket(ticket.ticketId),
-    listTicketFollowUps(ticket.ticketId)
-  ]);
-  if (sequence !== requestSequence.value) return;
-  if (detailResponse.code !== 0) {
-    error.value = '工单详情暂时无法读取。';
-    return;
-  }
-  selected.value = detailResponse.data;
-  followUps.value = followUpResponse.code === 0 ? followUpResponse.data : [];
-}
-
-async function changeStatus(status: 'PROCESSING' | 'RESOLVED' | 'CLOSED') {
-  if (!selected.value || loading.value) return;
-  if ((status === 'RESOLVED' || status === 'CLOSED') && !canFinish.value) {
-    error.value = '紧急工单必须先完成至少一次回访，才能结案。';
-    return;
-  }
-  const ticket = selected.value.ticket;
-  loading.value = true;
-  const response = await updateCustomerServiceTicketStatus(ticket.ticketId, status, status === 'RESOLVED' ? '问题已处理完成' : '工单状态已更新');
-  loading.value = false;
-  if (response.code !== 0) {
-    error.value = response.code === 409 ? '当前状态不能执行此操作，紧急工单请先完成回访。' : '工单状态更新失败。';
-    return;
-  }
-  notice.value = '工单状态已更新。';
-  await loadTickets();
-  await openTicket(response.data);
-}
-
-async function sendReply() {
-  if (!selected.value || !reply.value.trim() || loading.value) return;
-  const ticket = selected.value.ticket;
-  loading.value = true;
-  const response = await addCustomerServiceTicketMessage(ticket.ticketId, reply.value.trim());
-  loading.value = false;
-  if (response.code !== 0) {
-    error.value = '回复发送失败，请稍后重试。';
-    return;
-  }
-  reply.value = '';
-  await openTicket(ticket);
-}
-
-async function saveFollowUp() {
-  if (!selected.value || loading.value) return;
-  if (followUpContent.value.trim().length < 2 || followUpResult.value.trim().length < 2) {
-    error.value = '请填写回访内容和处理结果。';
-    return;
-  }
-  const ticket = selected.value.ticket;
-  loading.value = true;
-  const response = await addTicketFollowUp(ticket.ticketId, {
-    method: followUpMethod.value,
-    content: followUpContent.value.trim(),
-    nextFollowUpAt: nextDate.value ? `${nextDate.value}T${nextTime.value}:00` : null,
-    result: followUpResult.value.trim()
-  });
-  loading.value = false;
-  if (response.code !== 0) {
-    error.value = response.code === 409 ? '该工单已经关闭，不能继续添加回访。' : '回访记录保存失败。';
-    return;
-  }
-  followUpContent.value = '';
-  followUpResult.value = '继续跟进';
-  nextDate.value = '';
-  notice.value = '回访记录已保存。';
-  await loadTickets();
-  await openTicket(ticket);
-}
-
-async function loadAiAudit() {
-  const sequence = ++requestSequence.value;
+async function loadSessions(preserveSelection = true) {
+  const sequence = ++requestSequence;
   loading.value = true;
   error.value = '';
   const response = await listAiAuditSessions(false);
-  if (sequence !== requestSequence.value) return;
+  if (sequence !== requestSequence) return;
   loading.value = false;
-  if (response.code === 0) aiSessions.value = response.data.records;
-  else {
-    aiSessions.value = [];
-    error.value = response.code === 403 ? '当前账号没有查看 AI 风险记录的权限。' : 'AI 会话记录暂时无法读取。';
+  if (response.code !== 0) {
+    sessions.value = [];
+    selected.value = null;
+    error.value = response.code === 403 ? '当前账号没有查看客服会话的权限。' : '客服会话暂时无法读取，请稍后重试。';
+    return;
   }
+  sessions.value = response.data.records;
+  if (!preserveSelection || !sessions.value.some((item) => item.sessionId === selectedSessionId.value)) selected.value = null;
 }
 
-async function openAiSession(item: AiAuditSession) {
-  const sequence = ++requestSequence.value;
-  const response = await getAiAuditSession(item.sessionId);
-  if (sequence !== requestSequence.value) return;
-  if (response.code === 0) aiDetail.value = response.data;
-  else error.value = 'AI 会话详情暂时无法读取。';
-}
-
-function switchTab(value: Tab) {
-  requestSequence.value += 1;
-  tab.value = value;
+async function openSession(item: AiAuditSession) {
+  const sequence = ++requestSequence;
+  replySequence += 1;
   error.value = '';
   notice.value = '';
-  if (value === 'TICKETS') loadTickets(); else loadAiAudit();
+  const response = await getAiAuditSession(item.sessionId);
+  if (sequence !== requestSequence) return;
+  if (response.code !== 0) {
+    error.value = response.code === 403 ? '当前账号没有查看该会话的权限。' : '会话详情暂时无法读取，请稍后重试。';
+    return;
+  }
+  selected.value = response.data;
+  reply.value = '';
 }
 
-onMounted(loadTickets);
+async function refresh() {
+  const currentId = selectedSessionId.value;
+  await loadSessions();
+  const current = sessions.value.find((item) => item.sessionId === currentId);
+  if (current) await openSession(current);
+}
+
+async function sendReply() {
+  const content = reply.value.trim();
+  const ticketId = selectedTicketId.value;
+  const sessionId = selectedSessionId.value;
+  if (!ticketId || !sessionId || sending.value) return;
+  if (!content) {
+    error.value = '请先填写回复内容。';
+    return;
+  }
+  sending.value = true;
+  const sequence = ++replySequence;
+  error.value = '';
+  const response = await addCustomerServiceTicketMessage(ticketId, content);
+  if (sequence !== replySequence || sessionId !== selectedSessionId.value) {
+    sending.value = false;
+    return;
+  }
+  sending.value = false;
+  if (response.code !== 0) {
+    error.value = response.code === 403 ? '当前账号没有发送客服回复的权限。' : '回复发送失败，请稍后重试。';
+    return;
+  }
+  reply.value = '';
+  notice.value = '回复已发送，对方将在对话中看到这条消息。';
+  await refresh();
+}
+
+onMounted(() => { void loadSessions(false); });
 </script>
 
 <template>
-  <view class="cs-panel">
-    <view class="heading"><view><text>客服与风险协助</text><small>处理人工协助、回访和 AI 高风险会话</small></view><button type="button" :disabled="loading" @click="tab === 'TICKETS' ? loadTickets() : loadAiAudit()">刷新</button></view>
-    <view class="tabs"><button type="button" :class="{ active: tab === 'TICKETS' }" @click="switchTab('TICKETS')">客服工单</button><button type="button" :class="{ active: tab === 'AI_AUDIT' }" @click="switchTab('AI_AUDIT')">AI 风险审阅</button></view>
-    <view v-if="notice" class="notice success">{{ notice }}</view><view v-if="error" class="notice error">{{ error }}</view>
-    <view v-if="tab === 'TICKETS'" class="layout">
-      <view class="list"><view v-if="!tickets.length" class="empty">暂无客服工单。</view><button v-for="ticket in tickets" :key="ticket.ticketId" type="button" :class="{ selected: selected?.ticket.ticketId === ticket.ticketId }" @click="openTicket(ticket)"><view><strong>{{ ticket.elderName }}</strong><span :class="`priority ${ticket.priority.toLowerCase()}`">{{ priorityLabels[ticket.priority] }}</span></view><text>{{ statusLabels[ticket.ticketStatus] }} · {{ ticket.category }}</text><small>{{ ticket.description }}</small></button></view>
-      <view class="detail"><view v-if="!selected" class="empty">从左侧选择工单开始处理。</view><template v-else><view class="detail-title"><view><strong>{{ selected.ticket.elderName }}的协助请求</strong><small>{{ selected.ticket.requesterName || '用户发起' }}</small></view><span>{{ statusLabels[selected.ticket.ticketStatus] }}</span></view><p>{{ selected.ticket.description }}</p><view class="messages"><view v-for="message in selected.messages" :key="message.messageId" class="message"><b>{{ message.senderRole === 'CUSTOMER_SERVICE' ? '客服' : message.senderRole === 'ADMIN' ? '管理员' : '用户' }}</b><text>{{ message.content }}</text><small>{{ formatTime(message.createdAt) }}</small></view></view><view v-if="selected.ticket.ticketStatus === 'PENDING'" class="actions"><button class="primary" type="button" @click="changeStatus('PROCESSING')">开始处理</button></view><template v-if="selected.ticket.ticketStatus === 'PROCESSING'"><view class="reply"><textarea v-model="reply" maxlength="1000" placeholder="回复用户"/><button type="button" :disabled="loading || !reply.trim()" @click="sendReply">发送回复</button></view><view class="follow-form"><strong>记录回访</strong><view class="method-row"><button v-for="(label,key) in methodLabels" :key="key" type="button" :class="{ active: followUpMethod === key }" @click="followUpMethod=key">{{ label }}</button></view><textarea v-model="followUpContent" maxlength="800" placeholder="记录沟通内容、用户反馈和需要继续处理的事项"/><input v-model="followUpResult" maxlength="128" placeholder="本次回访结果"/><view class="date-row"><picker mode="date" :value="nextDate" @change="nextDate=String($event.detail.value)"><view>{{ nextDate || '下次回访日期（可选）' }}</view></picker><picker mode="time" :value="nextTime" @change="nextTime=String($event.detail.value)"><view>{{ nextTime }}</view></picker></view><button class="primary" type="button" :disabled="loading" @click="saveFollowUp">保存回访</button></view><view class="actions"><button type="button" :disabled="!canFinish" @click="changeStatus('CLOSED')">关闭工单</button><button class="primary" type="button" :disabled="!canFinish" @click="changeStatus('RESOLVED')">确认已解决</button></view><view v-if="!canFinish" class="urgent-tip">紧急工单完成回访后才能结案。</view></template><view class="follow-history"><strong>回访记录</strong><view v-if="!followUps.length" class="empty">尚未记录回访。</view><view v-for="item in followUps" :key="item.followUpId" class="follow-row"><view><b>{{ methodLabels[item.method] }}</b><small>{{ formatTime(item.createdAt) }}</small></view><text>{{ item.content }}</text><span>结果：{{ item.result }}<template v-if="item.nextFollowUpAt"> · 下次 {{ formatTime(item.nextFollowUpAt) }}</template></span></view></view></template></view>
+  <section class="service-desk">
+    <header class="desk-heading">
+      <view>
+        <text class="eyebrow">客服工作台</text>
+        <h2>对话与人工协助</h2>
+        <p>查看全部照护咨询；紧急且尚未回复的会话将优先显示。</p>
+      </view>
+      <button type="button" class="refresh" :disabled="loading" @click="refresh"><RefreshCw :size="17" aria-hidden="true" />刷新会话</button>
+    </header>
+
+    <view v-if="notice" class="notice success" role="status">{{ notice }}</view>
+    <view v-if="error" class="notice error" role="alert">{{ error }}</view>
+
+    <view class="desk-layout">
+      <aside class="session-list" aria-label="客服会话列表">
+        <view class="list-heading"><strong>全部会话</strong><text>{{ sessions.length }} 条</text></view>
+        <view v-if="loading" class="empty">正在读取会话…</view>
+        <view v-else-if="!sessions.length" class="empty">暂无可处理的会话。</view>
+        <button v-for="session in sessions" :key="session.sessionId" type="button" class="session-card" :class="{ selected: selectedSessionId === session.sessionId, urgent: session.pendingHumanReply }" @click="openSession(session)">
+          <view class="session-title">
+            <strong>{{ session.elderName }}</strong>
+            <view class="badges"><i v-if="session.pendingHumanReply" class="urgent-dot" aria-label="等待人工回复"></i><span :class="{ critical: session.safetyLevel === 'CRITICAL' }">{{ safetyLabel[session.safetyLevel] }}</span></view>
+          </view>
+          <text>{{ session.sessionTitle || '照护咨询' }}</text>
+          <small>{{ session.latestMessageSummary || '暂无会话内容' }}</small>
+        </button>
+      </aside>
+
+      <main class="conversation-detail">
+        <view v-if="!selected" class="empty empty-detail">从左侧选择会话，即可查看完整对话并回复。</view>
+        <template v-else>
+          <header class="detail-heading">
+            <view><h3>{{ selected.session.elderName }}的照护咨询</h3><text>{{ safetyLabel[selected.session.safetyLevel] }} · {{ formatTime(selected.session.updatedAt) }}</text></view>
+            <span v-if="selectedNeedsReply" class="needs-reply"><ShieldAlert :size="16" aria-hidden="true" />等待人工回复</span>
+          </header>
+
+          <view class="conversation">
+            <view v-for="(message, index) in selected.messages" :key="`${message.createdAt}-${index}`" class="message-row" :class="{ user: message.senderRole === 'USER', support: message.senderRole === 'SYSTEM', risk: message.safetyFlag }">
+              <view class="sender-avatar" aria-hidden="true"><MessageCircleMore :size="17" /></view>
+              <view class="message-body"><strong>{{ senderLabel(message.senderRole) }}</strong><p>{{ message.content || message.contentSummary || '内容暂不可读取' }}</p><small>{{ formatTime(message.createdAt) }}</small></view>
+            </view>
+          </view>
+
+          <view v-if="selectedTicketId" class="reply-box">
+            <view class="reply-heading"><view><strong>回复用户</strong><small>回复会同步显示在长辈端 AI 对话中。</small></view><text>{{ reply.length }}/1000</text></view>
+            <textarea v-model="reply" maxlength="1000" placeholder="输入处理进展、解决方式或后续安排" />
+            <button type="button" class="send" :disabled="sending || !reply.trim()" @click="sendReply">{{ sending ? '正在发送…' : '发送回复' }}</button>
+          </view>
+          <view v-else class="no-ticket">该会话目前无需创建人工协助工单，客服可继续关注后续消息。</view>
+        </template>
+      </main>
     </view>
-    <view v-else class="layout"><view class="list"><view v-if="!aiSessions.length" class="empty">暂无 AI 会话记录。</view><button v-for="item in aiSessions" :key="item.sessionId" type="button" :class="{ selected: aiDetail?.session.sessionId === item.sessionId, risk: item.riskFlag }" @click="openAiSession(item)"><view><strong>{{ item.elderName }}</strong><span>{{ safetyLabels[item.safetyLevel] }}</span></view><text>{{ item.sessionTitle || '日常照护咨询' }}</text><small>{{ item.latestMessageSummary || '暂无会话摘要' }}</small></button></view><view class="detail"><view v-if="!aiDetail" class="empty">从左侧选择会话查看安全摘要。</view><template v-else><view class="detail-title"><view><strong>{{ aiDetail.session.elderName }}的照护咨询</strong><small>{{ safetyLabels[aiDetail.session.safetyLevel] }} · {{ formatTime(aiDetail.session.updatedAt) }}</small></view></view><view class="ai-note">这里只展示会话摘要用于安全审阅；高风险问题由规则引擎转人工，不以 AI 回答替代医护判断。</view><view class="messages"><view v-for="(message,index) in aiDetail.messages" :key="index" class="message" :class="{ risk: message.safetyFlag }"><b>{{ message.senderRole === 'ASSISTANT' ? '照护助手' : '用户' }}</b><text>{{ message.contentSummary || '内容摘要不可用' }}</text><small>{{ formatTime(message.createdAt) }}</small></view></view></template></view></view>
-  </view>
+  </section>
 </template>
 
 <style scoped>
-.cs-panel{display:grid;gap:18px}.heading,.detail-title,.actions,.follow-row>view,.list button>view{display:flex;align-items:center;justify-content:space-between;gap:12px}.heading>view,.detail-title>view{display:grid;gap:4px}.heading text{font-size:24px;font-weight:700}.heading small,.detail-title small{color:#6d807c}.heading button,.actions button,.reply button,.follow-form>button{min-height:42px;margin:0;padding:0 18px;border:1px solid #bdd2cd;border-radius:6px;background:#fff;color:#126d63}.tabs{display:flex;gap:8px}.tabs button{min-height:44px;margin:0;padding:0 20px;border:1px solid #c7d8d4;border-radius:6px;background:#fff;color:#536a66}.tabs button.active{border-color:#249a8d;background:#e7f6f2;color:#0d7367;font-weight:700}.notice,.empty,.urgent-tip,.ai-note{padding:15px;border-radius:6px}.success{background:#e5f6f1;color:#0d6e62}.error{background:#fff0ef;color:#ad3c32}.layout{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(420px,1.45fr);border:1px solid #dbe7e4;background:#fff}.list,.detail{min-width:0;padding:18px}.list{border-right:1px solid #dbe7e4}.list>button{display:grid;gap:7px;width:100%;margin:0 0 10px;padding:14px;border:1px solid #dce7e5;border-radius:6px;background:#fff;text-align:left;color:#1a3631}.list>button.selected{border-color:#289b8e;background:#eaf7f4}.list>button.risk{border-left:4px solid #d24f43}.list text,.list small{color:#667a76;overflow-wrap:anywhere}.priority,.list button span,.detail-title>span{padding:5px 10px;border-radius:999px;background:#edf4f2;color:#48635e;font-size:12px}.priority.urgent{background:#fde7e4;color:#a63a31}.detail{display:grid;align-content:start;gap:16px}.detail-title strong{font-size:21px}.detail p{margin:0;padding:14px;background:#f4f8f7;color:#3f5b56}.messages,.follow-history,.follow-form{display:grid;gap:10px}.message,.follow-row{display:grid;gap:6px;padding:12px;border:1px solid #e0e9e7;border-radius:6px}.message.risk{border-color:#e8aca6;background:#fff6f4}.message text,.follow-row text{color:#334e49}.message small,.follow-row small,.follow-row span{color:#71817e;font-size:12px}.actions{justify-content:flex-end}.actions .primary,.follow-form>.primary{border-color:#0f766e;background:#0f766e;color:#fff}.reply{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}.reply textarea,.follow-form textarea,.follow-form input{box-sizing:border-box;width:100%;padding:12px;border:1px solid #ceddda;border-radius:6px;background:#fbfdfc}.reply textarea,.follow-form textarea{min-height:90px}.follow-form{padding:16px;border:1px solid #bcd9d4;background:#f2faf8}.method-row{display:flex;flex-wrap:wrap;gap:8px}.method-row button{min-height:38px;margin:0;padding:0 14px;border:1px solid #c6d7d3;border-radius:6px;background:#fff;color:#526b66}.method-row button.active{border-color:#25998c;background:#e4f5f1;color:#0d7367}.date-row{display:grid;grid-template-columns:1fr 140px;gap:10px}.date-row picker view{min-height:42px;padding:0 12px;display:flex;align-items:center;border:1px solid #ceddda;border-radius:6px;background:#fff}.urgent-tip{background:#fff5df;color:#8a5b00}.ai-note{background:#eef6f4;color:#365f57}.empty{background:#f3f7f6;color:#6b7d79}@media(max-width:900px){.layout{grid-template-columns:1fr}.list{border-right:0;border-bottom:1px solid #dbe7e4}}
+.service-desk{display:grid;gap:18px;color:#1f3731}.desk-heading,.detail-heading,.session-title,.list-heading,.reply-heading{display:flex;align-items:center;justify-content:space-between;gap:14px}.desk-heading>view{display:grid;gap:5px}.eyebrow{color:#16877b;font-size:13px;font-weight:750}.desk-heading h2,.detail-heading h3{margin:0;font-size:25px;letter-spacing:0}.desk-heading p,.detail-heading text,.reply-heading small{margin:0;color:#67807a;font-size:14px;line-height:1.55}.refresh{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;margin:0;padding:0 15px;border:1px solid #b9d4cd;border-radius:6px;background:#fff;color:#146e63;font-weight:700}.notice{padding:12px 14px;border-radius:6px}.notice.success{background:#e7f5f0;color:#0e7164}.notice.error{background:#fff0ef;color:#a23f36}.desk-layout{display:grid;grid-template-columns:minmax(290px,.68fr) minmax(480px,1.55fr);min-height:580px;border:1px solid #d8e5e2;background:#fff}.session-list{min-width:0;padding:16px;border-right:1px solid #d8e5e2}.list-heading{margin:0 3px 12px}.list-heading strong{font-size:17px}.list-heading text{color:#71827d;font-size:13px}.session-card{display:grid;gap:7px;width:100%;margin:0 0 10px;padding:14px;border:1px solid #dce7e4;border-left:4px solid transparent;border-radius:6px;background:#fff;color:#244139;text-align:left}.session-card.selected{border-color:#36a896;background:#e8f6f2}.session-card.urgent{border-left-color:#d95046}.session-card text,.session-card small{display:block;color:#647a74;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.session-card small{font-size:13px}.badges{display:flex;align-items:center;gap:7px}.badges span,.needs-reply{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;background:#edf4f2;color:#546b65;font-size:12px}.badges span.critical,.needs-reply{background:#fff0ef;color:#af4037}.urgent-dot{width:9px;height:9px;border-radius:50%;background:#d95046;box-shadow:0 0 0 3px #ffe9e6}.conversation-detail{display:grid;align-content:start;gap:16px;min-width:0;padding:22px}.detail-heading{padding-bottom:14px;border-bottom:1px solid #e2ebe8}.detail-heading>view{display:grid;gap:4px}.conversation{display:grid;gap:12px;max-height:490px;overflow-y:auto;padding-right:4px}.message-row{display:flex;align-items:flex-start;gap:10px}.message-row.user{flex-direction:row-reverse}.sender-avatar{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:50%;background:#e7f2ee;color:#27725d}.message-row.user .sender-avatar{background:#e9efed;color:#61746c}.message-row.support .sender-avatar{background:#fff0e9;color:#a6503b}.message-body{max-width:min(680px,calc(100% - 46px));padding:11px 13px;border:1px solid #dde8e5;border-radius:4px 13px 13px 13px;background:#f7faf9}.message-row.user .message-body{border-radius:13px 4px 13px 13px;background:#e7f5f0}.message-row.support .message-body{border-color:#ead0c6;background:#fffaf7}.message-row.risk .message-body{border-left:4px solid #d95046}.message-body strong,.message-body small{display:block}.message-body strong{font-size:13px}.message-body p{margin:5px 0;color:#37534c;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}.message-body small{color:#778782;font-size:11px}.reply-box{display:grid;gap:10px;padding-top:16px;border-top:1px solid #e2ebe8}.reply-heading>view{display:grid;gap:2px}.reply-heading text{color:#71827d;font-size:12px}.reply-box textarea{width:100%;min-height:106px;box-sizing:border-box;padding:12px;border:1px solid #cbdcd7;border-radius:6px;background:#fbfdfc;color:#263f37;line-height:1.55}.send{justify-self:end;min-height:44px;margin:0;padding:0 20px;border:1px solid #13796e;border-radius:6px;background:#13796e;color:#fff;font-weight:750}.send:disabled,.refresh:disabled{opacity:.55}.empty{padding:18px;background:#f3f7f6;color:#687d77}.empty-detail{align-self:center;text-align:center}.no-ticket{padding:12px;border-left:4px solid #a6c9bf;background:#f1f7f5;color:#58716a}@media(max-width:900px){.desk-layout{grid-template-columns:1fr}.session-list{border-right:0;border-bottom:1px solid #d8e5e2}.conversation{max-height:none}}@media(max-width:560px){.desk-heading{align-items:flex-start;flex-direction:column}.refresh{width:100%}.desk-layout{margin:0 -4px}.conversation-detail{padding:16px}.message-body{max-width:calc(100% - 44px)}}
 </style>

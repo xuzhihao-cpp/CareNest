@@ -5,7 +5,7 @@ import { failure, isMockEnabled, readAuthSession, request, success } from '@/api
 import { STAGE_FOURTEEN_RECORDS_STORAGE_KEY } from '@/api/stageFourteen';
 import type { ApiResponse } from '@/types/api';
 import type { CareExecutionRecord } from '@/types/stageFourteen';
-import type { ServiceReportRecord, ServiceReportResponse, StageFifteenScenario } from '@/types/stageFifteen';
+import type { GenerateServiceReportInput, ServiceReportRecord, ServiceReportResponse, StageFifteenScenario } from '@/types/stageFifteen';
 import type { RoleCode } from '@/types/stageOne';
 
 const generatePath = (orderId: string) => `/orders/${orderId}/service-report/generate`;
@@ -121,7 +121,7 @@ export function getStageFifteenEndpointSummary() {
   ];
 }
 
-export async function generateServiceReport(orderId: string): Promise<ApiResponse<ServiceReportResponse>> {
+export async function generateServiceReport(orderId: string, input?: GenerateServiceReportInput): Promise<ApiResponse<ServiceReportResponse>> {
   if (isMockEnabled()) {
     const denied = requireReportViewer(emptyReport());
     if (denied) {
@@ -139,6 +139,7 @@ export async function generateServiceReport(orderId: string): Promise<ApiRespons
   return request<ServiceReportResponse>({
     method: 'POST',
     url: generatePath(orderId),
+    data: input,
     mock: reportMock as ApiResponse<ServiceReportResponse>
   });
 }

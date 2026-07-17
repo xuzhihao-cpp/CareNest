@@ -589,12 +589,12 @@ public class CareAdminPhaseService {
     }
 
     @Transactional
-    public ReportResponse generateReport(CurrentUser currentUser, String orderId) {
+    public ReportResponse generateReport(CurrentUser currentUser, String orderId, GenerateReportRequest request) {
         orderDetail(currentUser, orderId);
-        return withOrderLock(orderId, () -> generateReportLocked(currentUser, orderId));
+        return withOrderLock(orderId, () -> generateReportLocked(currentUser, orderId, request));
     }
 
-    private ReportResponse generateReportLocked(CurrentUser currentUser, String orderId) {
+    private ReportResponse generateReportLocked(CurrentUser currentUser, String orderId, GenerateReportRequest request) {
         Map<String, Object> order = requireRow("SELECT * FROM nursing_order WHERE order_id = ?", orderId);
         requireStatus(order, WAIT_REPORT);
         Integer recordCount = jdbcTemplate.queryForObject(
@@ -605,6 +605,15 @@ public class CareAdminPhaseService {
         String reportId = existingReportId(orderId);
         String summary = "本次服务已完成，服务记录和生命体征信息已整理完成。";
         String advice = latestAdvice(orderId);
+        if (request != null && (hasText(request.summary()) || hasText(request.nursingAdvice()))) {
+            if (!currentUser.hasRole(RoleCode.ADMIN)) {
+                throw new ForbiddenException();
+            }
+            if (hasText(request.summary())) summary = requireReportText(request.summary());
+            if (hasText(request.nursingAdvice())) advice = requireReportText(request.nursingAdvice());
+        }
+        final String reportSummary = summary;
+        final String reportAdvice = advice;
         if (reportId == null) {
             reportId = nextId("report");
             try {
@@ -612,11 +621,11 @@ public class CareAdminPhaseService {
                         INSERT INTO service_report
                           (report_id, order_id, report_status, summary, nursing_advice, generated_by)
                         VALUES (?, ?, ?, ?, ?, ?)
-                        """, reportId, orderId, WAIT_CONFIRM, summary, advice, currentUser.userId());
+                        """, reportId, orderId, WAIT_CONFIRM, reportSummary, reportAdvice, currentUser.userId());
             } catch (DuplicateKeyException duplicate) {
                 throw new ConflictException();
             }
-            insertReportItems(reportId, orderId, advice);
+            insertReportItems(reportId, orderId, reportAdvice);
         } else {
             String lockedReportId = reportId;
             withReportLock(lockedReportId, () -> {
@@ -625,12 +634,12 @@ public class CareAdminPhaseService {
                         SET report_status = ?, summary = ?, nursing_advice = ?, generated_by = ?,
                             generated_at = CURRENT_TIMESTAMP, confirmed_at = NULL
                         WHERE report_id = ? AND report_status = ?
-                        """, WAIT_CONFIRM, summary, advice, currentUser.userId(), lockedReportId, REJECTED);
+                        """, WAIT_CONFIRM, reportSummary, reportAdvice, currentUser.userId(), lockedReportId, REJECTED);
                 if (updated != 1) {
                     throw new ConflictException();
                 }
                 jdbcTemplate.update("DELETE FROM service_report_item WHERE report_id = ?", lockedReportId);
-                insertReportItems(lockedReportId, orderId, advice);
+                insertReportItems(lockedReportId, orderId, reportAdvice);
                 return null;
             });
         }
@@ -900,6 +909,14 @@ public class CareAdminPhaseService {
         if (!hasText(value)) {
             throw new BusinessRuleException();
         }
+    }
+
+    private String requireReportText(String value) {
+        String normalized = value == null ? "" : value.trim();
+        if (normalized.isEmpty() || normalized.length() > 1000) {
+            throw new BusinessRuleException();
+        }
+        return normalized;
     }
 
     private void requireRoleUser(String userId, String roleCode) {

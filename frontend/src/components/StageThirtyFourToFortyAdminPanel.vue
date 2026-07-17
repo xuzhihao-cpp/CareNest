@@ -2,51 +2,37 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getServiceItems } from '@/api/stageEight';
 import {
-  generateMetricChecklist,
   getCareEvidencePreview,
   getAdminEvidences,
-  getAdminExceptionProofs,
   getCareMetricConfig,
-  getMetricCheckResult,
   reviewCareEvidence,
-  reviewMetricExceptionProof,
-  runMetricCheck,
   saveCareMetricConfig
 } from '@/api/stageThirtyFourToForty';
 import type { ServiceItemResponse } from '@/types/stageEight';
 import type {
   CareMetricConfigItem,
   EvidenceAuditStatus,
-  EvidenceResponse,
-  MetricCheckResponse,
-  MetricChecklistResponse,
-  ProofReviewResponse,
-  ScoreDecision
+  EvidenceResponse
 } from '@/types/stageThirtyFourToForty';
 import {
   CARE_METRIC_EVIDENCE_LABELS,
   CARE_METRIC_EVIDENCE_TYPES,
-  CARE_METRIC_STATUS_LABELS,
   CARE_METRIC_TYPE_LABELS,
   CARE_METRIC_TYPES,
   compactBusinessId,
   createEmptyMetricConfigItem,
   EVIDENCE_AUDIT_STATUS_LABELS,
   EVIDENCE_REVIEW_TARGETS,
-  PROOF_STATUS_LABELS,
-  PROOF_REVIEW_TARGETS,
-  SCORE_DECISION_LABELS,
   stageThirtyFourToFortyError,
   validateEvidenceReview,
-  validateMetricConfigItems,
-  validateProofReview
+  validateMetricConfigItems
 } from '@/utils/stageThirtyFourToFortyRules';
 
 const props = defineProps<{
   permissions: string[];
 }>();
 
-type AdminMetricSection = 'config' | 'checklist' | 'evidence' | 'proof';
+type AdminMetricSection = 'config' | 'evidence';
 type PickerEvent = { detail: { value: number | string } };
 
 const section = ref<AdminMetricSection>('config');
@@ -54,19 +40,10 @@ const services = ref<ServiceItemResponse[]>([]);
 const selectedServiceId = ref('');
 const configVersion = ref<number | null>(null);
 const configItems = ref<CareMetricConfigItem[]>([createEmptyMetricConfigItem()]);
-const orderId = ref('');
-const checklist = ref<MetricChecklistResponse>({ items: [] });
-const checkResult = ref<MetricCheckResponse>({ items: [] });
 const evidences = ref<EvidenceResponse[]>([]);
 const evidencePreviewUrls = ref<Record<string, string>>({});
 const evidencePreviewLoading = ref<Record<string, boolean>>({});
-const proofs = ref<ProofReviewResponse[]>([]);
 const reviewForms = ref<Record<string, { auditStatus: Exclude<EvidenceAuditStatus, 'PENDING'>; reviewComment: string }>>({});
-const proofForms = ref<Record<string, {
-  reviewResult: Exclude<ProofReviewResponse['reviewStatus'], 'PENDING'>;
-  reviewComment: string;
-  scoreDecision: ScoreDecision;
-}>>({});
 const loading = ref(false);
 const error = ref('');
 const notice = ref('');
@@ -81,15 +58,8 @@ const serviceOptions = computed(() => services.value.map((item) => ({
 const metricTypeOptions = CARE_METRIC_TYPES.map((value) => ({ value, label: CARE_METRIC_TYPE_LABELS[value] }));
 const evidenceTypeOptions = CARE_METRIC_EVIDENCE_TYPES.map((value) => ({ value, label: CARE_METRIC_EVIDENCE_LABELS[value] }));
 const evidenceReviewOptions = EVIDENCE_REVIEW_TARGETS.map((value) => ({ value, label: EVIDENCE_AUDIT_STATUS_LABELS[value] }));
-const proofReviewOptions = PROOF_REVIEW_TARGETS.map((value) => ({ value, label: PROOF_STATUS_LABELS[value] }));
-const scoreDecisionOptions = (['NO_DEDUCTION', 'DEDUCT'] as ScoreDecision[]).map((value) => ({
-  value,
-  label: SCORE_DECISION_LABELS[value]
-}));
 const summary = computed(() => ({
-  pendingEvidence: evidences.value.filter((item) => item.auditStatus === 'PENDING').length,
-  pendingProofs: proofs.value.filter((item) => item.reviewStatus === 'PENDING').length,
-  missing: checkResult.value.items.filter((item) => item.checkResult === 'MISSING').length
+  pendingEvidence: evidences.value.filter((item) => item.auditStatus === 'PENDING').length
 }));
 
 function pickerIndex<T extends string>(options: Array<{ value: T }>, current: T) {
@@ -139,25 +109,6 @@ function setEvidenceReviewStatus(evidenceId: string, event: PickerEvent) {
   reviewForms.value[evidenceId] = {
     ...(reviewForms.value[evidenceId] ?? { reviewComment: '' }),
     auditStatus: option.value
-  };
-}
-
-function setProofReviewResult(proofId: string, event: PickerEvent) {
-  const option = proofReviewOptions[Number(event.detail.value)];
-  if (!option) return;
-  proofForms.value[proofId] = {
-    ...(proofForms.value[proofId] ?? { reviewComment: '' }),
-    reviewResult: option.value,
-    scoreDecision: option.value === 'APPROVED' ? 'NO_DEDUCTION' : 'DEDUCT'
-  };
-}
-
-function setScoreDecision(proofId: string, event: PickerEvent) {
-  const option = scoreDecisionOptions[Number(event.detail.value)];
-  if (!option) return;
-  proofForms.value[proofId] = {
-    ...(proofForms.value[proofId] ?? { reviewResult: 'APPROVED', reviewComment: '' }),
-    scoreDecision: option.value
   };
 }
 
@@ -228,46 +179,6 @@ async function submitMetricConfig() {
   notice.value = `护理指标配置已保存，当前版本 ${response.data.configVersion}。`;
 }
 
-async function generateChecklist() {
-  loading.value = true;
-  resetFeedback();
-  const response = await generateMetricChecklist(orderId.value);
-  loading.value = false;
-  if (response.code !== 0) {
-    checklist.value = { items: [] };
-    error.value = stageThirtyFourToFortyError(response.code, 'CHECKLIST');
-    return;
-  }
-  checklist.value = response.data;
-  notice.value = `已读取订单留档清单，共 ${response.data.items.length} 项。`;
-}
-
-async function executeMetricCheck() {
-  loading.value = true;
-  resetFeedback();
-  const response = await runMetricCheck(orderId.value);
-  loading.value = false;
-  if (response.code !== 0) {
-    error.value = stageThirtyFourToFortyError(response.code, 'CHECK');
-    return;
-  }
-  checkResult.value = response.data;
-  notice.value = `指标完成校验已执行，共 ${response.data.items.length} 项结果。`;
-}
-
-async function loadMetricCheckResult() {
-  loading.value = true;
-  resetFeedback();
-  const response = await getMetricCheckResult(orderId.value);
-  loading.value = false;
-  if (response.code !== 0) {
-    checkResult.value = { items: [] };
-    error.value = stageThirtyFourToFortyError(response.code, 'CHECK');
-    return;
-  }
-  checkResult.value = response.data;
-}
-
 function syncEvidenceForms() {
   const next: typeof reviewForms.value = {};
   evidences.value.forEach((item) => {
@@ -277,18 +188,6 @@ function syncEvidenceForms() {
     };
   });
   reviewForms.value = next;
-}
-
-function syncProofForms() {
-  const next: typeof proofForms.value = {};
-  proofs.value.forEach((item) => {
-    next[item.proofId] = proofForms.value[item.proofId] ?? {
-      reviewResult: 'APPROVED',
-      reviewComment: '',
-      scoreDecision: 'NO_DEDUCTION'
-    };
-  });
-  proofForms.value = next;
 }
 
 async function loadEvidenceQueue() {
@@ -347,49 +246,15 @@ async function submitEvidenceReview(evidence: EvidenceResponse) {
   await loadEvidenceQueue();
 }
 
-async function loadProofQueue() {
-  if (!canReviewEvidence.value) return;
-  loading.value = true;
-  resetFeedback();
-  const response = await getAdminExceptionProofs();
-  loading.value = false;
-  if (response.code !== 0) {
-    proofs.value = [];
-    error.value = stageThirtyFourToFortyError(response.code, 'PROOF');
-    return;
-  }
-  proofs.value = response.data;
-  syncProofForms();
-}
-
-async function submitProofReview(proof: ProofReviewResponse) {
-  const form = proofForms.value[proof.proofId];
-  const validationError = validateProofReview(form);
-  if (validationError) {
-    error.value = validationError;
-    return;
-  }
-  loading.value = true;
-  resetFeedback();
-  const response = await reviewMetricExceptionProof(proof.proofId, form);
-  loading.value = false;
-  if (response.code !== 0) {
-    error.value = response.message || stageThirtyFourToFortyError(response.code, 'PROOF');
-    return;
-  }
-  notice.value = `证明 ${compactBusinessId(response.data.proofId)} 已更新为${PROOF_STATUS_LABELS[response.data.reviewStatus]}，${SCORE_DECISION_LABELS[response.data.scoreDecision]}。`;
-  await loadProofQueue();
-}
-
 async function initialize() {
   if (!canUsePanel.value) return;
-  if (!canManageMetrics.value && (section.value === 'config' || section.value === 'checklist')) {
+  if (!canManageMetrics.value && section.value === 'config') {
     section.value = 'evidence';
   }
-  if (!canReviewEvidence.value && (section.value === 'evidence' || section.value === 'proof')) {
+  if (!canReviewEvidence.value && section.value === 'evidence') {
     section.value = 'config';
   }
-  await Promise.all([loadServices(), loadEvidenceQueue(), loadProofQueue()]);
+  await Promise.all([loadServices(), loadEvidenceQueue()]);
 }
 
 watch(
@@ -407,7 +272,7 @@ onBeforeUnmount(clearEvidencePreviews);
       <view>
         <text class="metric-kicker">运营质控</text>
         <text class="metric-title">护理指标与留档质控</text>
-        <text class="metric-subtitle">配置护理指标、生成订单清单，并审核留档和未完成原因证明。</text>
+        <text class="metric-subtitle">配置服务过程中的护理指标，并审核护理人员提交的留档。</text>
       </view>
       <button type="button" :disabled="loading || !canUsePanel" @click="initialize">刷新</button>
     </view>
@@ -417,15 +282,11 @@ onBeforeUnmount(clearEvidencePreviews);
       <view class="metric-summary">
         <view><text>配置权限</text><strong>{{ canManageMetrics ? '已开放' : '未开放' }}</strong></view>
         <view><text>待审留档</text><strong>{{ summary.pendingEvidence }}</strong></view>
-        <view><text>待审证明</text><strong>{{ summary.pendingProofs }}</strong></view>
-        <view><text>未完成指标</text><strong>{{ summary.missing }}</strong></view>
       </view>
 
       <view class="metric-tabs">
         <button type="button" :class="{ active: section === 'config' }" :disabled="!canManageMetrics" @click="section = 'config'">指标配置</button>
-        <button type="button" :class="{ active: section === 'checklist' }" :disabled="!canManageMetrics" @click="section = 'checklist'">清单生成</button>
         <button type="button" :class="{ active: section === 'evidence' }" :disabled="!canReviewEvidence" @click="section = 'evidence'">留档审核</button>
-        <button type="button" :class="{ active: section === 'proof' }" :disabled="!canReviewEvidence" @click="section = 'proof'">豁免审核</button>
       </view>
 
       <view v-if="notice" class="metric-notice success">{{ notice }}</view>
@@ -472,33 +333,6 @@ onBeforeUnmount(clearEvidencePreviews);
         </view>
       </view>
 
-      <view v-else-if="section === 'checklist'" class="metric-section">
-        <view class="section-head"><view><text>订单留档清单</text><text>清单按订单保存快照，后续配置变更不会覆盖历史订单。</text></view></view>
-        <view class="order-command-row">
-          <input v-model="orderId" placeholder="输入订单 ID" />
-          <button type="button" class="primary" :disabled="loading" @click="generateChecklist">生成或读取清单</button>
-          <button type="button" class="secondary" :disabled="loading" @click="executeMetricCheck">执行完成校验</button>
-          <button type="button" class="secondary" :disabled="loading" @click="loadMetricCheckResult">读取校验结果</button>
-        </view>
-        <view v-if="checklist.items.length" class="checklist-table">
-          <view class="table-head"><text>指标</text><text>留档</text><text>状态</text><text>权重</text></view>
-          <view v-for="item in checklist.items" :key="item.itemId" class="table-row">
-            <text>{{ item.metricCode }}</text>
-            <text>{{ CARE_METRIC_EVIDENCE_LABELS[item.evidenceType] }} · {{ item.required ? '必填' : '选填' }}</text>
-            <text>{{ CARE_METRIC_STATUS_LABELS[item.status] }}</text>
-            <text>{{ item.scoreWeight }}</text>
-          </view>
-        </view>
-        <view v-else class="metric-state">输入订单后生成留档清单；没有后端返回时这里不会展示假清单。</view>
-        <view v-if="checkResult.items.length" class="check-result-list">
-          <view v-for="item in checkResult.items" :key="item.metricItemId" class="check-result-card" :class="{ missing: item.missingEvidence }">
-            <text>{{ item.metricName }}</text>
-            <strong>{{ CARE_METRIC_STATUS_LABELS[item.checkResult] }}</strong>
-            <small>评分影响 {{ item.scoreImpact }}</small>
-          </view>
-        </view>
-      </view>
-
       <view v-else-if="section === 'evidence'" class="metric-section">
         <view class="section-head">
           <view><text>护理留档审核</text><text>只展示后端待审记录；驳回或补材料必须填写意见。</text></view>
@@ -537,26 +371,6 @@ onBeforeUnmount(clearEvidencePreviews);
         </view>
       </view>
 
-      <view v-else class="metric-section">
-        <view class="section-head">
-          <view><text>未完成原因豁免审核</text><text>通过必须不扣分，驳回必须扣分并填写意见。</text></view>
-          <button type="button" class="secondary" :disabled="loading" @click="loadProofQueue">刷新队列</button>
-        </view>
-        <view v-if="proofs.length === 0" class="metric-state">暂无待审核原因证明。</view>
-        <view v-else class="review-list">
-          <view v-for="item in proofs" :key="item.proofId" class="review-card">
-            <view><text>证明记录</text><strong>{{ compactBusinessId(item.proofId) }}</strong><small>{{ PROOF_STATUS_LABELS[item.reviewStatus] }}</small></view>
-            <picker :range="proofReviewOptions" range-key="label" :value="pickerIndex(proofReviewOptions, proofForms[item.proofId]?.reviewResult || 'APPROVED')" @change="setProofReviewResult(item.proofId, $event)">
-              <view class="select-box">{{ PROOF_STATUS_LABELS[proofForms[item.proofId]?.reviewResult || 'APPROVED'] }}</view>
-            </picker>
-            <picker :range="scoreDecisionOptions" range-key="label" :value="pickerIndex(scoreDecisionOptions, proofForms[item.proofId]?.scoreDecision || 'NO_DEDUCTION')" @change="setScoreDecision(item.proofId, $event)">
-              <view class="select-box">{{ SCORE_DECISION_LABELS[proofForms[item.proofId]?.scoreDecision || 'NO_DEDUCTION'] }}</view>
-            </picker>
-            <textarea v-model="proofForms[item.proofId].reviewComment" maxlength="500" placeholder="审核意见，驳回必填" />
-            <button type="button" class="primary" :disabled="loading || item.reviewStatus !== 'PENDING'" @click="submitProofReview(item)">提交审核</button>
-          </view>
-        </view>
-      </view>
     </template>
   </view>
 </template>
@@ -588,10 +402,9 @@ button[disabled] { opacity:.48; }
 .section-head view text:first-child { font-size:18px; font-weight:800; }
 .section-head view text:last-child { margin-top:5px; color:#687b76; font-size:13px; line-height:1.5; }
 .version-pill { flex:none; padding:7px 10px; border:1px solid #abd8d1; border-radius:999px; background:#eaf7f4; color:#087b78; font-size:12px; font-weight:800; }
-.service-selector,.order-command-row { display:grid; grid-template-columns:minmax(220px,1fr) minmax(260px,1fr); gap:10px; }
-.order-command-row { grid-template-columns:minmax(220px,1fr) auto auto auto; }
-.service-selector input,.order-command-row input,.metric-config-row input,.metric-config-row textarea,.review-card textarea,.select-box { box-sizing:border-box; width:100%; border:1px solid #cbdad6; border-radius:6px; background:#fff; color:#17312e; font-size:13px; }
-.service-selector input,.order-command-row input,.metric-config-row input,.select-box { min-height:40px; padding:0 12px; line-height:40px; }
+.service-selector { display:grid; grid-template-columns:minmax(220px,1fr) minmax(260px,1fr); gap:10px; }
+.service-selector input,.metric-config-row input,.metric-config-row textarea,.review-card textarea,.select-box { box-sizing:border-box; width:100%; border:1px solid #cbdad6; border-radius:6px; background:#fff; color:#17312e; font-size:13px; }
+.service-selector input,.metric-config-row input,.select-box { min-height:40px; padding:0 12px; line-height:40px; }
 .metric-config-list { display:grid; gap:12px; }
 .metric-config-row { display:grid; grid-template-columns:42px repeat(3,minmax(120px,1fr)) 96px 86px auto; gap:10px; align-items:end; padding:14px; border:1px solid #e0ebe8; background:#fbfdfc; }
 .metric-config-row label { display:grid; gap:6px; min-width:0; }
@@ -602,16 +415,6 @@ button[disabled] { opacity:.48; }
 .metric-config-row textarea,.review-card textarea { min-height:72px; padding:10px 12px; line-height:1.45; }
 .row-remove { align-self:stretch; color:#a3342e; border-color:#efc4c0; }
 .section-actions { display:flex; justify-content:flex-end; gap:10px; }
-.checklist-table { display:grid; border:1px solid #dbe6e3; }
-.table-head,.table-row { display:grid; grid-template-columns:1.4fr 1fr 1fr 90px; gap:10px; align-items:center; padding:11px 14px; border-bottom:1px solid #e7eeec; font-size:13px; }
-.table-head { background:#f2f7f5; color:#415f59; font-weight:800; }
-.table-row:last-child { border-bottom:0; }
-.check-result-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
-.check-result-card { display:grid; gap:5px; padding:13px; border-left:4px solid #0b8f9d; background:#f2faf8; }
-.check-result-card.missing { border-left-color:#ffb84d; background:#fff8e8; }
-.check-result-card text { color:#17312e; font-size:14px; font-weight:800; }
-.check-result-card strong { color:#087b78; font-size:18px; }
-.check-result-card small { color:#687b76; font-size:12px; }
 .review-list { display:grid; gap:12px; }
 .review-card { display:grid; grid-template-columns:minmax(140px,1fr) 170px 170px minmax(220px,1.4fr) auto; gap:10px; align-items:start; padding:14px; border:1px solid #dfe9e6; background:#fbfdfc; }
 .review-card>view:first-child { display:grid; gap:5px; }
@@ -628,7 +431,7 @@ button[disabled] { opacity:.48; }
 .evidence-review-card .primary { min-height:42px; align-self:center; }
 @media (max-width:900px) {
   .metric-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .service-selector,.order-command-row,.metric-config-row,.review-card { grid-template-columns:1fr; }
+  .service-selector,.metric-config-row,.review-card { grid-template-columns:1fr; }
   .description-field { grid-column:auto; }
   .metric-tabs { overflow:auto; }
   .metric-tabs button { min-width:110px; }

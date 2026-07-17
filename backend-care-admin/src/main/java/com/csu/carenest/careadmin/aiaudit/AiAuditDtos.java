@@ -15,6 +15,9 @@ public final class AiAuditDtos {
             String sessionStatus,
             String safetyLevel,
             boolean riskFlag,
+            String customerServiceTicketId,
+            String customerServiceTicketStatus,
+            boolean pendingHumanReply,
             String latestMessageSummary,
             LocalDateTime createdAt,
             LocalDateTime updatedAt) {
@@ -24,6 +27,7 @@ public final class AiAuditDtos {
             String senderRole,
             String messageType,
             String contentSummary,
+            String content,
             boolean safetyFlag,
             LocalDateTime createdAt) {
     }

@@ -208,9 +208,10 @@ public class CareAdminPhaseController {
     @PostMapping("/orders/{orderId}/service-report/generate")
     public ApiResponse<ReportResponse> generateReport(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable("orderId") String orderId) {
+            @PathVariable("orderId") String orderId,
+            @RequestBody(required = false) GenerateReportRequest request) {
         CurrentUser currentUser = authService.requireAnyRole(authorization, RoleCode.NURSE, RoleCode.ADMIN);
-        return ApiResponse.success(phaseService.generateReport(currentUser, orderId));
+        return ApiResponse.success(phaseService.generateReport(currentUser, orderId, request));
     }
 
     @GetMapping("/orders/{orderId}/service-report")

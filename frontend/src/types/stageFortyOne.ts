@@ -4,7 +4,7 @@ export type AiSafetyLevel = 'NORMAL' | 'WARNING' | 'CRITICAL'
 export interface AiSession { sessionId:string; elderId:string; elderName:string; sessionTitle:string|null; sessionStatus:'ACTIVE'|'CLOSED'; safetyLevel:AiSafetyLevel; riskFlag:boolean; latestAssistanceTicketId:string|null; latestAssistanceStatus:string|null; createdAt:string }
 export interface AiMessageResponse { sessionId:string; userMessageId:string; assistantMessageId:string; answer:string; safetyLevel:AiSafetyLevel; riskFlag:boolean; assistanceTicketId:string|null; customerServiceTicketCreated:boolean; familyAssistanceRequested:boolean; healthFeedbackId:string|null; healthFeedbackSubmitted:boolean }
 export interface AiSessionSummary { sessionId:string; elderId:string; elderName:string; sessionTitle:string|null; sessionStatus:'ACTIVE'|'CLOSED'; safetyLevel:AiSafetyLevel; latestMessagePreview:string|null; createdAt:string; updatedAt:string }
-export interface AiConversationMessage { messageId:string; senderRole:'USER'|'ASSISTANT'; messageType:'TEXT'|'VOICE'; content:string; safetyFlag:boolean; safetyLevel:AiSafetyLevel; createdAt:string }
+export interface AiConversationMessage { messageId:string; senderRole:'USER'|'ASSISTANT'|'SYSTEM'; messageType:'TEXT'|'VOICE'|'SYSTEM'; content:string; safetyFlag:boolean; safetyLevel:AiSafetyLevel; createdAt:string }
 export type AiSessionPage = PageResult<AiSessionSummary>
 export interface AiSpeechTranscriptionResponse { transcript:string; model:string; traceId:string }
 export interface AssistanceTicketItem { ticketId:string; elderId:string; elderName:string; category:string; priority:'NORMAL'|'URGENT'; ticketStatus:'PENDING'|'PROCESSING'|'RESOLVED'|'CLOSED'; description:string; sourceType:string; createdAt:string }

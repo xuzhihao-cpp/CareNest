@@ -32,7 +32,10 @@ public class AiAuditRepository {
         query.args().add(offset);
         return jdbc.query("""
                 SELECT s.session_id,e.elder_name,u.display_name,s.session_title,
-                       s.session_status,s.safety_level,s.risk_flag,
+                       s.session_status,s.safety_level,s.risk_flag,cst.ticket_id,cst.ticket_status,
+                       CASE WHEN s.safety_level='CRITICAL' AND cst.ticket_id IS NOT NULL
+                             AND NOT EXISTS (SELECT 1 FROM ticket_message tm WHERE tm.ticket_id=cst.ticket_id AND tm.sender_role IN ('CUSTOMER_SERVICE','ADMIN') AND tm.message_type='TEXT')
+                            THEN 1 ELSE 0 END pending_human_reply,
                        (SELECT m.content_summary FROM ai_assistant_message m
                         WHERE m.session_id=s.session_id
                         ORDER BY m.created_at DESC,m.message_id DESC LIMIT 1) latest_message,
@@ -40,7 +43,8 @@ public class AiAuditRepository {
                 FROM ai_assistant_session s
                 JOIN elder_profile e ON e.elder_id=s.elder_id
                 JOIN sys_user u ON u.user_id=s.user_id
-                """ + query.where() + " ORDER BY s.risk_flag DESC,s.updated_at DESC LIMIT ? OFFSET ?",
+                LEFT JOIN customer_service_ticket cst ON cst.ticket_id=(SELECT ct.ticket_id FROM assistance_ticket at JOIN customer_service_ticket ct ON ct.assistance_ticket_id=at.assistance_ticket_id WHERE at.session_id=s.session_id ORDER BY ct.created_at DESC LIMIT 1)
+                """ + query.where() + " ORDER BY pending_human_reply DESC,s.risk_flag DESC,s.updated_at DESC LIMIT ? OFFSET ?",
                 (rs, rowNum) -> mapSession(rs), query.args().toArray());
     }
 
@@ -55,7 +59,10 @@ public class AiAuditRepository {
     public Optional<AiAuditDtos.SessionItem> find(String sessionId) {
         return jdbc.query("""
                 SELECT s.session_id,e.elder_name,u.display_name,s.session_title,
-                       s.session_status,s.safety_level,s.risk_flag,
+                       s.session_status,s.safety_level,s.risk_flag,cst.ticket_id,cst.ticket_status,
+                       CASE WHEN s.safety_level='CRITICAL' AND cst.ticket_id IS NOT NULL
+                             AND NOT EXISTS (SELECT 1 FROM ticket_message tm WHERE tm.ticket_id=cst.ticket_id AND tm.sender_role IN ('CUSTOMER_SERVICE','ADMIN') AND tm.message_type='TEXT')
+                            THEN 1 ELSE 0 END pending_human_reply,
                        (SELECT m.content_summary FROM ai_assistant_message m
                         WHERE m.session_id=s.session_id
                         ORDER BY m.created_at DESC,m.message_id DESC LIMIT 1) latest_message,
@@ -63,19 +70,20 @@ public class AiAuditRepository {
                 FROM ai_assistant_session s
                 JOIN elder_profile e ON e.elder_id=s.elder_id
                 JOIN sys_user u ON u.user_id=s.user_id
+                LEFT JOIN customer_service_ticket cst ON cst.ticket_id=(SELECT ct.ticket_id FROM assistance_ticket at JOIN customer_service_ticket ct ON ct.assistance_ticket_id=at.assistance_ticket_id WHERE at.session_id=s.session_id ORDER BY ct.created_at DESC LIMIT 1)
                 WHERE s.session_id=?
                 """, (rs, rowNum) -> mapSession(rs), sessionId).stream().findFirst();
     }
 
     public List<AiAuditDtos.MessageItem> messages(String sessionId) {
         return jdbc.query("""
-                SELECT sender_role,message_type,content_summary,safety_flag,created_at
+                SELECT sender_role,message_type,content_summary,content_text,safety_flag,created_at
                 FROM ai_assistant_message WHERE session_id=?
                 ORDER BY created_at,message_id
                 """, (rs, rowNum) -> new AiAuditDtos.MessageItem(
                 rs.getString("sender_role"), rs.getString("message_type"),
-                rs.getString("content_summary"), rs.getBoolean("safety_flag"),
-                rs.getTimestamp("created_at").toLocalDateTime()), sessionId);
+                rs.getString("content_summary"), rs.getString("content_text"),
+                rs.getBoolean("safety_flag"), rs.getTimestamp("created_at").toLocalDateTime()), sessionId);
     }
 
     private AiAuditDtos.SessionItem mapSession(java.sql.ResultSet rs) throws java.sql.SQLException {
@@ -83,7 +91,8 @@ public class AiAuditRepository {
                 rs.getString("session_id"), rs.getString("elder_name"),
                 rs.getString("display_name"), rs.getString("session_title"),
                 rs.getString("session_status"), rs.getString("safety_level"),
-                rs.getBoolean("risk_flag"), rs.getString("latest_message"),
+                rs.getBoolean("risk_flag"), rs.getString("ticket_id"), rs.getString("ticket_status"),
+                rs.getBoolean("pending_human_reply"), rs.getString("latest_message"),
                 rs.getTimestamp("created_at").toLocalDateTime(),
                 rs.getTimestamp("updated_at").toLocalDateTime());
     }

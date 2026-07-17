@@ -21,6 +21,8 @@ const userReports = ref<PendingReportRecord[]>([]);
 const selectedOrderId = ref('');
 const report = ref<ServiceReportResponse | null>(null);
 const reportSources = ref<CareExecutionRecord[]>([]);
+const draftSummary = ref('');
+const draftNursingAdvice = ref('');
 const loading = ref(false);
 const message = ref('');
 const error = ref('');
@@ -105,6 +107,8 @@ async function selectOrder(order: AdminOrderRecord) {
   selectedOrderId.value = order.orderId;
   report.value = null;
   reportSources.value = [];
+  draftSummary.value = '';
+  draftNursingAdvice.value = '';
   message.value = '';
   error.value = '';
   if (order.orderStatus !== 'WAIT_REPORT') await loadReport(order);
@@ -115,6 +119,9 @@ async function loadReportSources(orderId: string) {
   const response = await getOrderServiceRecords(orderId);
   if (response.code === 0) {
     reportSources.value = response.data.records;
+    if (!draftNursingAdvice.value) {
+      draftNursingAdvice.value = response.data.records.map((item) => item.nursingAdvice?.trim()).find(Boolean) || '';
+    }
   }
 }
 
@@ -143,7 +150,17 @@ async function handlePrimaryAction(order: AdminOrderRecord) {
   }
   loading.value = true;
   error.value = '';
-  const response = await generateServiceReport(order.orderId);
+  const summary = draftSummary.value.trim();
+  const nursingAdvice = draftNursingAdvice.value.trim();
+  if (summary.length > 1000 || nursingAdvice.length > 1000) {
+    loading.value = false;
+    error.value = '服务总结和护理建议均不能超过 1000 个字符。';
+    return;
+  }
+  const response = await generateServiceReport(order.orderId, {
+    ...(summary ? { summary } : {}),
+    ...(nursingAdvice ? { nursingAdvice } : {})
+  });
   loading.value = false;
   if (response.code !== 0) {
     error.value = response.message;
@@ -177,11 +194,19 @@ onMounted(() => {
       </view>
 
       <view class="report-preview">
-        <view v-if="selectedOrder" class="selected-report-order"><text>{{ selectedOrder.serviceName || '上门护理服务' }}</text><text>服务联系人：{{ selectedOrder.contactName || '长辈' }}</text><text>预约时间：{{ formatTime(selectedOrder.scheduledStart) }}</text><button v-if="selectedOrder.orderStatus === 'WAIT_REPORT'" class="hero-action report-action" type="button" :disabled="loading" @click="handlePrimaryAction(selectedOrder)">生成报告</button></view>
+        <view v-if="selectedOrder" class="selected-report-order"><text>{{ selectedOrder.serviceName || '上门护理服务' }}</text><text>服务联系人：{{ selectedOrder.contactName || '长辈' }}</text><text>预约时间：{{ formatTime(selectedOrder.scheduledStart) }}</text></view>
         <view v-else class="report-empty">请从左侧选择一笔服务订单。</view>
 
         <view v-if="selectedOrder?.orderStatus === 'WAIT_REPORT'" class="report-source-preview">
           <text v-if="reportSources.length === 0" class="field-error">护理人员尚未填写服务记录和护理建议，请先在护理端完成本次服务记录。</text>
+          <view class="report-editor">
+            <view class="report-editor-heading">
+              <view><text>报告内容确认</text><small>可调整服务总结和护理建议；服务记录、生命体征将按护理留档原样纳入报告。</small></view>
+            </view>
+            <label><text>服务总结（选填）</text><textarea v-model="draftSummary" maxlength="1000" placeholder="未填写时将使用系统整理的服务总结" /></label>
+            <label><text>护理建议（选填）</text><textarea v-model="draftNursingAdvice" maxlength="1000" placeholder="未填写时将采用护理人员已填写的建议" /></label>
+            <button class="hero-action report-action" type="button" :disabled="loading || reportSources.length === 0" @click="handlePrimaryAction(selectedOrder)">确认内容并生成报告</button>
+          </view>
           <view class="report-source-heading"><text>将纳入报告的服务记录</text><text>{{ reportSources.length }} 条</text></view>
           <view v-if="reportSources.length === 0" class="report-empty">护理人员尚未填写服务记录，暂不能生成报告。</view>
           <view v-for="item in reportSources" :key="item.recordId" class="report-source-item">
@@ -230,6 +255,7 @@ onMounted(() => {
 .report-picker-layout { display: grid; gap: 18px; }.report-order-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; min-width: 0; }.report-list-heading { grid-column: 1 / -1; color: #254740; font-size: 16px; font-weight: 700; }.report-list-heading text:last-child { color: #72837f; font-size: 13px; font-weight: 400; }.report-order-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 90px; padding: 13px; border: 1px solid rgba(120, 144, 156, .16); border-radius: 8px; background: #fff; color: #40505d; text-align: left; }.report-order-card.active { border-color: rgba(11,143,157,.38); background: #f0faf7; }.report-order-card .flow-time { margin-top: 4px; }
 .report-preview { display: grid; grid-template-columns: minmax(280px, .72fr) minmax(0, 1.28fr); gap: 14px; align-items: start; min-width: 0; }.report-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; min-width: 0; }.report-summary { grid-column: 1 / -1; }.selected-report-order, .report-block, .report-empty { display: grid; gap: 7px; box-sizing: border-box; width: 100%; padding: 14px; border: 1px solid #dce8e5; border-radius: 8px; background: #fff; color: #58706b; font-size: 14px; line-height: 1.55; }.selected-report-order { border-color: #c8dfda; background: #f3faf8; }.selected-report-order text:first-child { color: #1e4841; font-size: 17px; font-weight: 700; }.report-action { width: 100%; min-height: 42px; margin-top: 6px; border-radius: 6px; }.report-block { color: #405a55; }.report-block-title { color: #20433d; font-weight: 700; }.report-empty { min-height: 70px; align-content: center; color: #72837f; }
 .report-source-preview { display: grid; gap: 8px; grid-column: 1 / -1; padding: 14px; border: 1px solid #cfe3de; border-radius: 8px; background: #f8fcfb; color: #47645e; }.report-source-heading { display: flex; justify-content: space-between; color: #20433d; font-weight: 700; }.report-source-heading text:last-child { color: #71837f; font-weight: 400; }.report-source-item { display: grid; gap: 4px; padding: 10px 0; border-top: 1px solid #deebe8; }.report-source-item:first-of-type { border-top: 0; }
+.report-editor { display: grid; gap: 12px; padding: 14px; border: 1px solid #c8dfda; border-radius: 7px; background: #fff; }.report-editor-heading>view { display: grid; gap: 4px; }.report-editor-heading text { color: #20433d; font-size: 15px; font-weight: 700; }.report-editor-heading small { color: #647a74; font-size: 12px; line-height: 1.5; }.report-editor label { display: grid; gap: 6px; color: #3f5f58; font-size: 13px; font-weight: 700; }.report-editor textarea { box-sizing: border-box; width: 100%; min-height: 86px; padding: 10px 12px; border: 1px solid #c9dbd6; border-radius: 6px; background: #fcfefd; color: #1d4039; font: inherit; font-size: 14px; line-height: 1.5; resize: vertical; }
 .tag-rose { border-color: #f2b8b5; background: #fff1f0; color: #b43a36; }
 @media (max-width: 900px) { .report-order-list { grid-template-columns: 1fr; }.report-preview, .report-content { grid-template-columns: 1fr; } }
 </style>
