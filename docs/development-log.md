@@ -1,5 +1,13 @@
 # CareNest 开发日志
 
+## 2026-07-17
+
+### 演示环境权限修复
+
+- 修复管理端“档案建议”提示当前账号无权限的问题：运行库补齐 `HEALTH_ARCHIVE_REVIEW` 权限，并授权给 `ADMIN`、`CUSTOMER_SERVICE` 角色。
+- 收窄 `db/seed/phase-02-03-demo-data.sql` 对 `role_permission` 的清理范围，避免重跑早期演示数据时清空后续阶段权限。
+- 修复管理端“培训文章”返回 `service error` 的运行库结构漂移问题：执行 `db/migration/phase-19-health-archive-contract.sql`，补齐 `risk_tag.tag_code` 和唯一索引，接口恢复返回 `code=0`。
+
 ## 2026-07-16
 
 ### 成员4：阶段 34-40 前端开发

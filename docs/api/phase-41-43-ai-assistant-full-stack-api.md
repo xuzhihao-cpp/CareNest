@@ -49,6 +49,13 @@ Safety classification:
 
 Closes a session owned by the elder or an active family binding.
 
+### `DELETE /api/v1/ai/sessions/{sessionId}`
+
+Removes a conversation from the creator's history. Only the user who created
+the session may delete it. The session is retained as `CLOSED` for safety audit
+and is excluded from user history lists; messages and risk tickets are not
+physically deleted.
+
 ### `GET /api/v1/assistance/tickets`
 
 Lists assistance tickets for elder self or a family member with an active

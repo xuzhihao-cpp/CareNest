@@ -141,9 +141,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <view class="stage-thirteen-panel glass-panel" aria-label="阶段13护理任务列表">
+  <view class="stage-thirteen-panel glass-panel" aria-label="护理任务列表">
     <view class="section-title">
-      <text>⑬</text>
       <text>护理任务</text>
     </view>
 

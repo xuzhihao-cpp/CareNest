@@ -29,8 +29,28 @@ public class AiAssistantService {
         return resolve(auth.requireCurrentUser(token), elderId);
     }
     public void close(String token,String session){AuthService.CurrentUser u=auth.requireCurrentUser(token);authorizeSession(u,session);repo.close(session);}
+    @Transactional public void deleteHistory(String token,String session){
+        AuthService.CurrentUser u=auth.requireCurrentUser(token);
+        authorizeSession(u,session);
+        if(!u.userId().equals(repo.sessionOwner(session))) throw new ApiException(403,"只能删除自己创建的对话");
+        repo.close(session);
+    }
+    public String healthFeedbackAdvice(String type,String severity,String content){
+        String prompt="长辈健康反馈：类型为"+feedbackTypeLabel(type)+"，程度为"+severityLabel(severity)
+                +"。补充说明："+(content==null||content.isBlank()?"未补充":content.trim())
+                +"。请用两句话给出安全、易懂、可执行的日常照护建议，不诊断、不调整用药。";
+        try{
+            AiProvider.Result result=provider.answer(prompt);
+            if("CRITICAL".equals(result.safetyLevel())) return "当前情况可能存在紧急风险，请立即联系家属或专业医护人员；如症状持续加重，请及时拨打当地急救电话。";
+            return result.answer();
+        }catch(RuntimeException exception){
+            return "请先休息并继续留意身体变化；如果不适持续或加重，请及时联系家属或专业医护人员。";
+        }
+    }
     private String resolve(AuthService.CurrentUser u,String requested){if(u.roles().contains(RoleCode.ELDER)){String id=repo.elderByUser(u.userId()).orElseThrow(()->new ApiException(404,"elder not found")).id();if(requested!=null&&!requested.equals(id))throw new ApiException(403,"not owner");return id;}if(u.roles().contains(RoleCode.FAMILY)){if(requested==null||!repo.bound(u.userId(),requested))throw new ApiException(403,"active family binding required");return requested;}throw new ApiException(403,"role not allowed");}
     private void authorizeSession(AuthService.CurrentUser u,String session){String elder=repo.sessionElder(session).orElseThrow(()->new ApiException(404,"session not found"));if(u.roles().contains(RoleCode.ELDER)){if(repo.sessionOwner(session).equals(u.userId()))return;resolve(u,elder);return;}if(u.roles().contains(RoleCode.FAMILY)){resolve(u,elder);return;}throw new ApiException(403,"role not allowed");}
     private String summary(String s){return s.length()>480?s.substring(0,480):s;}
     private String messageId(){return "msg_"+UUID.randomUUID().toString().replace("-","").substring(0,28);}
+    private String feedbackTypeLabel(String type){return switch(type==null?"":type){case"PAIN"->"疼痛";case"DIZZINESS"->"头晕";case"SLEEP"->"睡眠变化";case"DIET"->"饮食变化";case"MENTAL_STATE"->"精神状态变化";default->"身体不适";};}
+    private String severityLabel(String severity){return switch(severity==null?"":severity){case"LOW"->"轻微";case"MEDIUM"->"明显";case"HIGH"->"严重";default->"未标明";};}
 }

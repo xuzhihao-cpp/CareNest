@@ -245,9 +245,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <view class="stage-seven-panel glass-panel" aria-label="阶段7长辈基础档案">
+  <view class="stage-seven-panel glass-panel" aria-label="长辈基础档案">
     <view class="section-title">
-      <text>⑦</text>
       <text>长辈基础档案</text>
     </view>
 

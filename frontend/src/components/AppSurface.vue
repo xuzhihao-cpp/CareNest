@@ -117,8 +117,8 @@ const roleProfiles: Record<RoleCode, VisualProfile> = {
   FAMILY: {
     terminal: 'mobile',
     subtitle: '移动端 · 远程守护 · 及时掌握',
-    heroTitle: '张爷爷挂了，挂在一个温暖的地方，被这货打死了->，我要把我所有的东西留给我的嗝屁猫',
-    heroMeta: '血压 0/0 · 心率 0 · 今日提醒完成 3/5',
+    heroTitle: '张爷爷今日照护状态稳定',
+    heroMeta: '血压 128/82 · 心率 76 · 今日提醒完成 3/5',
     primaryAction: '去确认',
     primarySymbol: '✓',
     primaryPermission: 'report:confirm',
@@ -191,7 +191,7 @@ const roleProfiles: Record<RoleCode, VisualProfile> = {
     flowItems: [
       { label: '读取病历', time: '当前', status: '待审核', accent: 'amber' },
       { label: '提交结论', time: '审核后', status: '需确认', accent: 'blue' },
-      { label: '档案归档', time: '阶段 24', status: '后续处理', accent: 'mint' }
+      { label: '档案归档', time: '审核完成后', status: '后续处理', accent: 'mint' }
     ]
   }
 };
@@ -293,7 +293,7 @@ onMounted(async () => {
       </view>
       <view class="nav-foot">
         <text>◇</text>
-        <text>阶段3权限拦截</text>
+        <text>权限安全校验</text>
       </view>
     </aside>
 
@@ -311,7 +311,7 @@ onMounted(async () => {
         </view>
       </view>
 
-      <view class="auth-panel glass-panel" aria-label="阶段2登录态">
+      <view class="auth-panel glass-panel" aria-label="登录状态">
         <view class="auth-user">
           <text class="section-mini">当前用户</text>
           <text class="auth-name">{{ authUser?.displayName ?? '未登录' }}</text>
@@ -332,10 +332,10 @@ onMounted(async () => {
         </button>
       </view>
 
-      <view class="permission-panel glass-panel" aria-label="阶段3权限契约">
+      <view class="permission-panel glass-panel" aria-label="权限校验">
         <view class="section-title">
           <text>▣</text>
-          <text>权限拦截 MVP</text>
+          <text>权限安全校验</text>
         </view>
         <view class="permission-grid">
           <view>
@@ -370,7 +370,7 @@ onMounted(async () => {
       </view>
 
       <template v-else>
-      <view class="hero-board glass-panel" aria-label="阶段1四端可视化入口">
+      <view class="hero-board glass-panel" aria-label="应用入口">
         <view class="hero-copy">
           <text class="hero-kicker">CareNest</text>
           <text class="hero-title">{{ visualProfile.heroTitle }}</text>
@@ -391,7 +391,7 @@ onMounted(async () => {
         <text v-else class="tag tag-coral">按钮无权限</text>
       </view>
 
-      <view class="quick-grid" aria-label="阶段4首页卡片">
+      <view class="quick-grid" aria-label="首页概览">
         <view v-for="item in homeSummary?.cards ?? []" :key="item.key" class="quick-card glass-panel">
           <text class="quick-label">{{ item.label }}</text>
           <text class="quick-value">{{ item.value }}{{ item.unit }}</text>
@@ -501,7 +501,7 @@ onMounted(async () => {
             <text>▥</text>
             <text>接口契约验证</text>
           </view>
-          <view class="metric-grid" aria-label="阶段1接口响应">
+          <view class="metric-grid" aria-label="服务状态">
             <view class="metric-panel">
               <view class="metric-icon teal">
                 <text>♡</text>
@@ -536,7 +536,7 @@ onMounted(async () => {
         </view>
       </view>
 
-      <view class="stage-strip home-actions glass-panel" aria-label="阶段4快捷入口">
+      <view class="stage-strip home-actions glass-panel" aria-label="快捷入口">
         <button
           v-for="action in visibleQuickActions"
           :key="action.key"
@@ -548,7 +548,7 @@ onMounted(async () => {
         </button>
       </view>
 
-      <view v-if="openedAction" class="action-placeholder glass-panel" aria-label="阶段4空列表占位">
+      <view v-if="openedAction" class="action-placeholder glass-panel" aria-label="内容状态">
         <text class="access-code">占位入口</text>
         <text class="access-title">{{ openedAction.label }}</text>
         <text class="access-desc">{{ openedAction.path }}</text>

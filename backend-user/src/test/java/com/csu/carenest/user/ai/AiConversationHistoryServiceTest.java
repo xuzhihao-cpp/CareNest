@@ -157,6 +157,29 @@ class AiConversationHistoryServiceTest {
         assertEquals("CRITICAL", result.get(1).safetyLevel());
     }
 
+    @Test
+    void ownerCanDeleteHistoryButBoundFamilyCannotDeleteAnotherUsersSession() {
+        when(auth.requireCurrentUser("Bearer elder"))
+                .thenReturn(new AuthService.CurrentUser("elder-user", List.of(RoleCode.ELDER)));
+        when(repository.sessionOwner("session-2")).thenReturn("elder-user");
+        when(repository.sessionElder("session-2")).thenReturn(Optional.of("elder-1"));
+        when(repository.elderByUser("elder-user"))
+                .thenReturn(Optional.of(new AiAssistantRepository.Elder("elder-1", "Elder", "elder-user")));
+
+        service.deleteHistory("Bearer elder", "session-2");
+        verify(repository).close("session-2");
+
+        when(auth.requireCurrentUser("Bearer family"))
+                .thenReturn(new AuthService.CurrentUser("family-user", List.of(RoleCode.FAMILY)));
+        when(repository.sessionOwner("session-3")).thenReturn("other-family");
+        when(repository.sessionElder("session-3")).thenReturn(Optional.of("elder-1"));
+        when(repository.bound("family-user", "elder-1")).thenReturn(true);
+
+        ApiException exception = assertThrows(ApiException.class,
+                () -> service.deleteHistory("Bearer family", "session-3"));
+        assertEquals(403, exception.code());
+    }
+
     private AiAssistantDtos.SessionSummary summary(String sessionId, String elderId) {
         return new AiAssistantDtos.SessionSummary(sessionId, elderId, "Elder", "Conversation", "ACTIVE", "NORMAL",
                 "Latest message", "2026-07-16T10:00:00", "2026-07-16T10:01:00");

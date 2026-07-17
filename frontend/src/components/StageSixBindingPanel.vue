@@ -199,9 +199,8 @@ watch(records, () => {
 </script>
 
 <template>
-  <view class="stage-six-panel glass-panel" aria-label="阶段6长辈家属绑定管理">
+  <view class="stage-six-panel glass-panel" aria-label="长辈家属绑定管理">
     <view class="section-title">
-      <text>⑥</text>
       <text>长辈与家属绑定</text>
     </view>
 

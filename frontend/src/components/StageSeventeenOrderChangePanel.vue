@@ -197,7 +197,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <view v-if="canUsePanel" class="stage-seventeen-panel glass-panel" aria-label="阶段17订单取消与改期">
+  <view v-if="canUsePanel" class="stage-seventeen-panel glass-panel" aria-label="订单取消与改期">
     <view class="section-title">
       <text>订单取消与改期</text>
     </view>

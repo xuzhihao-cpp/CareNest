@@ -22,8 +22,7 @@ import {
   isCurrentFeedbackRequest,
   resolveHealthFeedbackInputType,
   validateHealthFeedback,
-  validateVoiceFileDescriptor,
-  VOICE_FILE_EXTENSIONS
+  validateVoiceFileDescriptor
 } from '@/utils/stageTwentyTwoRules';
 
 const props = defineProps<{
@@ -60,6 +59,7 @@ const submitting = ref(false);
 const recording = ref(false);
 const elderError = ref('');
 const successMessage = ref('');
+const aiAdvice = ref('');
 
 const bindings = ref<BindingResponse[]>([]);
 const selectedElderId = ref('');
@@ -122,55 +122,6 @@ function friendlyError(code: number, fallback: string) {
   return fallback || '服务暂时不可用，请稍后重试。';
 }
 
-function resolveChosenVoice(result: UniApp.ChooseFileSuccessCallbackResult) {
-  const files = (Array.isArray(result.tempFiles) ? result.tempFiles : [result.tempFiles]) as Array<File | {
-    path: string;
-    name?: string;
-    size: number;
-    type?: string;
-  }>;
-  const candidate = files[0];
-  if (!candidate) return null;
-  const paths = Array.isArray(result.tempFilePaths) ? result.tempFilePaths : [result.tempFilePaths];
-  const rawFile = typeof File !== 'undefined' && candidate instanceof File ? candidate : undefined;
-  const descriptor = candidate as { path?: string; name?: string; size: number; type?: string };
-  const path = paths[0] || descriptor.path || '';
-  const name = rawFile?.name || descriptor.name || path.split('/').pop() || '健康反馈语音.mp3';
-  const voice: SelectedVoiceFile = {
-    path,
-    name,
-    size: rawFile?.size ?? descriptor.size,
-    mimeType: rawFile?.type || descriptor.type || ''
-  };
-  return voice;
-}
-
-function chooseVoice() {
-  if (submitting.value || voiceLocked.value) return;
-  uni.chooseFile({
-    count: 1,
-    type: 'all',
-    extension: [...VOICE_FILE_EXTENSIONS],
-    success(result) {
-      const voice = resolveChosenVoice(result);
-      if (!voice) return;
-      const validation = validateVoiceFileDescriptor(voice, maxVoiceSizeBytes, maxVoiceSizeMb);
-      if (validation) {
-        elderError.value = validation;
-        return;
-      }
-      selectedVoice.value = voice;
-      uploadedVoiceFileId.value = '';
-      uploadProgress.value = 0;
-      elderError.value = '';
-      successMessage.value = '';
-    },
-    fail(result) {
-      if (!result.errMsg.toLowerCase().includes('cancel')) elderError.value = '暂时无法选择语音，请稍后重试。';
-    }
-  });
-}
-
 interface RecorderStopResult {
   tempFilePath: string;
   duration?: number;
@@ -185,6 +136,85 @@ interface RecorderManagerLike {
 }
 
 let recorder: RecorderManagerLike | null = null;
+let browserRecorder: MediaRecorder | null = null;
+let browserRecordingStream: MediaStream | null = null;
+let browserRecordingChunks: Blob[] = [];
+let browserRecordingStartedAt = 0;
+let browserRecordingTimer: ReturnType<typeof setTimeout> | null = null;
+
+function releaseBrowserRecording() {
+  if (browserRecordingTimer) clearTimeout(browserRecordingTimer);
+  browserRecordingTimer = null;
+  browserRecordingStream?.getTracks().forEach((track) => track.stop());
+  browserRecordingStream = null;
+  browserRecorder = null;
+  browserRecordingChunks = [];
+}
+
+async function startBrowserRecording() {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    elderError.value = '当前浏览器无法使用麦克风录音，请更换支持录音的浏览器或设备。';
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mediaRecorder = new MediaRecorder(stream);
+    browserRecordingStream = stream;
+    browserRecorder = mediaRecorder;
+    browserRecordingChunks = [];
+    browserRecordingStartedAt = Date.now();
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size) browserRecordingChunks.push(event.data);
+    };
+    mediaRecorder.onerror = () => {
+      recording.value = false;
+      releaseBrowserRecording();
+      elderError.value = '录音过程中出现问题，请检查麦克风后重试。';
+    };
+    mediaRecorder.onstop = () => {
+      const mimeType = mediaRecorder.mimeType || 'audio/webm';
+      const blob = new Blob(browserRecordingChunks, { type: mimeType });
+      const durationSeconds = Math.max(1, Math.ceil((Date.now() - browserRecordingStartedAt) / 1000));
+      const extension = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'm4a' : 'webm';
+      const voice: SelectedVoiceFile = {
+        path: '',
+        name: `健康反馈录音.${extension}`,
+        size: blob.size,
+        mimeType,
+        durationSeconds,
+        blob
+      };
+      recording.value = false;
+      releaseBrowserRecording();
+      const validation = validateVoiceFileDescriptor(voice, maxVoiceSizeBytes, maxVoiceSizeMb);
+      if (validation) {
+        elderError.value = validation;
+        return;
+      }
+      selectedVoice.value = voice;
+      uploadProgress.value = 0;
+      elderError.value = '';
+      successMessage.value = '';
+      aiAdvice.value = '';
+    };
+    mediaRecorder.start(250);
+    recording.value = true;
+    elderError.value = '';
+    successMessage.value = '';
+    aiAdvice.value = '';
+    browserRecordingTimer = setTimeout(() => {
+      if (browserRecorder?.state === 'recording') browserRecorder.stop();
+    }, 60000);
+  } catch (exception) {
+    releaseBrowserRecording();
+    recording.value = false;
+    const denied = exception instanceof DOMException && ['NotAllowedError', 'SecurityError'].includes(exception.name);
+    elderError.value = denied
+      ? '麦克风权限未开启，请在浏览器设置中允许使用麦克风。'
+      : '无法开始录音，请检查麦克风是否可用。';
+  }
+}
+
 function recorderManager() {
   if (recorder) return recorder;
   const provider = uni as unknown as { getRecorderManager?: () => RecorderManagerLike };
@@ -211,19 +241,28 @@ function recorderManager() {
     selectedVoice.value = voice;
     uploadProgress.value = 0;
     successMessage.value = '';
+    aiAdvice.value = '';
   });
   recorder.onError(() => {
     recording.value = false;
-    elderError.value = '无法使用录音功能，请检查麦克风权限，或选择已有语音。';
+    elderError.value = '无法使用录音功能，请检查麦克风权限后重试。';
   });
   return recorder;
 }
 
 function toggleRecording() {
   if (submitting.value || voiceLocked.value) return;
+  const browserCanRecord = typeof navigator !== 'undefined'
+    && Boolean(navigator.mediaDevices?.getUserMedia)
+    && typeof MediaRecorder !== 'undefined';
+  if (browserCanRecord || browserRecorder) {
+    if (recording.value && browserRecorder?.state === 'recording') browserRecorder.stop();
+    else if (!recording.value) void startBrowserRecording();
+    return;
+  }
   const manager = recorderManager();
   if (!manager) {
-    elderError.value = '当前设备不支持直接录音，请选择已有语音文件。';
+    elderError.value = '当前设备不支持直接录音，请更换支持录音的设备。';
     return;
   }
   if (recording.value) manager.stop();
@@ -235,12 +274,14 @@ function removeVoice() {
   selectedVoice.value = null;
   uploadProgress.value = 0;
   elderError.value = '';
+  aiAdvice.value = '';
 }
 
 async function submitFeedback() {
   if (submitting.value) return;
   elderError.value = '';
   successMessage.value = '';
+  aiAdvice.value = '';
   submitting.value = true;
   let fileId = uploadedVoiceFileId.value;
   if (selectedVoice.value && !fileId) {
@@ -250,7 +291,7 @@ async function submitFeedback() {
       submitting.value = false;
       return;
     }
-    const upload = await uploadHealthFeedbackVoice(selectedVoice.value.path, (value) => { uploadProgress.value = value; });
+    const upload = await uploadHealthFeedbackVoice(selectedVoice.value, (value) => { uploadProgress.value = value; });
     if (upload.code !== 0) {
       elderError.value = friendlyError(upload.code, upload.message);
       submitting.value = false;
@@ -288,6 +329,7 @@ async function submitFeedback() {
   uploadedVoiceFileId.value = '';
   uploadProgress.value = 0;
   successMessage.value = '已记录，将供授权家属和护理人员参考';
+  aiAdvice.value = response.data.aiAdvice;
 }
 
 async function loadBindings() {
@@ -420,6 +462,11 @@ function changePage(direction: -1 | 1) {
 
 onMounted(loadBindings);
 onUnmounted(() => {
+  if (browserRecorder?.state === 'recording') {
+    browserRecorder.onstop = null;
+    browserRecorder.stop();
+  }
+  releaseBrowserRecording();
   recordsRequestSequence += 1;
   releaseVoicePlaybackUrls();
 });
@@ -465,14 +512,13 @@ onUnmounted(() => {
           <textarea v-model="content" maxlength="512" :disabled="submitting" placeholder="例如：从早上起床后开始头晕，坐下休息后稍有缓解" />
         </label>
         <view class="voice-block">
-          <view class="voice-heading"><text class="section-title">语音补充</text><text>最长 60 秒</text></view>
+          <view class="voice-heading"><text class="section-title">语音补充</text><text>直接录音，最长 60 秒</text></view>
           <view v-if="selectedVoice" class="selected-voice">
             <view><text>{{ selectedVoice.name }}</text><text>{{ uploadedVoiceFileId ? '语音已上传，等待记录' : '语音已准备' }}</text></view>
             <button type="button" :disabled="submitting || voiceLocked" @click="removeVoice">移除</button>
           </view>
           <view class="voice-actions">
             <button type="button" :disabled="submitting || voiceLocked" @click="toggleRecording">{{ recording ? '停止录音' : '开始录音' }}</button>
-            <button type="button" :disabled="submitting || voiceLocked || recording" @click="chooseVoice">选择已有语音</button>
           </view>
           <view v-if="uploadProgress > 0" class="upload-progress"><view><text>语音上传进度</text><text>{{ uploadProgress }}%</text></view><view class="progress-track"><view :style="{ width: `${uploadProgress}%` }" /></view></view>
         </view>
@@ -484,6 +530,11 @@ onUnmounted(() => {
       </view>
       <view v-if="elderError" class="inline-error" role="alert">{{ elderError }}</view>
       <view v-if="successMessage" class="inline-success" role="status">{{ successMessage }}</view>
+      <view v-if="aiAdvice" class="ai-advice" role="status">
+        <text>AI 照护建议</text>
+        <text>{{ aiAdvice }}</text>
+        <text>建议仅供日常照护参考，不能替代医生诊断或急救服务。</text>
+      </view>
       <button class="submit-command" type="button" :disabled="submitting || recording" @click="submitFeedback">{{ actionLabel }}</button>
     </template>
 
@@ -577,7 +628,7 @@ onUnmounted(() => {
 .selected-voice text:first-child { max-width:100%; overflow-wrap:anywhere; font-size:24rpx; font-weight:800; }
 .selected-voice text:last-child { color:#617873; font-size:21rpx; }
 .selected-voice button,.voice-actions button,.refresh-command,.filter-actions button,.pagination button { min-height:80rpx; padding:0 18rpx; border:1rpx solid #bdd3ce; border-radius:4rpx; background:#fff; color:#176d65; font-size:22rpx; font-weight:750; }
-.voice-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10rpx; }
+.voice-actions { display:grid; grid-template-columns:minmax(0,1fr); gap:10rpx; }
 .voice-actions button:first-child { border-color:#167f76; background:#167f76; color:#fff; }
 .upload-progress { display:grid; gap:9rpx; color:#5d736e; font-size:21rpx; }
 .progress-track { height:10rpx; overflow:hidden; background:#dfeae7; }
@@ -585,6 +636,10 @@ onUnmounted(() => {
 .submission-summary { padding:16rpx 20rpx; border-left:6rpx solid #438ab0; background:#eef7fc; color:#315d74; font-size:23rpx; font-weight:750; }
 .inline-error,.inline-success { padding:18rpx 20rpx; border:1rpx solid #efb7b2; background:#fff2f1; color:#a3342e; font-size:23rpx; line-height:1.55; }
 .inline-success { border-color:#9fd8cf; background:#eaf8f5; color:#0f766e; }
+.ai-advice { display:grid; gap:10rpx; padding:22rpx; border:1rpx solid #a8d8cf; border-left:7rpx solid #178b81; background:#eff9f6; color:#24423c; }
+.ai-advice text { display:block; font-size:24rpx; line-height:1.6; }
+.ai-advice text:first-child { color:#0f766e; font-size:28rpx; font-weight:850; }
+.ai-advice text:last-child { color:#6b7f7a; font-size:20rpx; }
 .submit-command { min-height:90rpx; border:1rpx solid #117b72; border-radius:4rpx; background:#117b72; color:#fff; font-size:30rpx; font-weight:850; }
 button[disabled] { opacity:.48; }
 .elder-selector { margin:0 -24rpx; width:calc(100% + 48rpx); white-space:nowrap; }

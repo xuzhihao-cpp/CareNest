@@ -542,18 +542,18 @@ onMounted(loadContext);
       </view>
 
       <template v-if="records.length">
-        <scroll-view class="filter-scroll" scroll-x="true" :show-scrollbar="false">
+        <view class="filter-scroll">
           <view class="filter-row">
             <button type="button" :class="{ active: typeFilter === 'ALL' }" @click="typeFilter = 'ALL'">全部类型</button>
             <button v-for="option in fileTypeOptions" :key="option.value" type="button" :class="{ active: typeFilter === option.value }" @click="typeFilter = option.value">{{ option.label }}</button>
           </view>
-        </scroll-view>
-        <scroll-view class="filter-scroll" scroll-x="true" :show-scrollbar="false">
+        </view>
+        <view class="filter-scroll">
           <view class="filter-row">
             <button type="button" :class="{ active: statusFilter === 'ALL' }" @click="statusFilter = 'ALL'">全部状态</button>
             <button v-for="option in statusOptions" :key="option.value" type="button" :class="{ active: statusFilter === option.value }" @click="statusFilter = option.value">{{ option.label }}</button>
           </view>
-        </scroll-view>
+        </view>
       </template>
 
       <view v-if="loading" class="list-state"><text>正在读取病历资料...</text></view>
@@ -595,27 +595,31 @@ onMounted(loadContext);
 </template>
 
 <style scoped>
-.medical-files-panel { display:grid; gap:20rpx; min-width:0; color:#17312e; }
-.medical-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20rpx; padding:12rpx 4rpx 4rpx; }
+.medical-files-panel { display:grid; gap:20rpx; width:100%; min-width:0; max-width:100%; box-sizing:border-box; color:#17312e; }
+.medical-files-panel>* { min-width:0; max-width:100%; box-sizing:border-box; }
+.medical-heading { display:grid; grid-template-columns:minmax(0,1fr); gap:16rpx; width:100%; min-width:0; padding:12rpx 4rpx 4rpx; box-sizing:border-box; }
+.medical-heading>view { min-width:0; max-width:100%; }
 .medical-kicker,.medical-title,.medical-subtitle,.elder-choice text,.section-heading text,.field-label,.field-help,.medical-field>text,.selected-file text,.permission-state text,.state-title,.record-heading text,.record-meta text,.audit-opinion text { display:block; }
 .medical-kicker { color:#0f766e; font-size:22rpx; font-weight:700; }
 .medical-title { margin-top:6rpx; font-size:36rpx; font-weight:800; }
 .medical-subtitle { margin-top:8rpx; color:#607671; font-size:25rpx; line-height:1.55; }
 .refresh-command,.file-picker,.submit-command,.file-actions button,.list-state button,.record-actions button { min-height:88rpx; padding:0 22rpx; border:1rpx solid #bfd4cf; border-radius:4rpx; background:#fff; color:#176d65; font-size:24rpx; font-weight:750; }
-.refresh-command { flex:none; min-height:80rpx; }
+.refresh-command { justify-self:end; width:auto; max-width:100%; min-height:80rpx; margin:0; box-sizing:border-box; }
 button[disabled] { opacity:.48; }
-.elder-selector,.filter-scroll { margin:0 -24rpx; width:calc(100% + 48rpx); white-space:nowrap; }
-.elder-selector-row,.filter-row { display:flex; gap:12rpx; padding:0 24rpx; }
+.elder-selector { margin:0 -24rpx; width:calc(100% + 48rpx); white-space:nowrap; }
+.filter-scroll { width:100%; min-width:0; max-width:100%; margin:0; }
+.elder-selector-row { display:flex; gap:12rpx; padding:0 24rpx; }
+.filter-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12rpx; width:100%; min-width:0; padding:0; box-sizing:border-box; }
 .elder-choice { display:grid; gap:4rpx; min-width:180rpx; padding:18rpx 20rpx; border:1rpx solid #d8e4e1; border-radius:4rpx; background:#fff; text-align:left; }
 .elder-choice.active { border-color:#67bdb4; background:#e8f7f4; }
 .elder-choice text:first-child { font-size:27rpx; font-weight:800; }
 .elder-choice text:last-child { color:#6e827d; font-size:22rpx; }
-.upload-section,.records-section { display:grid; gap:20rpx; padding:24rpx; border:1rpx solid #dce7e4; background:#fff; }
+.upload-section,.records-section { display:grid; gap:20rpx; width:100%; min-width:0; max-width:100%; padding:24rpx; box-sizing:border-box; border:1rpx solid #dce7e4; background:#fff; }
 .section-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:18rpx; }
-.section-heading>view { display:grid; gap:5rpx; }
+.section-heading>view { display:grid; gap:5rpx; min-width:0; }
 .section-heading view text:first-child { font-size:29rpx; font-weight:800; }
 .section-heading view text:last-child { color:#6d817c; font-size:22rpx; line-height:1.45; }
-.person-chip,.record-count { flex:none; padding:8rpx 12rpx; border:1rpx solid #abd8d1; border-radius:4rpx; background:#eaf7f4; color:#176d65; font-size:22rpx; font-weight:750; }
+.person-chip,.record-count { flex:none; max-width:45%; padding:8rpx 12rpx; box-sizing:border-box; overflow-wrap:anywhere; border:1rpx solid #abd8d1; border-radius:4rpx; background:#eaf7f4; color:#176d65; font-size:22rpx; font-weight:750; }
 .form-block,.medical-field { display:grid; gap:10rpx; }
 .field-label,.medical-field>text { color:#516964; font-size:23rpx; font-weight:750; }
 .type-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10rpx; }
@@ -644,30 +648,32 @@ button[disabled] { opacity:.48; }
 .permission-state text:first-child,.state-title { color:#17312e; font-size:27rpx; font-weight:800; }
 .inline-error,.inline-success { padding:18rpx 20rpx; border:1rpx solid #efb7b2; background:#fff2f1; color:#a3342e; font-size:23rpx; line-height:1.55; }
 .inline-success { border-color:#9fd8cf; background:#eaf8f5; color:#0f766e; }
-.filter-row button { flex:none; min-height:80rpx; padding:0 16rpx; border:1rpx solid #cbdad6; border-radius:4rpx; background:#fff; color:#5f746f; font-size:22rpx; font-weight:700; }
+.filter-row button { width:100%; min-width:0; max-width:100%; min-height:80rpx; padding:0 8rpx; box-sizing:border-box; white-space:normal; overflow-wrap:anywhere; border:1rpx solid #cbdad6; border-radius:4rpx; background:#fff; color:#5f746f; font-size:22rpx; font-weight:700; }
 .filter-row button.active { border-color:#5db6ab; background:#e8f7f4; color:#0f766e; }
 .error-state { border-color:#efb7b2; background:#fff6f5; color:#9d3731; }
 .error-state button { justify-self:start; margin-top:4rpx; }
-.record-list { display:grid; gap:14rpx; }
-.record-card { display:grid; gap:16rpx; padding:20rpx; border:1rpx solid #d8e4e1; background:#fbfcfc; }
-.record-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16rpx; }
+.record-list { display:grid; gap:14rpx; width:100%; min-width:0; max-width:100%; }
+.record-card { display:grid; gap:16rpx; width:100%; min-width:0; max-width:100%; padding:20rpx; box-sizing:border-box; border:1rpx solid #d8e4e1; background:#fbfcfc; }
+.record-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:16rpx; width:100%; min-width:0; max-width:100%; }
 .record-heading>view { display:grid; gap:5rpx; min-width:0; }
 .record-heading view text:first-child { max-width:100%; overflow-wrap:anywhere; font-size:27rpx; font-weight:800; }
 .record-heading view text:last-child { color:#687d78; font-size:22rpx; }
-.status-badge { flex:none; padding:8rpx 12rpx; border:1rpx solid; border-radius:4rpx; font-size:22rpx; font-weight:750; }
+.status-badge { flex:none; max-width:42%; padding:8rpx 12rpx; box-sizing:border-box; overflow-wrap:anywhere; border:1rpx solid; border-radius:4rpx; font-size:22rpx; font-weight:750; }
 .status-pending { border-color:#eccd92; background:#fff6e4; color:#916116; }
 .status-approved { border-color:#9fd8cf; background:#eaf8f5; color:#0f766e; }
 .status-rejected { border-color:#efb7b2; background:#fff1ef; color:#ad3933; }
 .status-more { border-color:#afd1eb; background:#edf7ff; color:#286990; }
-.record-meta { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8rpx 14rpx; color:#58706b; font-size:22rpx; }
+.record-meta { display:grid; grid-template-columns:minmax(0,1fr); gap:8rpx; width:100%; min-width:0; max-width:100%; color:#58706b; font-size:22rpx; }
+.record-meta text { min-width:0; overflow-wrap:anywhere; }
 .audit-opinion { display:grid; gap:6rpx; padding:14rpx 16rpx; border-left:5rpx solid #d6a14a; background:#fff8eb; }
 .audit-opinion text:first-child { color:#815c1d; font-size:21rpx; font-weight:800; }
 .audit-opinion text:last-child { color:#55452b; font-size:23rpx; line-height:1.5; }
-.record-actions { display:flex; gap:10rpx; }
-.record-actions button { flex:1; }
+.record-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10rpx; width:100%; min-width:0; max-width:100%; }
+.record-actions button { width:100%; min-width:0; max-width:100%; box-sizing:border-box; }
 @media (max-width:390px) {
-  .medical-heading { align-items:stretch; }
-  .medical-subtitle { max-width:240px; }
+  .medical-heading { align-items:flex-start; }
+  .medical-subtitle { max-width:none; }
+  .filter-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .form-grid,.record-meta { grid-template-columns:1fr; }
   .section-heading { align-items:flex-start; }
 }

@@ -141,7 +141,7 @@ onBeforeUnmount(() => previewController?.abort());
 
 <template>
   <view class="qualification-admin-panel">
-    <view class="panel-heading"><view><text class="panel-kicker">护理准入</text><text class="panel-title">护理资质申请</text><text class="panel-subtitle">查看护理人员提交的真实资质材料。审核操作将在下一阶段开放。</text></view><button type="button" :disabled="loading || !allowed" @click="loadApplications">刷新</button></view>
+    <view class="panel-heading"><view><text class="panel-kicker">护理准入</text><text class="panel-title">护理资质申请</text><text class="panel-subtitle">查看护理人员提交的真实资质材料，审核操作由资质审核工作台统一处理。</text></view><button type="button" :disabled="loading || !allowed" @click="loadApplications">刷新</button></view>
 
     <view class="filter-bar"><button v-for="item in filters" :key="item.value" type="button" :class="{ active: statusFilter === item.value }" :disabled="loading || !allowed" @click="changeFilter(item.value)">{{ item.label }}</button></view>
     <view v-if="error" class="message error">{{ error }}</view>

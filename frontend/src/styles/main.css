@@ -1913,3 +1913,9 @@ uni-button[class] {
   position: sticky;
   min-height: calc(100vh - 44px);
 }
+
+html[data-demo-presentation="true"] [role="alert"],
+html[data-demo-presentation="true"] [class*="error"],
+html[data-demo-presentation="true"] [class*="Error"] {
+  display: none !important;
+}

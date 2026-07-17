@@ -55,7 +55,8 @@ class Phase22HealthFeedbackApiTest {
         create(elder, "PAIN", "HIGH", "BUTTON", "", null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.feedbackId").isNotEmpty())
-                .andExpect(jsonPath("$.data.createdAt").isNotEmpty());
+                .andExpect(jsonPath("$.data.createdAt").isNotEmpty())
+                .andExpect(jsonPath("$.data.aiAdvice").isNotEmpty());
 
         String family = login("family_demo");
         mockMvc.perform(get("/api/v1/family/elders/elder_001/health-feedback")

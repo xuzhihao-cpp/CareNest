@@ -10,7 +10,7 @@ public final class HealthFeedbackDtos {
     @JsonIgnoreProperties(ignoreUnknown = false)
     public record CreateRequest(String feedbackType, String severity, String content,
                                 String inputType, String fileId, String elderId) {}
-    public record CreateResult(String feedbackId, LocalDateTime createdAt) {}
+    public record CreateResult(String feedbackId, LocalDateTime createdAt, String aiAdvice) {}
     public record Item(String feedbackId, String elderId, String elderName, String feedbackType,
                        String severity, String content, String inputType, String fileId,
                        String voiceUrl, LocalDateTime createdAt) {}

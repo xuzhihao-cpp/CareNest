@@ -13,9 +13,12 @@ export interface HealthFeedbackRequest {
 export interface HealthFeedbackCreateResult {
   feedbackId: string;
   createdAt: string;
+  aiAdvice: string;
 }
 
-export interface HealthFeedbackRecord extends HealthFeedbackCreateResult {
+export interface HealthFeedbackRecord {
+  feedbackId: string;
+  createdAt: string;
   elderId: string;
   elderName?: string;
   feedbackType: HealthFeedbackType;
@@ -47,6 +50,7 @@ export interface SelectedVoiceFile {
   size: number;
   mimeType: string;
   durationSeconds?: number;
+  blob?: Blob;
 }
 
 export interface HealthFeedbackPlaybackSource {

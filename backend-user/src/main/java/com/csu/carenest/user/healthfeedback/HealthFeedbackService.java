@@ -2,6 +2,7 @@ package com.csu.carenest.user.healthfeedback;
 
 import com.csu.carenest.user.auth.AuthService;
 import com.csu.carenest.user.auth.RoleCode;
+import com.csu.carenest.user.ai.AiAssistantService;
 import com.csu.carenest.user.common.ApiException;
 import com.csu.carenest.user.medicalfile.MedicalFileStorage;
 import com.csu.carenest.user.redis.HomeCacheInvalidator;
@@ -22,10 +23,13 @@ public class HealthFeedbackService {
     private final HealthFeedbackRepository repository;
     private final MedicalFileStorage storage;
     private final HomeCacheInvalidator cache;
+    private final AiAssistantService aiAssistantService;
 
     public HealthFeedbackService(AuthService auth, HealthFeedbackRepository repository,
-                                 MedicalFileStorage storage, HomeCacheInvalidator cache) {
+                                 MedicalFileStorage storage, HomeCacheInvalidator cache,
+                                 AiAssistantService aiAssistantService) {
         this.auth = auth; this.repository = repository; this.storage = storage; this.cache = cache;
+        this.aiAssistantService = aiAssistantService;
     }
 
     @Transactional
@@ -48,7 +52,9 @@ public class HealthFeedbackService {
         if ("HIGH".equals(request.severity())) repository.insertHighSeverityLog(id(), user.userId(), feedbackId);
         cache.evictAfterCommit(RoleCode.ELDER.name(), user.userId());
         repository.activeFamilyIds(elder.elderId()).forEach(id -> cache.evictAfterCommit(RoleCode.FAMILY.name(), id));
-        return new HealthFeedbackDtos.CreateResult(feedbackId, repository.createdAt(feedbackId));
+        String advice = aiAssistantService.healthFeedbackAdvice(
+                request.feedbackType(), request.severity(), request.content());
+        return new HealthFeedbackDtos.CreateResult(feedbackId, repository.createdAt(feedbackId), advice);
     }
 
     public HealthFeedbackDtos.PageResult<HealthFeedbackDtos.Item> list(

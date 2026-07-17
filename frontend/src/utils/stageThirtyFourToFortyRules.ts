@@ -198,7 +198,7 @@ export function stageThirtyFourToFortyError(code: number, area: 'CONFIG' | 'CHEC
   if (code === 403) return '当前账号没有执行该护理质控操作的权限。';
   if (code === 404) return area === 'CONFIG' ? '服务项目或指标配置不存在。' : '订单、指标或留档记录不存在。';
   if (code === 409) return '当前记录状态已经变化，请刷新后再处理。';
-  if (code === 422 || code === 400) return '提交内容不符合阶段 34-40 的业务规则，请检查后重试。';
+  if (code === 422 || code === 400) return '提交内容不符合护理质控规则，请检查后重试。';
   return '护理质控服务暂时无法处理，请稍后重试。';
 }
 

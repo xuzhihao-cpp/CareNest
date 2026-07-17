@@ -261,9 +261,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <view class="stage-nine-panel glass-panel" aria-label="阶段9服务地址">
+  <view class="stage-nine-panel glass-panel" aria-label="服务地址">
     <view class="section-title">
-      <text>⑨</text>
       <text>服务地址</text>
     </view>
 

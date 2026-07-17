@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -641,6 +657,13 @@ export interface components {
             message: string;
             traceId: string;
         };
+        ApiResponseVoid: {
+            /** Format: int32 */
+            code: number;
+            data: Record<string, never>;
+            message: string;
+            traceId: string;
+        };
         ArchiveResponse: {
             allergies: components["schemas"]["AllergyItem"][];
             /** Format: int32 */
@@ -709,6 +732,7 @@ export interface components {
             severity: string;
         };
         CreateResult: {
+            aiAdvice: string;
             /** Format: date-time */
             createdAt: string;
             feedbackId: string;
@@ -982,6 +1006,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponsePermissionResponse"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
                 };
             };
         };

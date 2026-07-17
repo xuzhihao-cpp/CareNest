@@ -15,7 +15,9 @@
 - `VOICE` 必须提供当前长辈本人上传的音频 `fileId`，最大 12 MiB；其他输入方式禁止携带文件。
 - `HIGH` 仅写入优先级审计信号，不修改健康档案、不做诊断，也不虚构通知结果。
 
-成功返回 `feedbackId` 和 `createdAt`。
+成功返回 `feedbackId`、`createdAt` 和 `aiAdvice`。`aiAdvice` 由现有 AI
+安全链路根据反馈类型、程度和补充说明生成，只提供日常照护建议，不诊断、不调整用药；
+高风险反馈会明确建议联系家属、专业医护人员或急救服务。
 
 ## GET /api/v1/family/elders/{elderId}/health-feedback
 
