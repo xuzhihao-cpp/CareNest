@@ -17,6 +17,21 @@ public class AiAssistantRepository {
     public void createSession(String id, String elderId, String userId, String title, String source, String trace) { jdbc.update("INSERT INTO ai_assistant_session(session_id,elder_id,user_id,session_title,source_type,trace_id) VALUES (?,?,?,?,?,?)", id,elderId,userId,title,source,trace); }
     public void addMessage(String id,String session,String role,String type,String summary,String content,String voice,boolean safety,String trace) { jdbc.update("INSERT INTO ai_assistant_message(message_id,session_id,sender_role,message_type,content_summary,content_text,voice_log_id,safety_flag,trace_id) VALUES (?,?,?,?,?,?,?,?,?)",id,session,role,type,summary,content,voice,safety,trace); }
     public void updateSafety(String session,String level,boolean risk) { jdbc.update("UPDATE ai_assistant_session SET safety_level=?,risk_flag=?,updated_at=CURRENT_TIMESTAMP WHERE session_id=?",level,risk,session); }
+    public void updateTriageContext(String session, AiTriageResult result, String context, String fingerprint) {
+        jdbc.update("UPDATE ai_assistant_session SET triage_level=?,triage_category=?,triage_question=?,triage_context=?,triage_fingerprint=?,triage_awaiting_answer=?,updated_at=CURRENT_TIMESTAMP WHERE session_id=?",
+                result.level(), result.category(), result.followUpQuestion(), context, fingerprint, result.followUpRequired(), session);
+    }
+    public void clearTriageContext(String session) {
+        jdbc.update("UPDATE ai_assistant_session SET triage_level=NULL,triage_category=NULL,triage_question=NULL,triage_context=NULL,triage_fingerprint=NULL,triage_awaiting_answer=0,updated_at=CURRENT_TIMESTAMP WHERE session_id=?", session);
+    }
+    public Optional<TriageContext> triageContext(String session) {
+        return jdbc.query("SELECT triage_level,triage_category,triage_question,triage_context,triage_fingerprint,triage_awaiting_answer FROM ai_assistant_session WHERE session_id=?",
+                (r,n)->new TriageContext(r.getString(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),r.getBoolean(6)), session).stream().findFirst();
+    }
+    public boolean hasUrgentFingerprint(String session, String fingerprint) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM assistance_ticket WHERE session_id=? AND priority='URGENT' AND description LIKE ?",
+                Integer.class, session, "%" + fingerprint + "%") > 0;
+    }
     public void close(String session) { jdbc.update("UPDATE ai_assistant_session SET session_status='CLOSED',updated_at=CURRENT_TIMESTAMP WHERE session_id=?",session); }
     public String assistance(String id,String elder,String requester,String session,String category,String priority,String description) { jdbc.update("INSERT INTO assistance_ticket(assistance_ticket_id,elder_id,requester_id,session_id,category,priority,ticket_status,description,source_type) VALUES (?,?,?,?,?,?,?,?, 'AI')",id,elder,requester,session,category,priority,"PENDING",description); return id; }
     public void customerTicket(String id,String assistance,String elder,String requester,String category,String priority,String description) { jdbc.update("INSERT INTO customer_service_ticket(ticket_id,assistance_ticket_id,elder_id,requester_id,category,priority,ticket_status,description,source_type,source_id) VALUES (?,?,?,?,?,?, 'PENDING',?,?,?)",id,assistance,elder,requester,category,priority,description,"AI",assistance); }
@@ -28,4 +43,6 @@ public class AiAssistantRepository {
     public long sessionCountForFamily(String familyId,String elderId) { return jdbc.queryForObject("SELECT COUNT(*) FROM ai_assistant_session s JOIN elder_family_binding b ON b.elder_id=s.elder_id AND b.family_id=? AND b.binding_status='ACTIVE' WHERE (? IS NULL OR s.elder_id=?)",Long.class,familyId,elderId,elderId); }
     public List<AiAssistantDtos.ConversationMessage> messages(String sessionId) { return jdbc.query("SELECT m.message_id,m.sender_role,m.message_type,m.content_text,m.safety_flag,CASE WHEN m.safety_flag=0 THEN 'NORMAL' WHEN EXISTS (SELECT 1 FROM ai_assistant_message peer JOIN assistance_ticket t ON t.session_id=peer.session_id AND t.priority='URGENT' AND t.description=peer.content_text WHERE peer.session_id=m.session_id AND peer.trace_id=m.trace_id) THEN 'CRITICAL' ELSE 'WARNING' END,m.created_at FROM ai_assistant_message m WHERE m.session_id=? ORDER BY m.created_at ASC,CASE WHEN m.sender_role='USER' THEN 0 ELSE 1 END,m.message_id ASC",(r,n)->new AiAssistantDtos.ConversationMessage(r.getString(1),r.getString(2),r.getString(3),r.getString(4),r.getBoolean(5),r.getString(6),r.getString(7)),sessionId); }
     public record Elder(String id,String name,String userId) {}
+    public record TriageContext(String level, String category, String question, String context,
+                                String fingerprint, boolean awaitingAnswer) {}
 }

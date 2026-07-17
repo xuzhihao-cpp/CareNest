@@ -8,14 +8,16 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 class AiAssistantServiceTest {
     private AuthService auth;
@@ -37,46 +39,98 @@ class AiAssistantServiceTest {
     }
 
     @Test
-    void normalFallbackCreatesNoTickets() {
-        when(provider.answer("我可以停药吗"))
-                .thenReturn(new AiProvider.Result("请联系医生确认。", "NORMAL", "DAILY_CARE", "NORMAL"));
+    void normalQuestionCallsProviderAndCreatesNoTickets() {
+        when(provider.answer("今天怎么安排喝水"))
+                .thenReturn(new AiProvider.Result("可以分多次少量饮水。", "NORMAL", "DAILY_CARE", "NORMAL"));
 
         AiAssistantDtos.MessageResult result = service.message(
-                "Bearer token", "session-1", new AiAssistantDtos.MessageRequest("我可以停药吗", "TEXT", null));
+                "Bearer token", "session-1",
+                new AiAssistantDtos.MessageRequest("今天怎么安排喝水", "TEXT", null));
 
         assertFalse(result.riskFlag());
         assertNull(result.assistanceTicketId());
         assertFalse(result.customerServiceTicketCreated());
-        verify(repository, never()).assistance(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
-        verify(repository, never()).customerTicket(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+        assertFalse(result.followUpRequired());
+        verify(repository, never()).assistance(anyString(), anyString(), anyString(), anyString(),
+                anyString(), anyString(), anyString());
+        verify(repository, never()).customerTicket(anyString(), anyString(), anyString(), anyString(),
+                anyString(), anyString(), anyString());
     }
 
     @Test
-    void warningCreatesNoTickets() {
-        when(provider.answer("medication question"))
-                .thenReturn(new AiProvider.Result("consult a clinician", "WARNING", "MEDICATION", "NORMAL"));
-
+    void followUpQuestionPersistsContextAndCreatesNoTicket() {
         AiAssistantDtos.MessageResult result = service.message(
-                "Bearer token", "session-1", new AiAssistantDtos.MessageRequest("medication question", "TEXT", null));
+                "Bearer token", "session-1",
+                new AiAssistantDtos.MessageRequest("我肚子疼", "TEXT", null));
 
+        assertEquals("FOLLOW_UP", result.triageLevel());
+        assertEquals("ABDOMINAL_PAIN", result.triageCategory());
+        assertTrue(result.followUpRequired());
+        assertNull(result.assistanceTicketId());
+        verify(repository).updateTriageContext(anyString(), any(AiTriageResult.class), anyString(), anyString());
+        verify(provider, never()).answer(anyString());
+        verify(repository, never()).assistance(anyString(), anyString(), anyString(), anyString(),
+                anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void medicationQuestionIsWarningWithoutCallingProvider() {
+        AiAssistantDtos.MessageResult result = service.message(
+                "Bearer token", "session-1",
+                new AiAssistantDtos.MessageRequest("这个药能不能停", "TEXT", null));
+
+        assertEquals("WARNING", result.safetyLevel());
         assertTrue(result.riskFlag());
         assertNull(result.assistanceTicketId());
-        assertFalse(result.customerServiceTicketCreated());
-        verify(repository, never()).assistance(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
-        verify(repository, never()).customerTicket(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(provider, never()).answer(anyString());
+        verify(repository, never()).assistance(anyString(), anyString(), anyString(), anyString(),
+                anyString(), anyString(), anyString());
     }
 
     @Test
     void criticalCreatesAssistanceAndCustomerServiceTickets() {
-        when(provider.answer("我想死"))
-                .thenReturn(new AiProvider.Result("请立即联系家属或当地急救。", "CRITICAL", "EMERGENCY", "URGENT"));
-
         AiAssistantDtos.MessageResult result = service.message(
-                "Bearer token", "session-1", new AiAssistantDtos.MessageRequest("我想死", "TEXT", null));
+                "Bearer token", "session-1",
+                new AiAssistantDtos.MessageRequest("我呼吸困难，喘不上气", "TEXT", null));
 
+        assertEquals("CRITICAL", result.safetyLevel());
         assertTrue(result.riskFlag());
         assertTrue(result.customerServiceTicketCreated());
-        verify(repository).assistance(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
-        verify(repository).customerTicket(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(provider, never()).answer(anyString());
+        verify(repository).assistance(anyString(), anyString(), anyString(), anyString(),
+                anyString(), anyString(), anyString());
+        verify(repository).customerTicket(anyString(), anyString(), anyString(), anyString(),
+                anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void dangerousFollowUpAnswerEscalatesAndClearsContext() {
+        when(repository.triageContext("session-1"))
+                .thenReturn(Optional.of(new AiAssistantRepository.TriageContext(
+                        "FOLLOW_UP", "ABDOMINAL_PAIN", "follow-up", "我肚子疼",
+                        "ABDOMINAL_PAIN:old", true)));
+
+        AiAssistantDtos.MessageResult result = service.message(
+                "Bearer token", "session-1",
+                new AiAssistantDtos.MessageRequest("现在一直呕吐而且便血", "TEXT", null));
+
+        assertEquals("CRITICAL", result.safetyLevel());
+        assertTrue(result.customerServiceTicketCreated());
+        verify(repository).clearTriageContext("session-1");
+        verify(provider, never()).answer(anyString());
+    }
+
+    @Test
+    void repeatedCriticalMessageDoesNotCreateDuplicateTicket() {
+        when(repository.hasUrgentFingerprint(anyString(), anyString())).thenReturn(true);
+
+        AiAssistantDtos.MessageResult result = service.message(
+                "Bearer token", "session-1",
+                new AiAssistantDtos.MessageRequest("我呼吸困难", "TEXT", null));
+
+        assertEquals("CRITICAL", result.safetyLevel());
+        assertFalse(result.customerServiceTicketCreated());
+        verify(repository, never()).assistance(anyString(), anyString(), anyString(), anyString(),
+                anyString(), anyString(), anyString());
     }
 }
