@@ -93,6 +93,11 @@ export type HealthFeedbackVoiceAccess =
   | { mode: 'SIGNED_TRUSTED_ORIGIN'; url: string }
   | { mode: 'REJECTED'; url: '' };
 
+function isLoopbackHostname(hostname: string) {
+  const normalized = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1';
+}
+
 export function classifyHealthFeedbackVoiceUrl(
   sourceUrl: string,
   pageOrigin: string,
@@ -103,6 +108,9 @@ export function classifyHealthFeedbackVoiceUrl(
     const target = new URL(sourceUrl, `${base.origin}/`);
     if (target.protocol !== 'http:' && target.protocol !== 'https:') return { mode: 'REJECTED', url: '' };
     if (target.origin === base.origin) return { mode: 'PROTECTED_SAME_ORIGIN', url: target.href };
+    if (isLoopbackHostname(base.hostname) && isLoopbackHostname(target.hostname)) {
+      return { mode: 'SIGNED_TRUSTED_ORIGIN', url: target.href };
+    }
     if (target.protocol !== 'https:') return { mode: 'REJECTED', url: '' };
     const allowedOrigins = new Set(trustedOrigins.flatMap((value) => {
       try {

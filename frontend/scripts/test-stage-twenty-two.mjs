@@ -248,6 +248,14 @@ test('separates same-origin protected media from trusted signed media without le
     rules.classifyHealthFeedbackVoiceUrl('/api/v1/files/voice', 'https://care.example', []),
     { mode: 'PROTECTED_SAME_ORIGIN', url: 'https://care.example/api/v1/files/voice' }
   );
+  assert.equal(
+    rules.classifyHealthFeedbackVoiceUrl(
+      'http://localhost:39000/smart-nursing/voice.webm?signature=local',
+      'http://127.0.0.1:3000',
+      []
+    ).mode,
+    'SIGNED_TRUSTED_ORIGIN'
+  );
   assert.deepEqual(
     rules.classifyHealthFeedbackVoiceUrl(
       'https://media.example/voice.mp3?signature=abc',
