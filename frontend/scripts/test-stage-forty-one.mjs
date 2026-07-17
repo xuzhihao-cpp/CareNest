@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 const source=readFileSync(new URL('../src/api/stageFortyOne.ts',import.meta.url),'utf8')
-for(const value of ['/ai/sessions','/messages','/assistance/tickets','/customer-service/tickets']) if(!source.includes(value)) throw new Error(`missing ${value}`)
+for(const value of ['/ai/sessions','/messages','/assistance/tickets','/customer-service/tickets',"method:'DELETE'"]) if(!source.includes(value)) throw new Error(`missing ${value}`)
 const types=readFileSync(new URL('../src/types/stageFortyOne.ts',import.meta.url),'utf8')
 const component=readFileSync(new URL('../src/components/StageFortyOneAiAssistantPanel.vue',import.meta.url),'utf8')
 if(!types.includes('safetyLevel:AiSafetyLevel')) throw new Error('conversation history is missing safetyLevel')
@@ -14,4 +14,6 @@ if(!component.includes('carenest_ai_selected_elder_FAMILY')) throw new Error('fa
 if(!component.includes('webkitSpeechRecognition')) throw new Error('elder AI assistant does not support browser voice recognition')
 if(!component.includes("messageType = voiceDraftPending.value ? 'VOICE' : 'TEXT'")) throw new Error('voice query is not persisted as a VOICE message')
 if(!component.includes('已经听清，请确认文字后发送')) throw new Error('voice query bypasses elder confirmation')
+if(!component.includes('deleteAiSession')) throw new Error('AI conversation history cannot be deleted')
+if(!component.includes('删除这段对话？')) throw new Error('AI history deletion lacks elder confirmation')
 console.log('stage 41 api contract smoke passed')

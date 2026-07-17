@@ -1314,6 +1314,39 @@
           }
         }
       }
+    },
+    "/api/v1/ai/sessions/{id}" : {
+      "delete" : {
+        "tags" : [ "ai-assistant-controller" ],
+        "operationId" : "delete",
+        "parameters" : [ {
+          "name" : "Authorization",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components" : {
@@ -2143,6 +2176,9 @@
           "createdAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "aiAdvice" : {
+            "type" : "string"
           }
         }
       },
@@ -2198,6 +2234,24 @@
             "type" : "string"
           },
           "password" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ApiResponseVoid" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "type" : "object"
+          },
+          "traceId" : {
             "type" : "string"
           }
         }

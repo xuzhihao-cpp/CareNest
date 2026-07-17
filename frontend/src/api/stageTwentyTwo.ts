@@ -10,7 +10,8 @@ import type {
   HealthFeedbackRecord,
   HealthFeedbackRequest,
   HealthFeedbackSeverity,
-  HealthFeedbackType
+  HealthFeedbackType,
+  SelectedVoiceFile
 } from '@/types/stageTwentyTwo';
 import {
   hasValidFeedbackFileId,
@@ -132,15 +133,41 @@ export async function getAuthorizedHealthFeedbackVoice(
   }
 }
 
-export function uploadHealthFeedbackVoice(
-  filePath: string,
+export async function uploadHealthFeedbackVoice(
+  file: SelectedVoiceFile,
   onProgress: (progress: number) => void
 ): Promise<ApiResponse<FileAssetUploadResult>> {
   const session = readAuthSession();
+  if (file.blob) {
+    const formData = new FormData();
+    formData.append('file', file.blob, file.name);
+    onProgress(20);
+    try {
+      const response = await fetch(`${getApiBase()}${filesPath}`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          ...(session ? { Authorization: `Bearer ${session.token}` } : {})
+        },
+        body: formData
+      });
+      const payload = await response.json().catch(() => null) as unknown;
+      onProgress(100);
+      if (!isApiResponse<FileAssetUploadResult>(payload)) {
+        return failure(response.status >= 400 ? response.status : 500, '语音上传响应格式错误', {} as FileAssetUploadResult, `frontend-${Date.now()}`);
+      }
+      if (payload.code === 0 && !hasValidFeedbackFileId(payload.data)) {
+        return failure(502, '语音上传响应缺少文件凭证', {} as FileAssetUploadResult, payload.traceId);
+      }
+      return payload;
+    } catch {
+      return failure(500, '语音上传失败', {} as FileAssetUploadResult, `frontend-${Date.now()}`);
+    }
+  }
   return new Promise((resolve) => {
     const task = uni.uploadFile({
       url: `${getApiBase()}${filesPath}`,
-      filePath,
+      filePath: file.path,
       name: 'file',
       header: {
         Accept: 'application/json',
@@ -180,7 +207,7 @@ export async function createElderHealthFeedback(
     data: payload
   });
   if (response.code !== 0) return { ...response, data: {} as HealthFeedbackCreateResult };
-  if (!response.data?.feedbackId?.trim() || !response.data.createdAt) {
+  if (!response.data?.feedbackId?.trim() || !response.data.createdAt || !response.data.aiAdvice?.trim()) {
     return failure(502, '健康反馈响应不完整', {} as HealthFeedbackCreateResult, response.traceId);
   }
   return response;
