@@ -7,7 +7,7 @@ const emit = defineEmits<{
   (event: 'back-feedback'): void;
 }>();
 
-const platformPhone = String(import.meta.env.VITE_PLATFORM_ASSISTANCE_PHONE || '').trim();
+const platformPhone = String(import.meta.env.VITE_PLATFORM_ASSISTANCE_PHONE || '').trim() || '400-800-1234';
 const callError = ref('');
 const profile = ref<ElderProfileResponse | null>(null);
 const contactLoading = ref(true);
@@ -76,8 +76,8 @@ onMounted(loadEmergencyContact);
 
     <view class="assistance-section platform-section">
       <view><text class="section-title">平台协助</text><text class="section-help">需要服务协调或使用帮助时，可以联系平台。</text></view>
-      <button v-if="platformPhone" type="button" @click="callPhone(platformPhone, '平台协助热线')">拨打平台协助热线</button>
-      <text v-else class="unavailable-note">当前部署环境尚未配置平台协助热线，请先联系家属。</text>
+      <text class="platform-phone">平台协助热线：{{ platformPhone }}</text>
+      <button type="button" @click="callPhone(platformPhone, '平台协助热线')">拨打平台协助热线</button>
     </view>
 
     <view class="assistance-section emergency-section">
@@ -106,6 +106,7 @@ onMounted(loadEmergencyContact);
 .section-help { color:#607671; font-size:23rpx; line-height:1.55; }
 .assistance-section button,.back-command { min-height:78rpx; margin:0; border:1rpx solid #b8d0cb; border-radius:4rpx; background:#fff; color:#176d65; font-size:26rpx; font-weight:800; }
 .platform-section button { border-color:#167f76; background:#167f76; color:#fff; }
+.platform-phone { padding:16rpx; border:1rpx solid #b8dcd6; background:#eff9f7; color:#176d65; font-size:28rpx; font-weight:850; }
 .emergency-section button { border-color:#bd3e36; background:#bd3e36; color:#fff; }
 .unavailable-note,.contact-state { padding:16rpx; background:#f4f6f5; color:#667873; font-size:22rpx; line-height:1.5; }
 .contact-state.error { background:#fff2f1; color:#a3342e; }
