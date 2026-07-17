@@ -167,7 +167,7 @@ public class Phase34To40MetricService {
         }
         log(user, "SUBMIT_CARE_EVIDENCE", "CARE_SERVICE_EVIDENCE", evidenceId,
                 null, Map.of("orderId", orderId, "auditStatus", "PENDING"));
-        return new CareMetricDtos.EvidenceResponse(evidenceId, "PENDING");
+        return new CareMetricDtos.EvidenceResponse(evidenceId, "PENDING", null, null, null, null, null);
     }
 
     @Transactional(readOnly = true)
@@ -215,7 +215,7 @@ public class Phase34To40MetricService {
         log(user, "REVIEW_CARE_EVIDENCE", "CARE_SERVICE_EVIDENCE", evidenceId,
                 Map.of("auditStatus", evidence.auditStatus()),
                 Map.of("auditStatus", target.name()));
-        return new CareMetricDtos.EvidenceResponse(evidenceId, target.name());
+        return new CareMetricDtos.EvidenceResponse(evidenceId, target.name(), null, null, null, null, null);
     }
 
     @Transactional

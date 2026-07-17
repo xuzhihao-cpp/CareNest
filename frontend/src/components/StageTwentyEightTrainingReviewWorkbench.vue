@@ -133,6 +133,30 @@ function resetForm() {
   error.value = '';
 }
 
+function prefillTrainingForm(training: QualificationTrainingOverview) {
+  const batchMatch = /^(\d{4}-\d{2})-([A-Z])$/.exec(training.trainingBatch);
+  if (batchMatch && trainingBatchCodes.includes(batchMatch[2])) {
+    trainingBatchMonth.value = batchMatch[1];
+    trainingBatchCode.value = batchMatch[2];
+  }
+
+  remark.value = training.remark;
+  if (training.trainingStatus === 'EXPIRED') {
+    // 已过期的记录需要重新审核，默认引导管理员填写新的通过有效期。
+    status.value = 'APPROVED';
+    expiryDate.value = '';
+    expiryTime.value = '';
+    return;
+  }
+
+  status.value = training.trainingStatus;
+  if (training.trainingStatus === 'APPROVED' && training.expiredAt) {
+    const normalized = training.expiredAt.replace(' ', 'T');
+    expiryDate.value = normalized.slice(0, 10);
+    expiryTime.value = normalized.slice(11, 16);
+  }
+}
+
 async function selectNurse(record: QualificationApplicationRecord) {
   if (submittingNurseId.value) return;
   selectedNurseId.value = record.nurseId;
@@ -195,6 +219,7 @@ async function loadSelectedTraining(nurseId: string) {
     return;
   }
   currentTraining.value = response.data;
+  prefillTrainingForm(response.data);
   setTrainingListState(nurseId, listStateFromOverview(response.data));
 }
 

@@ -125,10 +125,19 @@ function normalizeChecklist(value: unknown): MetricChecklistResponse | null {
 
 function normalizeEvidence(value: unknown): EvidenceResponse | null {
   if (!isRecord(value)) return null;
+  const evidenceType = isCareMetricEvidenceType(value.evidenceType) ? value.evidenceType : undefined;
   return typeof value.evidenceId === 'string'
     && value.evidenceId.trim().length > 0
     && isEvidenceAuditStatus(value.auditStatus)
-    ? { evidenceId: value.evidenceId.trim(), auditStatus: value.auditStatus }
+    ? {
+        evidenceId: value.evidenceId.trim(),
+        auditStatus: value.auditStatus,
+        metricName: typeof value.metricName === 'string' ? value.metricName.trim() : undefined,
+        evidenceType,
+        description: typeof value.description === 'string' ? value.description.trim() : undefined,
+        fileId: typeof value.fileId === 'string' && value.fileId.trim() ? value.fileId.trim() : undefined,
+        submittedAt: typeof value.submittedAt === 'string' ? value.submittedAt : undefined
+      }
     : null;
 }
 

@@ -75,7 +75,7 @@ GET/PUT 的 `data` 均为 `{"configVersion":1}`。更新配置会创建新版本
 }
 ```
 
-留档和审核响应记录固定为 `{"evidenceId":"evidence_xxx","auditStatus":"PENDING"}`。两个 GET 列表的 `data` 是该固定记录的数组，不增加分页或同义字段。
+留档提交和审核响应至少包含 `evidenceId`、`auditStatus`。查询留档列表时，记录还返回 `metricName`、`evidenceType`、`description`、`fileId` 和 `submittedAt`，供护理人员查看自己已经提交的内容；文件对象路径、存储桶和其他内部字段不得返回页面。两个 GET 列表的 `data` 是留档记录数组，不增加分页或同义字段。
 
 审核请求固定为 `{"auditStatus":"APPROVED","reviewComment":"材料有效"}`。审核目标只能是 `APPROVED/REJECTED/NEED_MORE`，驳回和补充材料必须填写意见。审核要求 `CARE_EVIDENCE_REVIEW`，结果与 `evidence_review_record` 在同一事务写入。
 

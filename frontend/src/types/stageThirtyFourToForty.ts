@@ -60,6 +60,11 @@ export interface EvidenceRequest {
 export interface EvidenceResponse {
   evidenceId: string;
   auditStatus: EvidenceAuditStatus;
+  metricName?: string;
+  evidenceType?: CareMetricEvidenceType;
+  description?: string;
+  fileId?: string;
+  submittedAt?: string;
 }
 
 export interface EvidenceReviewRequest {

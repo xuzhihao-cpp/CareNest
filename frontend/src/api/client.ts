@@ -5,11 +5,9 @@ const API_BASE =
   (import.meta.env.VITE_FRONTEND_API_BASE as string | undefined) ||
   (import.meta.env.FRONTEND_API_BASE as string | undefined) ||
   '/api/v1';
-const DEMO_PRESENTATION_MODE =
-  (
-    (import.meta.env.VITE_DEMO_PRESENTATION_MODE as string | undefined)
-    ?? (typeof window !== 'undefined' ? 'true' : 'false')
-  ).toLowerCase() !== 'false';
+// All runtime requests must reflect the real backend response. Demo fixtures remain
+// available to isolated tests only and must never replace a failed API response.
+const DEMO_PRESENTATION_MODE = false;
 
 // Production frontend is real-API only. Mock fixtures are retained only as legacy test assets.
 const USE_MOCK = false;

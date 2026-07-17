@@ -817,14 +817,19 @@ button[disabled] { opacity:.48; }
 .long-term-choice.active { border-color:#67bcb1; background:#e5f6f2; color:#0f766e; }
 .inline-error,.inline-success { padding:18rpx 20rpx; border:1rpx solid #efb7b2; background:#fff2f1; color:#a3342e; font-size:24rpx; line-height:1.5; }
 .inline-success { border-color:#9fd8cf; background:#eaf8f5; color:#0f766e; }
-.review-panel { position:fixed; inset:0; z-index:30; display:flex; align-items:flex-end; justify-content:center; padding:24rpx; box-sizing:border-box; background:rgba(15,34,31,.44); }
-.review-card { display:grid; gap:18rpx; width:min(100%,720rpx); padding:28rpx; box-sizing:border-box; border:1rpx solid #c7d9d5; background:#fff; box-shadow:0 18rpx 50rpx rgba(16,52,46,.2); }
+.review-panel { position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center; padding:24rpx; box-sizing:border-box; background:rgba(15,34,31,.44); }
+.review-card { display:grid; grid-template-rows:auto auto minmax(0,1fr) auto; gap:18rpx; width:min(100%,720rpx); max-height:calc(100dvh - 48rpx); padding:28rpx; box-sizing:border-box; border:1rpx solid #c7d9d5; background:#fff; box-shadow:0 18rpx 50rpx rgba(16,52,46,.2); }
 .review-title { font-size:32rpx; font-weight:800; }
 .review-help { color:#617772; font-size:24rpx; line-height:1.5; }
-.review-list { display:grid; gap:10rpx; max-height:46vh; overflow-y:auto; }
+.review-list { display:grid; gap:10rpx; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
 .review-item { display:grid; grid-template-columns:130rpx minmax(0,1fr); gap:14rpx; padding:14rpx 16rpx; border:1rpx solid #c9ded9; background:#f1f9f7; }
 .review-item text:first-child { color:#176d65; font-size:22rpx; font-weight:800; }
 .review-item text:last-child { color:#29443f; font-size:23rpx; font-weight:650; line-height:1.5; }
+@media (max-width:600px) {
+  .review-panel { align-items:flex-end; padding:16rpx 16rpx calc(16rpx + env(safe-area-inset-bottom)); }
+  .review-card { width:100%; max-height:calc(100dvh - 32rpx); padding:24rpx; }
+  .review-card .archive-actions { position:sticky; bottom:0; padding-top:10rpx; background:#fff; }
+}
 @media (max-width:390px) {
   .archive-heading { align-items:stretch; }
   .archive-subtitle { max-width:240px; }

@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /** 阶段34-40请求与响应字段，字段名严格按开工文档冻结。 */
@@ -54,7 +55,14 @@ public final class CareMetricDtos {
             @Size(max = 500) String description) {
     }
 
-    public record EvidenceResponse(String evidenceId, String auditStatus) {
+    public record EvidenceResponse(
+            String evidenceId,
+            String auditStatus,
+            String metricName,
+            String evidenceType,
+            String description,
+            String fileId,
+            LocalDateTime submittedAt) {
     }
 
     public record EvidenceReviewRequest(

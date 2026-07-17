@@ -81,7 +81,7 @@ class Phase34To40MetricControllerTest {
     void evidenceListReturnsOnlyFrozenRecordFields() throws Exception {
         when(authService.requireCurrentUser("Bearer token")).thenReturn(NURSE);
         when(metricService.evidences(NURSE, "order_1")).thenReturn(List.of(
-                new CareMetricDtos.EvidenceResponse("evidence_1", "PENDING")));
+                new CareMetricDtos.EvidenceResponse("evidence_1", "PENDING", null, null, null, null, null)));
 
         mockMvc.perform(get("/api/v1/orders/order_1/evidences")
                         .header("Authorization", "Bearer token"))

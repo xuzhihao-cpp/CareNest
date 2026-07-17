@@ -92,6 +92,31 @@ const actionLabel = computed(() => {
   return '记录我的情况';
 });
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.value.size)));
+const practicalCareTips = computed(() => {
+  const tips: Record<HealthFeedbackType, string[]> = {
+    PAIN: [
+      '先坐下休息，避免提重物或快速起身。',
+      '可少量多次喝温水，并留意疼痛是否加重。'
+    ],
+    DIZZINESS: [
+      '起身前先坐一会儿，站稳后再慢慢活动。',
+      '今天可少量多次喝水，并请家人留意陪伴。'
+    ],
+    SLEEP: [
+      '白天适量活动，午后尽量少喝浓茶或咖啡。',
+      '睡前一小时减少看屏幕，保持房间安静、光线柔和。'
+    ],
+    DIET: [
+      '可少量多次进食，先选择清淡、容易消化的食物。',
+      '每次喝半杯温水，分多次补充，不必一次喝很多。'
+    ],
+    MENTAL_STATE: [
+      '把今天的感受告诉家人，必要时请家人多陪伴一会儿。',
+      '按时吃饭、喝水和休息，做一些熟悉、轻松的活动。'
+    ]
+  };
+  return tips[feedbackType.value];
+});
 let recordsRequestSequence = 0;
 
 function feedbackTypeLabel(value: HealthFeedbackType) {
@@ -533,6 +558,10 @@ onUnmounted(() => {
       <view v-if="aiAdvice" class="ai-advice" role="status">
         <text>AI 照护建议</text>
         <text>{{ aiAdvice }}</text>
+        <view v-if="severity !== 'HIGH'" class="care-tip-list">
+          <text>今天可以这样做</text>
+          <text v-for="tip in practicalCareTips" :key="tip">{{ tip }}</text>
+        </view>
         <text>建议仅供日常照护参考，不能替代医生诊断或急救服务。</text>
       </view>
       <button class="submit-command" type="button" :disabled="submitting || recording" @click="submitFeedback">{{ actionLabel }}</button>
@@ -640,6 +669,9 @@ onUnmounted(() => {
 .ai-advice text { display:block; font-size:24rpx; line-height:1.6; }
 .ai-advice text:first-child { color:#0f766e; font-size:28rpx; font-weight:850; }
 .ai-advice text:last-child { color:#6b7f7a; font-size:20rpx; }
+.care-tip-list { display:grid; gap:6rpx; padding:14rpx 16rpx; border-left:4rpx solid #5d9f90; background:#fff; }
+.care-tip-list text { color:#38554e; font-size:23rpx; line-height:1.55; }
+.care-tip-list text:first-child { color:#176d65; font-size:24rpx; font-weight:800; }
 .submit-command { min-height:90rpx; border:1rpx solid #117b72; border-radius:4rpx; background:#117b72; color:#fff; font-size:30rpx; font-weight:850; }
 button[disabled] { opacity:.48; }
 .elder-selector { margin:0 -24rpx; width:calc(100% + 48rpx); white-space:nowrap; }

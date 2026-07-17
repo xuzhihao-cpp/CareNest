@@ -77,12 +77,16 @@ const selectedProofMetric = computed(() =>
 const evidenceType = computed<CareMetricEvidenceType>(() => selectedMetric.value?.evidenceType ?? 'PHOTO');
 const evidenceMetrics = computed(() => checklist.value.filter((item) => item.evidenceType !== 'NONE'));
 const missingMetrics = computed(() => checklist.value.filter((item) => item.status === 'MISSING'));
+const hasMetricCheckResult = computed(() => checkResult.value.items.length > 0);
+const hasMissingMetrics = computed(() => hasMetricCheckResult.value && missingMetrics.value.length > 0);
+const hasSubmittedRecords = computed(() => evidences.value.length > 0 || proofs.value.length > 0);
 const passCount = computed(() => checklist.value.filter((item) => item.status === 'PASS').length);
 const pendingCount = computed(() => checklist.value.filter((item) =>
   item.status === 'PENDING' || item.status === 'SUBMITTED'
 ).length);
 const evidenceFileRequired = computed(() => evidenceNeedsFile(evidenceType.value));
 const orderId = computed(() => props.task?.orderId ?? '');
+const isServingTask = computed(() => props.task?.taskStatus === 'SERVING');
 const proofReasonOptions = PROOF_REASON_TYPES.map((value) => ({ value, label: PROOF_REASON_LABELS[value] }));
 
 function resetFeedback() {
@@ -92,6 +96,10 @@ function resetFeedback() {
 
 function taskTime(value?: string) {
   return value ? value.replace('T', ' ').slice(0, 16) : '时间待确认';
+}
+
+function submittedTime(value?: string) {
+  return value ? value.replace('T', ' ').slice(0, 16) : '';
 }
 
 function formatSize(bytes?: number) {
@@ -119,7 +127,7 @@ function selectMetric(item: MetricChecklistItem) {
   selectedEvidenceFile.value = null;
   uploadedEvidenceFileId.value = '';
   evidenceUploadProgress.value = 0;
-  evidenceDescription.value = item.expectedAction || '';
+  evidenceDescription.value = '';
   resetFeedback();
 }
 
@@ -384,10 +392,13 @@ onMounted(loadMetricWork);
     <view v-if="!task" class="quality-state">请选择一个护理任务后处理订单留档、指标校验和原因证明。</view>
     <template v-else>
       <view class="quality-summary">
-        <view><text>{{ checklist.length }}</text><text>清单项</text></view>
-        <view><text>{{ passCount }}</text><text>已达标</text></view>
-        <view><text>{{ pendingCount }}</text><text>待处理</text></view>
-        <view><text>{{ missingMetrics.length }}</text><text>未完成</text></view>
+        <view><text>{{ checklist.length }}</text><text>必填指标</text></view>
+        <template v-if="isServingTask">
+          <view><text>{{ passCount }}</text><text>已达标</text></view>
+          <view><text>{{ pendingCount }}</text><text>待处理</text></view>
+          <view><text>{{ missingMetrics.length }}</text><text>未完成</text></view>
+        </template>
+        <view v-else class="pre-accept-summary"><text>服务开始后记录完成情况</text></view>
       </view>
 
       <view v-if="notice" class="quality-notice success">{{ notice }}</view>
@@ -396,7 +407,7 @@ onMounted(loadMetricWork);
       <view class="quality-section">
         <view class="section-head">
           <view><text>订单留档清单</text><text>清单来自后端订单快照；没有返回时不展示占位数据。</text></view>
-          <button type="button" class="secondary" :disabled="loading" @click="executeMetricCheck">执行指标校验</button>
+          <button v-if="isServingTask" type="button" class="secondary" :disabled="loading" @click="executeMetricCheck">执行指标校验</button>
         </view>
         <view v-if="checklist.length === 0" class="quality-state">当前订单尚未生成留档清单，请联系管理端生成。</view>
         <view v-else class="metric-list">
@@ -409,12 +420,13 @@ onMounted(loadMetricWork);
             @click="selectMetric(item)"
           >
             <view><text>{{ item.metricCode }}</text><text>{{ CARE_METRIC_EVIDENCE_LABELS[item.evidenceType] }} · {{ item.required ? '必填' : '选填' }}</text></view>
-            <view><strong>{{ CARE_METRIC_STATUS_LABELS[item.status] }}</strong><small>权重 {{ item.scoreWeight }}</small></view>
+            <view v-if="isServingTask"><strong>{{ CARE_METRIC_STATUS_LABELS[item.status] }}</strong><small>权重 {{ item.scoreWeight }}</small></view>
+            <view v-else><strong>服务要求</strong><small>权重 {{ item.scoreWeight }}</small></view>
           </button>
         </view>
       </view>
 
-      <view class="quality-section">
+      <view v-if="isServingTask" class="quality-section">
         <view class="section-head"><view><text>提交护理留档</text><text>照片和附件会先上传文件服务，再把文件凭证写入留档记录。</text></view></view>
         <view v-if="!selectedMetric" class="quality-state">请选择一个需要留档的指标。</view>
         <template v-else>
@@ -441,10 +453,9 @@ onMounted(loadMetricWork);
         </template>
       </view>
 
-      <view class="quality-section">
+      <view v-if="isServingTask && hasMetricCheckResult" class="quality-section">
         <view class="section-head"><view><text>指标校验结果</text><text>服务结束后执行校验；未完成项可提交原因证明。</text></view></view>
-        <view v-if="checkResult.items.length === 0" class="quality-state">尚未读取到本次校验结果。</view>
-        <view v-else class="check-result-list">
+        <view class="check-result-list">
           <view v-for="item in checkResult.items" :key="item.metricItemId" class="check-result" :class="{ missing: item.missingEvidence }">
             <text>{{ item.metricName }}</text>
             <strong>{{ CARE_METRIC_STATUS_LABELS[item.checkResult] }}</strong>
@@ -453,10 +464,9 @@ onMounted(loadMetricWork);
         </view>
       </view>
 
-      <view class="quality-section">
+      <view v-if="isServingTask && hasMissingMetrics" class="quality-section">
         <view class="section-head"><view><text>未完成原因证明</text><text>只允许对校验结果为未完成的指标提交，且必须附带文件凭证。</text></view></view>
-        <view v-if="missingMetrics.length === 0" class="quality-state">暂无可提交证明的未完成指标。</view>
-        <template v-else>
+        <template>
           <view class="missing-selector">
             <button
               v-for="item in missingMetrics"
@@ -494,22 +504,22 @@ onMounted(loadMetricWork);
         </template>
       </view>
 
-      <view class="quality-section">
-        <view class="section-head"><view><text>已提交记录</text><text>仅展示冻结接口返回的留档和证明状态。</text></view></view>
+      <view v-if="isServingTask && hasSubmittedRecords" class="quality-section">
+        <view class="section-head"><view><text>已提交留档</text><text>可查看本次已经填写并提交的内容与审核状态。</text></view></view>
         <view class="record-grid">
           <view>
             <text class="record-title">留档记录</text>
-            <view v-if="evidences.length === 0" class="quality-state compact">暂无留档记录。</view>
             <view v-for="item in evidences" :key="item.evidenceId" class="record-row">
-              <text>{{ compactBusinessId(item.evidenceId) }}</text>
+              <text>{{ item.metricName || '服务留档' }}</text>
+              <small v-if="item.description">{{ item.description }}</small>
+              <small>{{ item.fileId ? '已附文件' : '文字留档' }}<template v-if="submittedTime(item.submittedAt)"> · {{ submittedTime(item.submittedAt) }}</template></small>
               <strong>{{ EVIDENCE_AUDIT_STATUS_LABELS[item.auditStatus] }}</strong>
             </view>
           </view>
           <view>
             <text class="record-title">原因证明</text>
-            <view v-if="proofs.length === 0" class="quality-state compact">暂无原因证明。</view>
             <view v-for="item in proofs" :key="item.proofId" class="record-row">
-              <text>{{ compactBusinessId(item.proofId) }}</text>
+              <text>未完成原因证明</text>
               <strong>{{ PROOF_STATUS_LABELS[item.reviewStatus] }}</strong>
             </view>
           </view>

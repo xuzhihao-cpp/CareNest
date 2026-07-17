@@ -228,18 +228,30 @@ public class Phase34To40MetricRepository {
 
     public List<CareMetricDtos.EvidenceResponse> findEvidences(String orderId) {
         return jdbcTemplate.query("""
-                SELECT evidence_id, audit_status FROM care_service_evidence
-                WHERE order_id = ? ORDER BY submitted_at, evidence_id
+                SELECT e.evidence_id, e.audit_status, i.metric_name, e.evidence_type,
+                       e.description, e.file_id, e.submitted_at
+                FROM care_service_evidence e
+                LEFT JOIN order_metric_item i ON i.order_metric_item_id = e.order_metric_item_id
+                WHERE e.order_id = ? ORDER BY e.submitted_at, e.evidence_id
                 """, (rs, rowNum) -> new CareMetricDtos.EvidenceResponse(
-                rs.getString("evidence_id"), rs.getString("audit_status")), orderId);
+                rs.getString("evidence_id"), rs.getString("audit_status"),
+                rs.getString("metric_name"), rs.getString("evidence_type"),
+                rs.getString("description"), rs.getString("file_id"),
+                rs.getTimestamp("submitted_at").toLocalDateTime()), orderId);
     }
 
     public List<CareMetricDtos.EvidenceResponse> findPendingEvidences() {
         return jdbcTemplate.query("""
-                SELECT evidence_id, audit_status FROM care_service_evidence
-                WHERE audit_status = 'PENDING' ORDER BY submitted_at, evidence_id
+                SELECT e.evidence_id, e.audit_status, i.metric_name, e.evidence_type,
+                       e.description, e.file_id, e.submitted_at
+                FROM care_service_evidence e
+                LEFT JOIN order_metric_item i ON i.order_metric_item_id = e.order_metric_item_id
+                WHERE e.audit_status = 'PENDING' ORDER BY e.submitted_at, e.evidence_id
                 """, (rs, rowNum) -> new CareMetricDtos.EvidenceResponse(
-                rs.getString("evidence_id"), rs.getString("audit_status")));
+                rs.getString("evidence_id"), rs.getString("audit_status"),
+                rs.getString("metric_name"), rs.getString("evidence_type"),
+                rs.getString("description"), rs.getString("file_id"),
+                rs.getTimestamp("submitted_at").toLocalDateTime()));
     }
 
     public Optional<EvidenceContext> findEvidence(String evidenceId) {

@@ -56,7 +56,7 @@ export const CARE_METRIC_EVIDENCE_LABELS: Record<CareMetricEvidenceType, string>
 };
 
 export const CARE_METRIC_STATUS_LABELS: Record<CareMetricStatus, string> = {
-  PENDING: '待提交',
+  PENDING: '未提交',
   SUBMITTED: '已提交',
   PASS: '已达标',
   MISSING: '未完成',
