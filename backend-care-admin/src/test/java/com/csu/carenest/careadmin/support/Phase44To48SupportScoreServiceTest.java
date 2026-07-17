@@ -70,6 +70,27 @@ class Phase44To48SupportScoreServiceTest {
     }
 
     @Test
+    void resolvedComplaintRecalculationCreatesComplaintScoreChange() {
+        Phase47To48ScoreRepository repository = mock(Phase47To48ScoreRepository.class);
+        Phase47To48ScoreService service = new Phase47To48ScoreService(repository, new ObjectMapper());
+        Phase47To48ScoreRepository.ScoreFacts facts = new Phase47To48ScoreRepository.ScoreFacts(
+                new BigDecimal("95.00"), 1, new BigDecimal("100.00"), 1,
+                null, BigDecimal.ZERO, new BigDecimal("5.00"), BigDecimal.ZERO);
+        when(repository.nurseExists("nurse_1")).thenReturn(true);
+        when(repository.currentScore("nurse_1")).thenReturn(Optional.of(new BigDecimal("100.00")));
+        when(repository.calculateFacts("nurse_1")).thenReturn(facts);
+        when(repository.findLogs("nurse_1", 0, 20)).thenReturn(List.of());
+
+        service.recalculateAfterComplaint(ADMIN, "nurse_1", "complaint_1");
+
+        verify(repository).insertChangeLog(
+                anyString(), org.mockito.ArgumentMatchers.eq("nurse_1"),
+                org.mockito.ArgumentMatchers.eq("COMPLAINT"),
+                org.mockito.ArgumentMatchers.eq("complaint_1"),
+                any(BigDecimal.class), any(BigDecimal.class), anyString(), anyString());
+    }
+
+    @Test
     void myScoreRejectsRolesOutsideNurseAndAdminManagementScenario() {
         Phase47To48ScoreService service = new Phase47To48ScoreService(
                 mock(Phase47To48ScoreRepository.class), new ObjectMapper());

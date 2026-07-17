@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 
 const baseUrl = process.env.CARENEST_BASE_URL ?? 'http://127.0.0.1:3000/api/v1';
 const password = process.env.CARENEST_DEMO_PASSWORD ?? 'Demo@123456';
+const mysqlRootPassword = process.env.CARENEST_MYSQL_ROOT_PASSWORD ?? 'root';
 const checks = [];
 
 function checked(name, detail = '') {
@@ -43,7 +44,7 @@ async function login(username) {
 
 function mysqlScalar(sql) {
   return execFileSync('docker', [
-    'exec', 'carenest-mysql', 'mysql', '-N', '-uroot', '-proot',
+    'exec', 'carenest-mysql', 'mysql', '-N', '-uroot', `-p${mysqlRootPassword}`,
     'smart_nursing', '-e', sql
   ], { encoding: 'utf8' }).trim();
 }

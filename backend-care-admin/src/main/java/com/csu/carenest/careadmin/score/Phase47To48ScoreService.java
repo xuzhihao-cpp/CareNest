@@ -46,6 +46,12 @@ public class Phase47To48ScoreService {
         return recalculateInternal(user, nurseId, "APPEAL", appealId);
     }
 
+    @Transactional
+    public ScoreDtos.ScoreResponse recalculateAfterComplaint(
+            CurrentUser user, String nurseId, String complaintId) {
+        return recalculateInternal(user, nurseId, "COMPLAINT", complaintId);
+    }
+
     @Transactional(readOnly = true)
     public ScoreDtos.ScoreResponse score(CurrentUser user, String nurseId, int logLimit) {
         requireReadAccess(user, nurseId);
