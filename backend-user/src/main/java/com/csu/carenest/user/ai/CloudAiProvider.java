@@ -21,15 +21,17 @@ public class CloudAiProvider extends AiProvider {
     private static final String SYSTEM_PROMPT = "你是 CareNest 的日常照护助手。只回答日常照护、生活支持和一般健康管理问题，不能提供诊断、处方、用药剂量调整或替代医生的判断。遇到明确紧急症状，建议立即联系家属、当地急救或专业医护人员。请严格只输出 JSON，不要 Markdown，格式为 {\"answer\":\"给老人的安全回答\",\"feedback\":{\"shouldSubmit\":false,\"feedbackType\":null,\"severity\":null}}。当用户明确描述疼痛、头晕、睡眠、饮食或精神状态变化时，将 shouldSubmit 设为 true，并从 PAIN、DIZZINESS、SLEEP、DIET、MENTAL_STATE 中选择 feedbackType，从 LOW、MEDIUM、HIGH 中选择 severity；不要把提问、泛泛咨询或没有具体不适的内容作为健康反馈。feedback 不得包含诊断。回答简洁、清楚、适合长辈阅读，只输出纯文本内容。不得编造电话号码、地址、服务时间或平台功能，不得虚构 CareNest 功能，不得给出具体临床阈值、诊断标准或用药数量。";
     private final AiProviderProperties properties;
     private final AiSafetyClassifier classifier;
+    private final AiHealthFeedbackDetector healthFeedbackDetector;
     private final AiResponseGuard responseGuard;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    public CloudAiProvider(AiProviderProperties properties, AiSafetyClassifier classifier, AiResponseGuard responseGuard, ObjectMapper objectMapper) {
+    public CloudAiProvider(AiProviderProperties properties, AiSafetyClassifier classifier, AiResponseGuard responseGuard, ObjectMapper objectMapper, AiHealthFeedbackDetector healthFeedbackDetector) {
         this.properties = properties;
         this.classifier = classifier;
         this.responseGuard = responseGuard;
         this.objectMapper = objectMapper;
+        this.healthFeedbackDetector = healthFeedbackDetector;
         this.httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(properties.timeout())
@@ -41,7 +43,7 @@ public class CloudAiProvider extends AiProvider {
         // Safety decisions are deterministic. A cloud response must never downgrade
         // medication, diagnosis or emergency requests classified by local rules.
         if (!"NORMAL".equals(safety.safetyLevel())) return safety;
-        Result fallback = classifier.classify("");
+        Result fallback = fallbackResult(content);
         if (properties.apiKey().isBlank()) return fallback;
         try {
             String payload = objectMapper.writeValueAsString(Map.of(
@@ -77,11 +79,16 @@ public class CloudAiProvider extends AiProvider {
                 feedbackType = null;
                 feedbackSeverity = null;
             }
-            return new Result(answer, "NORMAL", "DAILY_CARE", "NORMAL", feedbackType, feedbackSeverity, requested);
+            Result modelResult = new Result(answer, "NORMAL", "DAILY_CARE", "NORMAL", feedbackType, feedbackSeverity, requested);
+            return requested ? modelResult : healthFeedbackDetector.detect(content).map(detected -> new Result(answer, "NORMAL", "DAILY_CARE", "NORMAL", detected.feedbackType(), detected.feedbackSeverity(), true)).orElse(modelResult);
         } catch (Exception exception) {
             log.warn("AI provider call failed: {}", exception.getClass().getSimpleName());
             return fallback;
         }
+    }
+
+    private Result fallbackResult(String content) {
+        return healthFeedbackDetector.detect(content).orElseGet(() -> classifier.classify(""));
     }
 
     private JsonNode parseJson(String content) {
