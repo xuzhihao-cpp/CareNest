@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Bot, CircleAlert, History, Plus, RotateCw, SendHorizontal, ShieldAlert, Sparkles, UserRound, X } from '@lucide/vue';
+import { Bot, CircleAlert, History, Mic, Plus, RotateCw, SendHorizontal, ShieldAlert, Sparkles, UserRound, X } from '@lucide/vue';
 import { getFamilyElders } from '@/api/stageSeven';
-import { createAiSession, getAiSessionMessages, listAiSessions, sendAiMessage } from '@/api/stageFortyOne';
+import { createAiSession, getAiSessionMessages, listAiSessions, sendAiMessage, transcribeAiSpeech } from '@/api/stageFortyOne';
 import type { ElderProfileResponse } from '@/types/stageSeven';
 import type { AiSafetyLevel, AiSessionSummary } from '@/types/stageFortyOne';
 
@@ -11,6 +11,10 @@ type ChatMessage = {
   role: 'assistant' | 'user';
   content: string;
   safetyLevel?: AiSafetyLevel;
+  triageLevel?: 'FOLLOW_UP' | 'CRITICAL' | 'WARNING' | 'NORMAL';
+  triageCategory?: string;
+  followUpRequired?: boolean;
+  followUpQuestion?: string;
   assistanceCreated?: boolean;
   customerServiceCreated?: boolean;
 };
@@ -43,10 +47,143 @@ let elderRequestGeneration = 0;
 let sessionListRequestToken = 0;
 let messageRequestToken = 0;
 let sendRequestToken = 0;
+const recording = ref(false);
+const recordingSeconds = ref(0);
+const transcriptionLoading = ref(false);
+const transcriptionError = ref('');
+const pendingVoiceReview = ref(false);
+let recordingTimer: ReturnType<typeof setInterval> | null = null;
+type RecorderResult = { tempFilePath: string; fileSize?: number; duration?: number };
+type RecorderManager = {
+  start: (options: { duration: number; format: string }) => void;
+  stop: () => void;
+  onStart: (callback: () => void) => void;
+  onStop: (callback: (result: RecorderResult) => void) => void;
+  onError: (callback: () => void) => void;
+};
+let recorder: RecorderManager | null = null;
+let browserRecorder: { instance: MediaRecorder; stream: MediaStream; chunks: Blob[] } | null = null;
+let browserAudioUrl = '';
 
 type RequestContext = { generation: number; elderId: string; sessionId?: string };
 
 function localId(role: string) { localSequence += 1; return `${role}-${localSequence}`; }
+function recorderManager() {
+  if (recorder) return recorder;
+  const provider = uni as unknown as { getRecorderManager?: () => RecorderManager };
+  recorder = provider.getRecorderManager?.() ?? null;
+  if (!recorder) return null;
+  recorder.onStart(() => {
+    recording.value = true;
+    recordingSeconds.value = 0;
+    transcriptionError.value = '';
+    recordingTimer = setInterval(() => {
+      recordingSeconds.value += 1;
+      if (recordingSeconds.value >= 60) {
+        if (browserRecorder) browserRecorder.instance.stop();
+        else recorder?.stop();
+      }
+    }, 1000);
+  });
+  recorder.onStop((result) => {
+    recording.value = false;
+    if (recordingTimer) clearInterval(recordingTimer);
+    recordingTimer = null;
+    void transcribeRecording(result);
+  });
+  recorder.onError(() => {
+    recording.value = false;
+    if (recordingTimer) clearInterval(recordingTimer);
+    recordingTimer = null;
+    transcriptionError.value = '无法使用录音功能，请检查麦克风权限。';
+  });
+  return recorder;
+}
+async function startBrowserRecording() {
+  if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    transcriptionError.value = '当前浏览器不支持录音，请使用最新版 Chrome、Edge 或 Safari。';
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : 'audio/webm';
+    const instance = new MediaRecorder(stream, { mimeType });
+    browserRecorder = { instance, stream, chunks: [] };
+    instance.ondataavailable = (event) => {
+      if (event.data.size > 0) browserRecorder?.chunks.push(event.data);
+    };
+    instance.onstop = () => {
+      const current = browserRecorder;
+      browserRecorder = null;
+      current?.stream.getTracks().forEach((track) => track.stop());
+      if (recordingTimer) clearInterval(recordingTimer);
+      recordingTimer = null;
+      recording.value = false;
+      if (!current) return;
+      const blob = new Blob(current.chunks, { type: current.instance.mimeType || 'audio/webm' });
+      const fileName = current.instance.mimeType.includes('webm') ? 'ai-question.webm' : 'ai-question.audio';
+      browserAudioUrl = URL.createObjectURL(blob);
+      void transcribeRecording({ tempFilePath: browserAudioUrl, fileName, blob });
+    };
+    instance.start();
+    recording.value = true;
+    recordingSeconds.value = 0;
+    transcriptionError.value = '';
+    recordingTimer = setInterval(() => {
+      recordingSeconds.value += 1;
+      if (recordingSeconds.value >= 60 && browserRecorder) browserRecorder.instance.stop();
+    }, 1000);
+  } catch {
+    transcriptionError.value = '无法访问麦克风，请允许浏览器使用麦克风后重试。';
+  }
+}
+function stopBrowserRecording() {
+  if (browserRecorder?.instance.state === 'recording') browserRecorder.instance.stop();
+}
+async function toggleRecording() {
+  if (loading.value || messagesLoading.value || transcriptionLoading.value) return;
+  const manager = recorderManager();
+  if (!manager) {
+    if (browserRecorder) stopBrowserRecording();
+    else if (recording.value) stopBrowserRecording();
+    else await startBrowserRecording();
+    return;
+  }
+  if (recording.value) manager.stop();
+  else manager.start({ duration: 60000, format: 'mp3' });
+}
+async function transcribeRecording(result: RecorderResult & { fileName?: string; blob?: Blob }) {
+  if (!result.tempFilePath) {
+    transcriptionError.value = '没有获取到录音，请重新录制。';
+    return;
+  }
+  transcriptionLoading.value = true;
+  transcriptionError.value = '';
+  const response = await transcribeAiSpeech(
+    result.tempFilePath,
+    result.fileName || result.tempFilePath.split('/').pop() || 'ai-question.mp3',
+    props.roleCode === 'FAMILY' ? selectedElderId.value : props.elderId,
+    result.blob
+  );
+  transcriptionLoading.value = false;
+  if (response.code !== 0) {
+    transcriptionError.value = response.message || '语音识别失败，请重新录制。';
+    return;
+  }
+  draft.value = response.data.transcript;
+  pendingVoiceReview.value = true;
+}
+function discardVoiceReview() {
+  pendingVoiceReview.value = false;
+  transcriptionError.value = '';
+  draft.value = '';
+  if (browserAudioUrl) {
+    URL.revokeObjectURL(browserAudioUrl);
+    browserAudioUrl = '';
+  }
+}
 function createRequestContext(sessionId?: string): RequestContext {
   return { generation: elderRequestGeneration, elderId: selectedElderId.value, sessionId };
 }
@@ -302,7 +439,7 @@ async function send() {
       activeSessionId.value = targetSessionId;
       persistActiveSessionId(targetSessionId);
     }
-    const response = await sendAiMessage(targetSessionId, { content, messageType: 'TEXT' });
+    const response = await sendAiMessage(targetSessionId, { content, messageType: pendingVoiceReview.value ? 'VOICE' : 'TEXT' });
     if (response.code !== 0) throw new Error(response.message);
     if (!isCurrentElderContext(context) || requestToken !== sendRequestToken || activeSessionId.value !== targetSessionId) return;
     conversation.value.push(
@@ -310,11 +447,17 @@ async function send() {
       {
         id: response.data.assistantMessageId || localId('assistant'), role: 'assistant', content: response.data.answer,
         safetyLevel: response.data.safetyLevel,
+        triageLevel: response.data.triageLevel || undefined,
+        triageCategory: response.data.triageCategory || undefined,
+        followUpRequired: response.data.followUpRequired,
+        followUpQuestion: response.data.followUpQuestion || undefined,
         assistanceCreated: Boolean(response.data.assistanceTicketId),
         customerServiceCreated: response.data.customerServiceTicketCreated
       }
     );
     draft.value = '';
+    pendingVoiceReview.value = false;
+    transcriptionError.value = '';
     await nextTick();
     await loadSessions();
   } catch (exception) {
@@ -334,7 +477,17 @@ onMounted(async () => {
   await loadSessions();
 });
 
-onBeforeUnmount(() => document.removeEventListener('keydown', handleHistoryKeydown));
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', handleHistoryKeydown);
+  if (recordingTimer) clearInterval(recordingTimer);
+  if (recording.value) recorder?.stop();
+  if (browserRecorder) {
+    browserRecorder.instance.stop();
+    browserRecorder.stream.getTracks().forEach((track) => track.stop());
+    browserRecorder = null;
+  }
+  if (browserAudioUrl) URL.revokeObjectURL(browserAudioUrl);
+});
 </script>
 
 <template>
@@ -368,6 +521,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleHistoryKeydo
           <view class="message-content">
             <view class="bubble">{{ message.content }}</view>
             <view v-if="message.safetyLevel === 'WARNING'" class="safety-note warning"><CircleAlert :size="19" aria-hidden="true" /><view><strong>请留意照护风险</strong><text>用药和诊断问题请咨询医生。</text></view></view>
+            <view v-if="message.followUpRequired" class="safety-note follow-up"><CircleAlert :size="19" aria-hidden="true" /><view><strong>需要补充一些情况</strong><text>{{ message.followUpQuestion || '请继续描述当前情况。' }}</text></view></view>
             <view v-if="message.safetyLevel === 'CRITICAL'" class="safety-note critical"><ShieldAlert :size="20" aria-hidden="true" /><view><strong>紧急协助工单已创建</strong><text>请立即联系家属、平台客服或当地急救，不要等待线上回复。</text></view></view>
           </view>
         </view>
@@ -383,7 +537,12 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleHistoryKeydo
 
       <view class="chat-composer">
         <textarea v-model="draft" :disabled="loading || messagesLoading" maxlength="500" auto-height placeholder="输入照护问题" aria-label="输入照护问题" @keydown="handleKeydown" />
-        <button type="button" :disabled="loading || messagesLoading || !draft.trim() || !canSend" aria-label="发送消息" @click="send"><SendHorizontal :size="21" aria-hidden="true" /></button>
+        <button type="button" class="voice-button" :class="{ recording }" :disabled="loading || messagesLoading || transcriptionLoading" :aria-label="recording ? '停止录音' : '开始录音'" @click="toggleRecording"><Mic :size="21" aria-hidden="true" /></button>
+        <button type="button" :disabled="loading || messagesLoading || !draft.trim() || !canSend || transcriptionLoading" aria-label="发送消息" @click="send"><SendHorizontal :size="21" aria-hidden="true" /></button>
+        <text v-if="recording" class="voice-status">正在录音 {{ recordingSeconds }} / 60 秒，再次点击结束</text>
+        <text v-else-if="transcriptionLoading" class="voice-status">正在识别语音，请稍候</text>
+        <view v-if="pendingVoiceReview" class="voice-review"><text>请确认识别文字，修改后再发送</text><button type="button" @click="discardVoiceReview">放弃识别</button></view>
+        <text v-if="transcriptionError" class="voice-error">{{ transcriptionError }}</text>
         <text class="composer-note">AI 建议不能替代医生诊断或急救服务</text>
       </view>
     </view>
@@ -406,4 +565,13 @@ onBeforeUnmount(() => document.removeEventListener('keydown', handleHistoryKeydo
 
 <style scoped>
 .ai-panel,.ai-workspace{display:flex;min-width:0;max-width:100%;min-height:calc(100vh - 178px);flex-direction:column;color:#203129}.ai-workspace{flex:1}.ai-header{display:flex;align-items:center;gap:11px;padding:3px 2px 16px;border-bottom:1px solid #e0e7e2}.assistant-mark{display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:8px;background:#e8f3ee;color:#256a56}.header-copy{min-width:0;flex:1}.ai-title,.availability{display:block;letter-spacing:0}.ai-title{font-size:18px;font-weight:780}.availability{display:flex;align-items:center;gap:5px;margin-top:3px;color:#708077;font-size:12px}.availability i{width:7px;height:7px;border-radius:50%;background:#3f9a75}.header-actions{display:flex;gap:6px}.icon-button{display:grid;place-items:center;flex:none;width:38px;height:38px;margin:0;padding:0;border:1px solid #d4e0da;border-radius:6px;background:#fff;color:#3b6759}.new-conversation{border-color:#27715c;background:#27715c;color:#fff}.elder-selector{display:flex;gap:7px;overflow-x:auto;padding:12px 0 2px}.elder-selector button{flex:none;min-height:34px;padding:0 11px;border:1px solid #d4e0da;border-radius:5px;background:#fff;color:#536960;font-size:12px}.elder-selector button.active{border-color:#4b917a;background:#e8f3ee;color:#256a56;font-weight:700}.history-error{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:9px 11px;border-left:4px solid #c45b4d;background:#fff5f3;color:#8b4138;font-size:12px;line-height:1.45}.history-error button{display:flex;align-items:center;gap:4px;flex:none;min-height:30px;padding:0 7px;border:0;background:transparent;color:inherit;font-size:12px}.conversation{display:flex;flex:1;flex-direction:column;gap:18px;padding:22px 0 18px}.conversation-empty{display:grid;place-items:center;align-content:center;gap:9px;min-height:150px;color:#77877f;font-size:13px;text-align:center}.message-block{display:flex;align-items:flex-start;gap:9px}.message-block.user{flex-direction:row-reverse}.avatar{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;background:#e8f2ed;color:#2b6c59}.user .avatar{background:#e9ecea;color:#56665e}.message-content{min-width:0;max-width:calc(100% - 54px)}.bubble{max-width:100%;padding:13px 15px;border-radius:3px 14px 14px 14px;background:#fff;color:#31443b;font-size:15px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 1px 0 rgba(42,72,59,.08)}.user .bubble{border-radius:14px 3px 14px 14px;background:#2b735e;color:#fff;box-shadow:none}.safety-note{display:flex;gap:9px;margin-top:9px;padding:12px 13px;border-left:4px solid;border-radius:4px;background:#fff}.safety-note svg{flex:none;margin-top:1px}.safety-note strong,.safety-note text{display:block}.safety-note strong{font-size:13px}.safety-note text{margin-top:4px;font-size:12px;line-height:1.5}.safety-note.warning{border-color:#c79538;color:#73571d}.safety-note.critical{border-color:#cb5c4e;background:#fff6f4;color:#8f3e35}.thinking .bubble{display:flex;align-items:center;gap:4px;color:#68786f}.thinking .bubble i{width:5px;height:5px;border-radius:50%;background:#5d8b79;animation:pulse 1s ease-in-out infinite}.thinking .bubble i:nth-child(2){animation-delay:.14s}.thinking .bubble i:nth-child(3){animation-delay:.28s}.thinking .bubble text{margin-left:5px;font-size:12px}.starter-prompts{display:grid;gap:8px;margin:0 0 14px;padding-left:41px}.starter-label{color:#718078;font-size:12px}.starter-prompts button{min-height:44px;margin:0;padding:9px 13px;border:1px solid #d7e2dc;border-radius:7px;background:#fff;color:#365d50;text-align:left;font-size:13px;line-height:1.35}.send-error{margin:0 0 9px;padding:10px 12px;border-left:4px solid #c45b4d;background:#fff5f3;color:#8b4138;font-size:13px}.chat-composer{position:sticky;bottom:76px;z-index:10;display:grid;grid-template-columns:minmax(0,1fr) 46px;gap:8px;margin:0;padding:11px 0 6px;border-top:1px solid #dfe6e2;background:#f4f6f3}.chat-composer textarea{width:100%;min-width:0;min-height:46px;max-height:120px;box-sizing:border-box;padding:12px 13px;border:1px solid #cfdcd5;border-radius:8px;background:#fff;color:#263a31;font-size:15px;line-height:1.45}.chat-composer button{display:grid;place-items:center;width:46px;height:46px;margin:0;padding:0;border:0;border-radius:8px;background:#27715c;color:#fff}.chat-composer button:disabled{background:#aab7b1;color:#eef1ef}.composer-note{grid-column:1/-1;color:#7d8983;font-size:10px;text-align:center}.chat-composer textarea:focus,.icon-button:focus-visible,.session-row:focus-visible,.elder-selector button:focus-visible,.history-error button:focus-visible{outline:2px solid #4b917a;outline-offset:2px}.history-layer{position:fixed;inset:0;z-index:30;display:flex;justify-content:flex-end;background:rgba(24,43,35,.26)}.history-drawer{display:flex;flex-direction:column;width:min(360px,88vw);height:100%;background:#f7f9f7;box-shadow:-12px 0 28px rgba(26,51,41,.18)}.history-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px;border-bottom:1px solid #dfe7e2}.history-heading>view{display:grid;gap:3px}.history-heading text:first-child{font-size:16px;font-weight:780}.history-heading text:last-child{color:#75847d;font-size:12px}.history-state{padding:22px 18px;color:#718078;font-size:13px}.session-list{overflow-y:auto}.session-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;width:100%;padding:14px 18px;border:0;border-bottom:1px solid #e1e8e4;background:transparent;color:#31443b;text-align:left}.session-row.active{border-left:3px solid #27715c;background:#e9f3ee}.session-row>view{display:grid;min-width:0;gap:4px}.session-title,.session-preview{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.session-title{font-size:14px;font-weight:700}.session-preview{color:#72817a;font-size:12px}.session-time{padding-top:2px;color:#72817a;font-size:11px;white-space:nowrap}@keyframes pulse{0%,100%{opacity:.3;transform:translateY(1px)}50%{opacity:1;transform:translateY(-1px)}}@media(max-width:390px){.ai-header{align-items:flex-start}.header-actions{padding-top:2px}.availability{white-space:normal}.history-error{align-items:flex-start}.history-error button{margin-top:-3px}}@media(prefers-reduced-motion:reduce){.thinking .bubble i{animation:none}}
+ </style>
+<style scoped>
+.chat-composer { grid-template-columns: minmax(0, 1fr) 46px 46px; }
+.voice-button.recording { background: #b84f43; }
+.voice-status, .voice-error, .voice-review { grid-column: 1 / -1; display: block; font-size: 12px; }
+.voice-status { color: #27715c; }
+.voice-error { color: #a14339; }
+.voice-review { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-left: 3px solid #27715c; background: #e8f3ee; color: #315d4d; }
+.voice-review button { width: auto; height: 30px; min-height: 30px; padding: 0 8px; background: transparent; color: #315d4d; font-size: 12px; }
 </style>
