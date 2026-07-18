@@ -54,6 +54,11 @@ INSERT INTO role_permission (role_id, permission_id, sort) VALUES
 ('role_nurse', 'perm_nurse_appeal_create', 4600)
 ON DUPLICATE KEY UPDATE sort = VALUES(sort);
 
+INSERT INTO role_permission (role_id, permission_id, sort) VALUES
+('role_nurse', 'perm_reminder_view', 4603),
+('role_nurse', 'perm_reminder_update', 4604)
+ON DUPLICATE KEY UPDATE sort = VALUES(sort);
+
 INSERT INTO reminder_task (
   task_id, elder_id, reminder_type, title, content, scheduled_at, reminder_status, source_type, source_id, created_by
 ) VALUES

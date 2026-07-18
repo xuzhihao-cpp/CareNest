@@ -267,7 +267,14 @@ onBeforeUnmount(() => {
 
     <view v-else class="admin-order-workbench">
       <view class="admin-order-table">
-        <view v-for="record in records" :key="record.orderId" class="admin-order-row">
+        <button
+          v-for="record in records"
+          :key="record.orderId"
+          class="admin-order-row"
+          :class="{ active: selectedOrderId === record.orderId }"
+          type="button"
+          @click="loadDetail(record.orderId)"
+        >
           <view>
             <text class="flow-label">{{ record.serviceName || '护理服务' }}</text>
             <text class="flow-time">
@@ -276,11 +283,8 @@ onBeforeUnmount(() => {
           </view>
           <view class="order-row-side">
             <text class="tag" :class="statusClass(record.orderStatus)">{{ statusLabel(record.orderStatus) }}</text>
-            <button class="ghost-action" type="button" @click="loadDetail(record.orderId)">
-              <text>查看详情</text>
-            </button>
           </view>
-        </view>
+        </button>
       </view>
 
       <view class="admin-order-detail">

@@ -480,6 +480,7 @@ public class CareAdminPhaseService {
                         rs.getString("task_id"),
                         rs.getString("order_id"),
                         rs.getString("nurse_id"),
+                        rs.getString("elder_id"),
                         rs.getString("nurse_name"),
                         rs.getString("elder_name"),
                         rs.getString("service_name"),
@@ -501,6 +502,7 @@ public class CareAdminPhaseService {
                 string(task, "task_id"),
                 string(task, "order_id"),
                 string(task, "nurse_id"),
+                string(task, "elder_id"),
                 string(task, "nurse_name"),
                 string(task, "elder_name"),
                 string(task, "service_name"),
@@ -818,7 +820,7 @@ public class CareAdminPhaseService {
     private String taskSql() {
         return """
                 SELECT nt.task_id, nt.order_id, nt.nurse_id, nt.task_status, nt.dispatch_remark,
-                       o.order_status, o.scheduled_start_at, service.service_name,
+                       o.order_status, o.elder_id, o.scheduled_start_at, service.service_name,
                        COALESCE(elder_user.display_name, '长辈') AS elder_name,
                        COALESCE(nurse_user.display_name, nt.nurse_id) AS nurse_name
                 FROM nurse_task nt

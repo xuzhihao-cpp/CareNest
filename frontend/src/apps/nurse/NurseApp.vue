@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import {
+  Bell,
   ClipboardCheck,
   FilePenLine,
   GraduationCap,
@@ -18,6 +19,7 @@ import { acceptNurseTask, updateNurseTaskStatus } from '@/api/stageTwelve';
 import StageTwentyThreeSuggestionPanel from '@/components/StageTwentyThreeSuggestionPanel.vue';
 import StageFortySixToFortyEightNurseScorePanel from '@/components/StageFortySixToFortyEightNurseScorePanel.vue';
 import StageTwentyFivePreServiceSummary from '@/components/StageTwentyFivePreServiceSummary.vue';
+import StageNurseReminderSettings from '@/components/StageNurseReminderSettings.vue';
 import StageTwentySixQualificationPanel from '@/components/StageTwentySixQualificationPanel.vue';
 import StageFiftyRecommendedArticles from '@/components/StageFiftyRecommendedArticles.vue';
 import StageThirtyFiveToFortyNursePanel from '@/components/StageThirtyFiveToFortyNursePanel.vue';
@@ -37,7 +39,7 @@ const summaryTaskId = ref('');
 const attentionRefreshKey = ref(0);
 type NursePrimaryView = 'tasks' | 'records' | 'learning' | 'account';
 const primaryView = ref<NursePrimaryView>('tasks');
-const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'quality' | 'qualification' | 'health-summary' | 'articles' | 'score'>('tasks');
+const activeTab = ref<'tasks' | 'records' | 'suggestions' | 'quality' | 'qualification' | 'health-summary' | 'articles' | 'score' | 'reminders'>('tasks');
 const articleTaskId = ref('');
 const isEditingRecord = ref(false);
 const suggestionOrderId = ref('');
@@ -289,13 +291,25 @@ function selectPrimary(next: NursePrimaryView) {
     activeTab.value = 'articles';
     articleTaskId.value = selectedTask.value?.taskId ?? '';
   }
-  if (next === 'account' && !['qualification', 'score'].includes(activeTab.value)) activeTab.value = 'qualification';
+  if (next === 'account' && !['qualification', 'score', 'reminders'].includes(activeTab.value)) activeTab.value = 'qualification';
   scrollTop();
 }
 
 function openAccount(tab: 'qualification' | 'score') {
   primaryView.value = 'account';
   activeTab.value = tab;
+  scrollTop();
+}
+
+function openReminders(task?: NurseTaskDetailRecord) {
+  if (task) {
+    selectedTaskId.value = task.taskId;
+  }
+  summaryTaskId.value = '';
+  primaryView.value = 'account';
+  activeTab.value = 'reminders';
+  isEditingRecord.value = false;
+  error.value = '';
   scrollTop();
 }
 
@@ -465,8 +479,9 @@ onMounted(loadTasks);
         <button :class="{ active: activeTab === 'records' }" type="button" @click="openRecords"><FilePenLine :size="19" aria-hidden="true" />服务记录</button>
         <button :class="{ active: activeTab === 'suggestions' }" type="button" @click="openSuggestions()"><ClipboardCheck :size="19" aria-hidden="true" />档案建议</button>
       </nav>
-      <nav v-if="primaryView === 'account'" class="section-nav" aria-label="我的功能">
+      <nav v-if="primaryView === 'account'" class="section-nav account-nav" aria-label="我的功能">
         <button :class="{ active: activeTab === 'qualification' }" type="button" @click="openAccount('qualification')"><ShieldCheck :size="19" aria-hidden="true" />准入资格</button>
+        <button :class="{ active: activeTab === 'reminders' }" type="button" @click="openReminders()"><Bell :size="19" aria-hidden="true" />提醒设置</button>
         <button :class="{ active: activeTab === 'score' }" type="button" @click="openAccount('score')"><Star :size="19" aria-hidden="true" />护理评分</button>
       </nav>
 
@@ -480,6 +495,7 @@ onMounted(loadTasks);
           <view class="task-card-actions">
             <button v-if="preServiceSummaryStatuses.includes(task.taskStatus)" class="secondary-action" type="button" @click="openArticles(task)">学习资料</button>
             <button v-if="preServiceSummaryStatuses.includes(task.taskStatus) && task.taskStatus !== 'ON_THE_WAY'" class="secondary-action health-summary-entry" type="button" :disabled="loading" @click="openHealthSummary(task)">查看健康摘要</button>
+            <button class="secondary-action nurse-reminder-entry" type="button" :disabled="loading" @click="openReminders(task)">提醒设置</button>
             <button class="secondary-action" type="button" :disabled="loading" @click="openQuality(task)">质量留证</button>
             <button class="primary-action" type="button" :disabled="loading" @click="handlePrimaryTaskAction(task)">{{ nextTaskAction(task).label }}</button>
           </view>
@@ -546,6 +562,14 @@ onMounted(loadTasks);
     />
 
     <StageTwentySixQualificationPanel v-else-if="activeTab === 'qualification'" />
+
+    <StageNurseReminderSettings
+      v-else-if="activeTab === 'reminders'"
+      :tasks="tasks"
+      :selected-task-id="selectedTaskId"
+      @close="selectPrimary('tasks')"
+      @select-task="selectedTaskId = $event"
+    />
 
     <StageThirtyFiveToFortyNursePanel
       v-else-if="activeTab === 'quality'"
@@ -656,4 +680,5 @@ onMounted(loadTasks);
 .nurse-app .section-nav{top:var(--nurse-header-height);padding:8px 16px 0}
 @media(min-width:768px){.nurse-app .shell-header{left:50%;right:auto;width:440px;transform:translateX(-50%)}}
 @media(min-width:768px){.nurse-app .work-overview,.nurse-app .section-nav{left:50%;right:auto;width:440px;transform:translateX(-50%)}}
+.section-nav.account-nav{grid-template-columns:repeat(3,minmax(0,1fr))}
 </style>

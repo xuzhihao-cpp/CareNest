@@ -31,7 +31,6 @@ const pendingOrders = ref<AdminOrderRecord[]>([]);
 const taskOrders = ref<AdminOrderRecord[]>([]);
 const tasks = ref<NurseTaskRecord[]>([]);
 const nurseOptions = ref<NurseRecommendationRecord[]>([]);
-const demoNurseNotice = ref('');
 const selectedOrderId = ref('');
 const loading = ref(false);
 const nurseLoading = ref(false);
@@ -97,7 +96,6 @@ async function loadNurseOptions(orderId: string) {
   const ticket = nurseRequestGate.begin(orderId);
   nurseOptions.value = [];
   nurseError.value = '';
-  demoNurseNotice.value = '';
   dispatchForm.value.nurseId = '';
   if (!orderId) return;
   nurseLoading.value = true;
@@ -114,7 +112,6 @@ async function loadNurseOptions(orderId: string) {
     return;
   }
   nurseOptions.value = [demoNurse];
-  demoNurseNotice.value = '当前没有常规推荐候选，已提供护理演示账号用于完整派单流程演示。';
 }
 
 function selectPendingOrder(orderId: string) {
@@ -230,7 +227,6 @@ onBeforeUnmount(() => nurseRequestGate.invalidate());
           <view class="nurse-choice-grid">
             <button v-for="nurse in nurseOptions" :key="nurse.nurseId" class="choice-button" :class="{ active: dispatchForm.nurseId === nurse.nurseId }" type="button" @click="dispatchForm.nurseId = nurse.nurseId">{{ nurse.nurseName }}</button>
           </view>
-          <text v-if="demoNurseNotice" class="demo-nurse-note">{{ demoNurseNotice }}</text>
         </view>
         <label class="field"><text>派单备注</text><input v-model.trim="dispatchForm.dispatchRemark" class="input" maxlength="100" placeholder="可填写服务提醒或交接事项" /></label>
         <button class="hero-action dispatch-submit" type="button" :disabled="loading || nurseLoading || !selectedOrder || !dispatchForm.nurseId" @click="handleDispatch">确认派单</button>

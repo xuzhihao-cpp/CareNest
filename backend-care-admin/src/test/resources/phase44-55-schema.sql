@@ -9,7 +9,9 @@ CREATE TABLE sys_permission (
   permission_id VARCHAR(32) PRIMARY KEY, permission_code VARCHAR(128), enabled TINYINT
 );
 CREATE TABLE role_permission (role_id VARCHAR(32), permission_id VARCHAR(32));
-CREATE TABLE elder_profile (elder_id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32));
+CREATE TABLE elder_profile (
+  elder_id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32), elder_name VARCHAR(64)
+);
 CREATE TABLE elder_family_binding (
   binding_id VARCHAR(32) PRIMARY KEY, elder_id VARCHAR(32), family_id VARCHAR(32),
   binding_status VARCHAR(32), scope_codes VARCHAR(500)

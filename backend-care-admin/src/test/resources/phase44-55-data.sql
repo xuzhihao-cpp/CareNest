@@ -10,12 +10,14 @@ INSERT INTO user_role VALUES
   ('admin_1','role_admin'),('nurse_1','role_nurse'),
   ('family_1','role_family'),('elder_user_1','role_elder'),('cs_1','role_cs');
 INSERT INTO sys_permission VALUES
+  ('p_reminder_view','REMINDER_VIEW',1),('p_reminder_update','REMINDER_UPDATE',1),
   ('p_follow','FOLLOW_UP_MANAGE',1),('p_complaint','COMPLAINT_HANDLE',1),
   ('p_appeal','NURSE_APPEAL_REVIEW',1),('p_article','TRAINING_ARTICLE_MANAGE',1),
   ('p_basic','DASHBOARD_BASIC_VIEW',1),('p_quality','DASHBOARD_QUALITY_VIEW',1),
   ('p_demo','DEMO_DATA_MANAGE',1);
 INSERT INTO role_permission SELECT 'role_admin',permission_id FROM sys_permission;
-INSERT INTO elder_profile VALUES ('elder_1','elder_user_1');
+INSERT INTO role_permission VALUES ('role_nurse','p_reminder_view'),('role_nurse','p_reminder_update');
+INSERT INTO elder_profile VALUES ('elder_1','elder_user_1','演示长辈');
 INSERT INTO elder_family_binding VALUES
   ('binding_1','elder_1','family_1','ACTIVE','["HEALTH_VIEW","REPORT_VIEW"]');
 INSERT INTO service_item VALUES ('service_1','Basic care','ON_SHELF');

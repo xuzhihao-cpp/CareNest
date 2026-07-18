@@ -23,6 +23,8 @@ INSERT INTO user_role (user_id, role_id) VALUES
 
 INSERT INTO sys_permission (permission_id, permission_code, permission_name, permission_group, enabled) VALUES
 ('perm_elder_reminder_view', 'ELDER_REMINDER_VIEW', '查看提醒', 'elder', TRUE),
+('perm_reminder_view', 'REMINDER_VIEW', '查看提醒', 'reminder', TRUE),
+('perm_reminder_update', 'REMINDER_UPDATE', '处理提醒', 'reminder', TRUE),
 ('perm_elder_ai_chat', 'ELDER_AI_CHAT', '使用AI聊天', 'elder', TRUE),
 ('perm_family_elder_view', 'FAMILY_ELDER_VIEW', '查看长辈信息', 'family', TRUE),
 ('perm_family_order_create', 'FAMILY_ORDER_CREATE', '创建护理订单', 'family', TRUE),
@@ -40,6 +42,8 @@ INSERT INTO role_permission (role_id, permission_id, sort) VALUES
 ('role_family', 'perm_family_order_create', 2),
 ('role_nurse', 'perm_nurse_order_view', 1),
 ('role_nurse', 'perm_nurse_report_create', 2),
+('role_nurse', 'perm_reminder_view', 3),
+('role_nurse', 'perm_reminder_update', 4),
 ('role_admin', 'perm_admin_dashboard_view', 1),
 ('role_admin', 'perm_role_permission_manage', 2),
 ('role_customer_service', 'perm_cs_ticket_handle', 1),

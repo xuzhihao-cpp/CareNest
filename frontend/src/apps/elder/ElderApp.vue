@@ -4,6 +4,7 @@ import { Bell, ClipboardList, FileHeart, HeartPulse, Home, Link2, LogOut, Messag
 import { getCurrentUser, logout } from '@/api/stageTwo';
 import { getElderReminders } from '@/api/stageThirtyTwo';
 import EmergencyAssistancePanel from '@/components/EmergencyAssistancePanel.vue';
+import FloatingAiAssistant from '@/components/FloatingAiAssistant.vue';
 import StageSixBindingPanel from '@/components/StageSixBindingPanel.vue';
 import StageSevenProfilePanel from '@/components/StageSevenProfilePanel.vue';
 import StageFifteenServiceReportPanel from '@/components/StageFifteenServiceReportPanel.vue';
@@ -154,6 +155,7 @@ onMounted(async () => {
       <button type="button" :class="{ active: primaryView === 'ai' }" :aria-current="primaryView === 'ai' ? 'page' : undefined" @click="selectPrimary('ai')"><Sparkles :size="24" aria-hidden="true" /><text>AI</text></button>
       <button type="button" :class="{ active: primaryView === 'account' }" :aria-current="primaryView === 'account' ? 'page' : undefined" @click="selectPrimary('account')"><UserRound :size="24" aria-hidden="true" /><text>我的</text></button>
     </nav>
+    <FloatingAiAssistant v-if="allowed && primaryView === 'home'" />
   </view>
 </template>
 
