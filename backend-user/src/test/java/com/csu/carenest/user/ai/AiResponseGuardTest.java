@@ -49,4 +49,12 @@ class AiResponseGuardTest {
         assertTrue(guard.rejectionReason("不要自行停药，也不要擅自加量，请联系开药医生确认。").isEmpty());
         assertTrue(guard.rejectionReason("不要随意停药，不能突然加量，请联系医生确认。").isEmpty());
     }
+
+    @Test
+    void acceptsCareAssistantIntroductionWithoutInventedServiceClaims() {
+        assertTrue(guard.rejectionReason(
+                "您好，我是 CareNest 的日常照护助手，专门为您提供生活支持和日常健康提醒。"
+                        + "如果您需要帮忙联系家人，欢迎随时告诉我，我会尽力帮您。"
+        ).isEmpty());
+    }
 }

@@ -33,9 +33,9 @@ public class AiResponseGuard {
         String compact = answer == null ? "" : answer.replaceAll("\\s+", "");
         String lower = compact.toLowerCase(Locale.ROOT);
         boolean platformContext = lower.contains("carenest") || contains(compact, "平台", "我们");
-        if (contains(compact, "24小时", "二十四小时", "全天在线", "全程陪伴", "客服电话", "随时协助")
+        if (contains(compact, "24小时", "二十四小时", "全天在线", "客服电话")
                 || (platformContext && contains(compact,
-                        "功能", "支持", "提供", "一键", "自动", "预约", "安排", "联系", "上门", "上传", "录入", "保存", "同步", "照护师", "照护员", "护理员"))
+                        "全程陪伴", "随时协助", "一键", "自动", "预约", "安排", "上门", "上传", "录入", "保存", "同步", "照护师", "照护员", "护理员"))
                 || contains(compact, "平台照护师", "平台照护员", "照护师录入", "照护员录入")
                 || PLATFORM_PHONE.matcher(compact).matches()
                 || PLATFORM_HOURS.matcher(compact).matches()) {
