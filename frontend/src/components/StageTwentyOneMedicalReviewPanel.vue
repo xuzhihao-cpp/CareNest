@@ -54,7 +54,7 @@ const decisionOptions: Array<{ value: MedicalFileReviewDecision; label: string; 
 
 const query = ref<AdminMedicalFileQuery>({
   page: 1,
-  size: 10,
+  size: 100,
   auditStatus: 'PENDING'
 });
 const records = ref<AdminMedicalFileRecord[]>([]);
@@ -83,7 +83,6 @@ const canUsePanel = computed(() => canEnterMedicalFileReview(
   props.authUser?.roles ?? [],
   permissionCodes.value
 ));
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / query.value.size)));
 const canSubmitReview = computed(() =>
   Boolean(detail.value && canReviewMedicalFile(detail.value.auditStatus) && !submitting.value)
 );
@@ -176,10 +175,10 @@ async function loadFiles(keepSelection = false, loadSelectedDetail = true) {
   loadingList.value = true;
   listError.value = '';
   successMessage.value = '';
-  const response = await getAdminMedicalFiles(query.value);
+  const firstResponse = await getAdminMedicalFiles({ ...query.value, page: 1 });
   if (requestSequence !== listRequestSequence) return;
-  loadingList.value = false;
-  if (response.code !== 0) {
+  if (firstResponse.code !== 0) {
+    loadingList.value = false;
     detailRequestSequence += 1;
     records.value = [];
     total.value = 0;
@@ -187,13 +186,33 @@ async function loadFiles(keepSelection = false, loadSelectedDetail = true) {
     selectedFileId.value = '';
     loadingDetail.value = false;
     resetReviewForm(null);
-    listError.value = businessError(response.code, 'LIST');
+    listError.value = businessError(firstResponse.code, 'LIST');
     return;
   }
-  records.value = response.data.records;
-  total.value = response.data.total;
-  query.value.page = response.data.page;
-  query.value.size = response.data.size;
+  const pageSize = firstResponse.data.size;
+  const pageCount = Math.max(1, Math.ceil(firstResponse.data.total / pageSize));
+  const allRecords = [...firstResponse.data.records];
+  for (let currentPage = 2; currentPage <= pageCount; currentPage += 1) {
+    const nextResponse = await getAdminMedicalFiles({ ...query.value, page: currentPage, size: pageSize });
+    if (requestSequence !== listRequestSequence) return;
+    if (nextResponse.code !== 0) {
+      loadingList.value = false;
+      records.value = [];
+      total.value = 0;
+      detail.value = null;
+      selectedFileId.value = '';
+      loadingDetail.value = false;
+      resetReviewForm(null);
+      listError.value = businessError(nextResponse.code, 'LIST');
+      return;
+    }
+    allRecords.push(...nextResponse.data.records);
+  }
+  loadingList.value = false;
+  records.value = allRecords;
+  total.value = firstResponse.data.total;
+  query.value.page = 1;
+  query.value.size = pageSize;
   if (!loadSelectedDetail) return;
   const current = keepSelection
     ? records.value.find((record) => record.fileId === selectedFileId.value)
@@ -212,13 +231,6 @@ function setStatus(value: MedicalFileReviewStatus | '') {
   query.value.auditStatus = value;
   query.value.page = 1;
   loadFiles();
-}
-
-async function changePage(offset: number) {
-  const next = query.value.page + offset;
-  if (next < 1 || next > totalPages.value || loadingList.value) return;
-  query.value.page = next;
-  await loadFiles();
 }
 
 function setDecision(next: MedicalFileReviewDecision) {
@@ -425,11 +437,6 @@ onMounted(initializeReviewPanel);
               <text v-if="record.createdAt" class="item-date">上传时间：{{ formatDate(record.createdAt) }}</text>
             </button>
           </view>
-          <view class="pagination">
-            <button type="button" :disabled="query.page <= 1 || loadingList" @click="changePage(-1)">上一页</button>
-            <text>第 {{ query.page }} / {{ totalPages }} 页</text>
-            <button type="button" :disabled="query.page >= totalPages || loadingList" @click="changePage(1)">下一页</button>
-          </view>
         </aside>
 
         <main class="review-detail-pane">
@@ -495,7 +502,7 @@ onMounted(initializeReviewPanel);
 .review-kicker { color:#167d73; font-size:12px; font-weight:800; }
 .review-title { margin-top:5px; font-size:24px; font-weight:800; }
 .review-subtitle { margin-top:6px; color:#6c7f7b; font-size:13px; }
-.primary-command,.secondary-command,.filter-band button,.pagination button,.preview-actions button { display:inline-flex; align-items:center; justify-content:center; min-width:0; min-height:38px; margin:0; padding:0 14px; border:1px solid #cbdad6; border-radius:5px; background:#fff; color:#315c56; font-size:13px; font-weight:700; line-height:1.2; text-align:center; white-space:nowrap; }
+.primary-command,.secondary-command,.filter-band button,.preview-actions button { display:inline-flex; align-items:center; justify-content:center; min-width:0; min-height:38px; margin:0; padding:0 14px; border:1px solid #cbdad6; border-radius:5px; background:#fff; color:#315c56; font-size:13px; font-weight:700; line-height:1.2; text-align:center; white-space:nowrap; }
 .primary-command { border-color:#168c81; background:#168c81; color:#fff; }
 button[disabled] { opacity:.48; }
 .access-state,.medical-review-panel .empty-state { display:grid; grid-template-columns:minmax(0,1fr); place-content:center; gap:8px; min-width:0; padding:28px; border:1px dashed #c8d8d4; border-radius:6px; background:#fbfdfc; box-shadow:none; color:#657a75; font-size:14px; line-height:1.6; text-align:center; overflow-wrap:break-word; backdrop-filter:none; -webkit-backdrop-filter:none; }
@@ -512,7 +519,7 @@ button[disabled] { opacity:.48; }
 .pane-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px; border-bottom:1px solid #d8e4e1; }
 .pane-heading>view text:first-child { font-size:16px; font-weight:800; }
 .pane-heading>view text:last-child,.pane-heading>text { margin-top:3px; color:#71837f; font-size:12px; }
-.review-list { display:grid; gap:8px; padding:10px; }
+.review-list { display:grid; flex:1; align-content:start; grid-auto-rows:min-content; gap:8px; min-height:0; max-height:calc(100vh - 310px); padding:10px; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
 .review-list-item { display:grid; align-content:center; align-items:normal; justify-content:stretch; justify-items:stretch; gap:7px; width:100%; min-width:0; margin:0; padding:14px; border:1px solid #d9e4e1; border-radius:5px; background:#fff; color:#405d58; line-height:1.45; text-align:left; }
 .review-list-item.active { border-color:#63b9af; background:#edf8f6; box-shadow:inset 4px 0 #168c81; }
 .item-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
@@ -524,8 +531,6 @@ button[disabled] { opacity:.48; }
 .review-status-approved { border-color:#9fd8cf; background:#eaf8f5; color:#0f766e; }
 .review-status-rejected { border-color:#efb5b0; background:#fff1ef; color:#b13e36; }
 .review-status-need-more { border-color:#bad2e9; background:#eef6fd; color:#2e6c9e; }
-.pagination { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto; padding:12px; border-top:1px solid #d8e4e1; color:#657a75; font-size:12px; }
-.pagination button { min-height:32px; }
 .review-list-pane>.empty-state { min-height:170px; margin:14px; }
 .review-detail-pane { display:grid; align-content:start; min-width:0; padding:22px; }
 .review-detail-pane>.empty-state { width:100%; min-height:240px; }
@@ -576,5 +581,6 @@ button[disabled] { opacity:.48; }
   .review-list-pane { border-right:0; border-bottom:1px solid #d8e4e1; }
   .detail-meta,.decision-grid,.extracted-items { grid-template-columns:1fr; }
   .review-detail-pane { padding:16px; }
+  .review-list { max-height:min(52vh, 520px); }
 }
 </style>

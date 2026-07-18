@@ -495,4 +495,6 @@ onBeforeUnmount(() => {
 .picker-control { box-sizing:border-box; width:100%; max-width:100%; min-height:48px; padding:0 14px; overflow:hidden; border:1px solid #cadbd7; border-radius:6px; background:#fbfdfc; color:#193632; font-size:14px; font-weight:700; line-height:48px; text-overflow:ellipsis; white-space:nowrap; }
 .field .field-hint { max-width:100%; margin-top:7px; overflow-wrap:anywhere; color:#6f837e; text-align:left; line-height:1.5; }
 @media (max-width:900px) { .workbench-grid { grid-template-columns:1fr; }.nurse-pane { border-right:0; border-bottom:1px solid #e0e9e7; }.qualification-summary { grid-template-columns:1fr; }.status-options { grid-template-columns:repeat(2,minmax(0,1fr)); }.batch-grid,.expiry-grid { grid-template-columns:1fr; }.pane-empty.spacious { min-height:180px; } }
+@media (min-width:901px) { .nurse-list { max-height:calc(100vh - 340px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; } }
+@media (max-width:900px) { .nurse-list { max-height:min(48vh,460px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; } }
 </style>

@@ -43,6 +43,7 @@ const configItems = ref<CareMetricConfigItem[]>([createEmptyMetricConfigItem()])
 const evidences = ref<EvidenceResponse[]>([]);
 const evidencePreviewUrls = ref<Record<string, string>>({});
 const evidencePreviewLoading = ref<Record<string, boolean>>({});
+const selectedEvidencePhoto = ref<{ title: string; url: string } | null>(null);
 const reviewForms = ref<Record<string, { auditStatus: Exclude<EvidenceAuditStatus, 'PENDING'>; reviewComment: string }>>({});
 const loading = ref(false);
 const error = ref('');
@@ -210,10 +211,17 @@ function clearEvidencePreviews() {
   Object.values(evidencePreviewUrls.value).forEach((url) => URL.revokeObjectURL(url));
   evidencePreviewUrls.value = {};
   evidencePreviewLoading.value = {};
+  selectedEvidencePhoto.value = null;
 }
 
 async function showEvidencePhoto(item: EvidenceResponse) {
-  if (!item.fileId || item.evidenceType !== 'PHOTO' || evidencePreviewUrls.value[item.evidenceId]) return;
+  if (!item.fileId || item.evidenceType !== 'PHOTO') return;
+  const title = item.metricName || '护理留档照片';
+  const existingUrl = evidencePreviewUrls.value[item.evidenceId];
+  if (existingUrl) {
+    selectedEvidencePhoto.value = { title, url: existingUrl };
+    return;
+  }
   evidencePreviewLoading.value = { ...evidencePreviewLoading.value, [item.evidenceId]: true };
   const result = await getCareEvidencePreview(item.evidenceId);
   evidencePreviewLoading.value = { ...evidencePreviewLoading.value, [item.evidenceId]: false };
@@ -221,10 +229,16 @@ async function showEvidencePhoto(item: EvidenceResponse) {
     error.value = '留档图片暂时无法查看，请稍后刷新后重试。';
     return;
   }
+  const url = URL.createObjectURL(result.blob);
   evidencePreviewUrls.value = {
     ...evidencePreviewUrls.value,
-    [item.evidenceId]: URL.createObjectURL(result.blob)
+    [item.evidenceId]: url
   };
+  selectedEvidencePhoto.value = { title, url };
+}
+
+function closeEvidencePhoto() {
+  selectedEvidencePhoto.value = null;
 }
 
 async function submitEvidenceReview(evidence: EvidenceResponse) {
@@ -354,24 +368,26 @@ onBeforeUnmount(clearEvidencePreviews);
                 class="photo-preview-button"
                 :disabled="Boolean(evidencePreviewLoading[item.evidenceId])"
                 @click="showEvidencePhoto(item)"
-              >{{ evidencePreviewUrls[item.evidenceId] ? '已打开图片' : evidencePreviewLoading[item.evidenceId] ? '正在读取图片' : '查看图片' }}</button>
-              <img
-                v-if="evidencePreviewUrls[item.evidenceId]"
-                class="evidence-photo"
-                :src="evidencePreviewUrls[item.evidenceId]"
-                alt="护理留档照片"
-              />
+              >{{ evidencePreviewLoading[item.evidenceId] ? '正在读取图片' : '查看图片' }}</button>
             </view>
-            <picker :range="evidenceReviewOptions" range-key="label" :value="pickerIndex(evidenceReviewOptions, reviewForms[item.evidenceId]?.auditStatus || 'APPROVED')" @change="setEvidenceReviewStatus(item.evidenceId, $event)">
-              <view class="select-box">{{ EVIDENCE_AUDIT_STATUS_LABELS[reviewForms[item.evidenceId]?.auditStatus || 'APPROVED'] }}</view>
-            </picker>
-            <textarea v-model="reviewForms[item.evidenceId].reviewComment" maxlength="500" placeholder="审核意见，驳回或补材料必填" />
-            <button type="button" class="primary" :disabled="loading || item.auditStatus !== 'PENDING'" @click="submitEvidenceReview(item)">提交审核</button>
+            <view class="evidence-review-controls">
+              <label class="review-decision"><text>处理决定</text><picker :range="evidenceReviewOptions" range-key="label" :value="pickerIndex(evidenceReviewOptions, reviewForms[item.evidenceId]?.auditStatus || 'APPROVED')" @change="setEvidenceReviewStatus(item.evidenceId, $event)">
+                <view class="select-box review-status-select">{{ EVIDENCE_AUDIT_STATUS_LABELS[reviewForms[item.evidenceId]?.auditStatus || 'APPROVED'] }}<text>更改</text></view>
+              </picker></label>
+              <label class="review-comment"><text>审核意见</text><textarea v-model="reviewForms[item.evidenceId].reviewComment" maxlength="500" placeholder="驳回或要求补材料时，请说明原因" /></label>
+              <button type="button" class="primary" :disabled="loading || item.auditStatus !== 'PENDING'" @click="submitEvidenceReview(item)">提交审核</button>
+            </view>
           </view>
         </view>
       </view>
 
     </template>
+    <view v-if="selectedEvidencePhoto" class="photo-preview-overlay" @click="closeEvidencePhoto">
+      <view class="photo-preview-dialog" role="dialog" aria-modal="true" :aria-label="selectedEvidencePhoto.title" @click.stop>
+        <view class="photo-preview-head"><strong>{{ selectedEvidencePhoto.title }}</strong><button type="button" class="secondary" @click="closeEvidencePhoto">关闭</button></view>
+        <img class="photo-preview-image" :src="selectedEvidencePhoto.url" :alt="selectedEvidencePhoto.title" />
+      </view>
+    </view>
   </view>
 </template>
 
@@ -422,16 +438,20 @@ button[disabled] { opacity:.48; }
 .review-card text,.review-card small { color:#6a7d78; font-size:12px; }
 .review-card small { color:#087b78; font-weight:800; }
 .review-card .primary { align-self:stretch; }
-.evidence-review-card { grid-template-columns:minmax(280px,1.35fr) minmax(150px,.65fr) minmax(240px,1fr) 132px; align-items:center; }
-.evidence-review-card .evidence-content { min-width:0; }
+.evidence-review-card { grid-template-columns:minmax(280px,.85fr) minmax(360px,1.15fr); gap:20px; align-items:stretch; padding:20px; border-color:#cfe0dc; background:#fbfdfc; }
+.evidence-review-card .evidence-content { min-width:0; padding:4px 4px 4px 14px; border-left:4px solid #39a497; }
 .evidence-content p { margin:3px 0 0; color:#314b45; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
 .evidence-review-card .evidence-status { margin-top:2px; color:#087b78; }
 .photo-preview-button { width:max-content; min-height:34px; margin-top:6px; padding:0 12px; border:1px solid #9bcfc6; border-radius:6px; background:#fff; color:#087b78; font-size:12px; font-weight:800; }
-.evidence-photo { display:block; width:min(100%, 360px); max-height:240px; margin-top:8px; border:1px solid #c8ded9; border-radius:6px; object-fit:contain; background:#fff; }
+.evidence-review-controls { display:grid; grid-template-columns:minmax(150px,.62fr) minmax(220px,1.25fr) 132px; gap:12px; align-items:end; padding:14px; border:1px solid #d7e7e3; border-radius:8px; background:#fff; }
+.evidence-review-controls label { display:grid; gap:7px; min-width:0; }.evidence-review-controls label>text { color:#58706b; font-size:12px; font-weight:800; }.review-status-select { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:44px; padding:0 12px; border-color:#9fd6cd; background:#eaf8f5; color:#087b78; font-weight:800; line-height:1; }.review-status-select text { flex:none; padding-left:8px; border-left:1px solid #b8ddd6; color:#4c7770; font-size:11px; font-weight:700; }.evidence-review-controls textarea { min-height:74px; }.evidence-review-controls .primary { min-height:42px; }
+.photo-preview-overlay { position:fixed; z-index:1000; inset:0; display:grid; place-items:center; padding:28px; background:rgba(14,38,34,.58); }
+.photo-preview-dialog { display:grid; grid-template-rows:auto minmax(0,1fr); gap:14px; width:min(960px,100%); max-height:calc(100vh - 56px); padding:18px; border:1px solid #b9d9d3; border-radius:8px; background:#fff; box-shadow:0 20px 50px rgba(11,37,32,.28); }
+.photo-preview-head { display:flex; align-items:center; justify-content:space-between; gap:16px; }.photo-preview-head strong { font-size:18px; }.photo-preview-image { display:block; width:100%; max-height:calc(100vh - 170px); border:1px solid #d5e4e0; border-radius:6px; object-fit:contain; background:#f4f7f6; }
 .evidence-review-card .primary { min-height:42px; align-self:center; }
 @media (max-width:900px) {
   .metric-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .service-selector,.metric-config-row,.review-card { grid-template-columns:1fr; }
+  .service-selector,.metric-config-row,.review-card,.evidence-review-card,.evidence-review-controls { grid-template-columns:1fr; }
   .description-field { grid-column:auto; }
   .metric-tabs { overflow:auto; }
   .metric-tabs button { min-width:110px; }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { displayLabel } from '@/utils/displayLabels';
 import {
   cancelAdminOrder,
@@ -22,10 +22,15 @@ import type {
   StageSeventeenScenario
 } from '@/types/stageSeventeen';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   roleCode: RoleCode;
   authUser: AuthUser | null;
-}>();
+  embeddedOrderId?: string;
+  embedded?: boolean;
+}>(), {
+  embeddedOrderId: '',
+  embedded: false
+});
 
 function padTime(value: number) {
   return String(value).padStart(2, '0');
@@ -114,7 +119,7 @@ async function refreshOrders() {
     const response = await getAdminOrders({ page: 1, size: 20, orderStatus: '' }, 'normal');
     adminOrders.value = response.code === 0 ? response.data.records : [];
   }
-  const selected = selectableOrders.value.find((item) => item.orderId === orderId.value)
+  const selected = selectableOrders.value.find((item) => item.orderId === (props.embeddedOrderId || orderId.value))
     ?? selectableOrders.value[0];
   if (selected) {
     selectOrder(selected);
@@ -194,15 +199,20 @@ onMounted(() => {
   refreshOrders();
   loadFamilyPermissions();
 });
+
+watch(() => props.embeddedOrderId, (nextOrderId) => {
+  if (!props.embedded || !nextOrderId || nextOrderId === orderId.value) return;
+  void refreshOrders();
+});
 </script>
 
 <template>
-  <view v-if="canUsePanel" class="stage-seventeen-panel glass-panel" aria-label="订单取消与改期">
-    <view class="section-title">
+  <view v-if="canUsePanel" class="stage-seventeen-panel glass-panel" :class="{ 'embedded-order-change-panel': props.embedded }" aria-label="订单取消与改期">
+    <view v-if="!props.embedded" class="section-title">
       <text>订单取消与改期</text>
     </view>
 
-    <view class="stage-seventeen-summary">
+    <view v-if="!props.embedded" class="stage-seventeen-summary">
       <view>
         <text class="section-mini">order / role / status</text>
         <text class="permission-main">
@@ -218,12 +228,12 @@ onMounted(() => {
       </view>
     </view>
 
-    <view class="stage-seventeen-endpoints">
+    <view v-if="!props.embedded" class="stage-seventeen-endpoints">
       <text v-for="item in endpoints" :key="item" class="tag tag-blue">{{ item }}</text>
     </view>
 
     <view class="report-toolbar order-change-form">
-      <view class="field order-selector">
+      <view v-if="!props.embedded" class="field order-selector">
         <text>选择需要处理的订单</text>
         <view v-if="selectableOrders.length" class="order-option-list">
           <button
@@ -243,7 +253,7 @@ onMounted(() => {
         </view>
         <text v-else class="auth-meta">暂无可取消或改期的订单</text>
       </view>
-      <view class="field">
+      <view v-if="canFamilyChange" class="field">
         <text>新的预约时间</text>
         <view class="appointment-picker-row">
           <picker mode="date" :start="localDate()" :value="rescheduleDate" @change="selectRescheduleDate">
@@ -281,7 +291,7 @@ onMounted(() => {
       <text>{{ error }}</text>
     </view>
 
-    <view class="service-report-workbench">
+    <view v-if="!props.embedded" class="service-report-workbench">
       <view v-if="canFamilyChange" class="contract-response">
         <text class="section-mini">家属端订单快照</text>
         <text v-if="latestFamilyOrder" class="permission-main">
@@ -303,7 +313,7 @@ onMounted(() => {
       </view>
     </view>
 
-    <view v-if="latestAdminOrder" class="report-section">
+    <view v-if="!props.embedded && latestAdminOrder" class="report-section">
       <text class="section-mini">订单状态记录</text>
       <view v-for="log in latestAdminOrder.statusLogs" :key="log.statusLogId" class="status-log-row">
         <text class="flow-label">{{ displayLabel(log.fromStatus || 'INIT') }} → {{ displayLabel(log.toStatus) }}</text>
@@ -311,7 +321,7 @@ onMounted(() => {
       </view>
     </view>
 
-    <view v-if="lastResponse" class="contract-response">
+    <view v-if="!props.embedded && lastResponse" class="contract-response">
       <text class="section-mini">最近一次取消/改期响应 DTO</text>
       <text>{{ lastResponse.code }} / {{ lastResponse.message }} / {{ lastResponse.traceId }}</text>
       <text v-if="lastResponse.code === 0">

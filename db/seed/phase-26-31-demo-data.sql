@@ -67,7 +67,7 @@ ON DUPLICATE KEY UPDATE role_id = VALUES(role_id);
 INSERT INTO nurse_profile (
   nurse_id, real_name, id_no_masked, qualification_status, training_status, can_take_order, profile_status
 ) VALUES
-('nurse-001', '护理演示账号', '310***********0003', 'PENDING', 'PENDING', 0, 'ACTIVE'),
+('nurse-001', '护理演示账号', '310***********0003', 'APPROVED', 'APPROVED', 1, 'ACTIVE'),
 ('nurse-noapp-026', '无申请护理', '310***********2601', 'PENDING', 'PENDING', 0, 'ACTIVE'),
 ('nurse-pending-026', '待审核护理', '310***********2602', 'PENDING', 'PENDING', 0, 'ACTIVE'),
 ('nurse-needmore-026', '需补充护理', '310***********2603', 'NEED_MORE', 'PENDING', 0, 'ACTIVE'),
@@ -126,6 +126,7 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO nurse_training_record (
   training_id, nurse_id, training_status, training_batch, passed_at, expired_at, remark, reviewed_by, reviewed_at
 ) VALUES
+('training_nurse_demo', 'nurse-001', 'APPROVED', 'DEMO-2026-07', '2026-07-17 09:00:00', '2030-12-31 23:59:59', '演示账号培训有效，可用于派单流程演示。', 'admin-001', '2026-07-17 09:00:00'),
 ('training_rejected_026', 'nurse-qualified-026', 'REJECTED', 'TRAIN-2026-07-A', NULL, NULL, '实操考核未通过，需重新培训。', 'admin-001', '2026-07-15 10:10:00'),
 ('training_valid_028', 'nurse-valid-028', 'APPROVED', 'TRAIN-2026-07-A', '2026-07-15 10:20:00', '2030-12-31 23:59:59', '培训通过。', 'admin-001', '2026-07-15 10:20:00'),
 ('training_expired_028', 'nurse-expired-028', 'APPROVED', 'TRAIN-2025-01-A', '2025-01-15 10:20:00', '2025-06-30 23:59:59', '历史培训已过期，仅用于过期过滤验收。', 'admin-001', '2025-01-15 10:20:00'),
@@ -156,6 +157,7 @@ INSERT INTO nurse_service_skill (
   skill_id, nurse_id, service_id, skill_code, skill_name, enabled
 ) VALUES
 ('skill_valid_028_basic', 'nurse-valid-028', 'service_001', 'BASIC_CARE', '基础照护', 1),
+('skill_nurse_demo_basic', 'nurse-001', 'service_001', 'BASIC_CARE', '基础照护', 1),
 ('skill_reco_a_basic', 'nurse-reco-a-029', 'service_001', 'BASIC_CARE', '基础照护', 1),
 ('skill_reco_a_vital', 'nurse-reco-a-029', 'service_001', 'VITAL_SIGN', '生命体征观察', 1),
 ('skill_reco_b_basic', 'nurse-reco-b-029', 'service_001', 'BASIC_CARE', '基础照护', 1),
@@ -169,6 +171,7 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO nurse_score (
   nurse_id, total_score, service_count, positive_rate, complaint_count, last_service_at, updated_by
 ) VALUES
+('nurse-001', 90.00, 12, 98.00, 0, '2026-07-16 10:00:00', 'admin-001'),
 ('nurse-valid-028', 82.00, 8, 95.00, 0, '2026-07-12 10:00:00', 'admin-001'),
 ('nurse-expired-028', 90.00, 12, 98.00, 0, '2026-06-01 10:00:00', 'admin-001'),
 ('nurse-reco-a-029', 96.50, 28, 99.00, 0, '2026-07-14 15:00:00', 'admin-001'),

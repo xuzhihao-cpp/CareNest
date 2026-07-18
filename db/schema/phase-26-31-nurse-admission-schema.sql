@@ -38,7 +38,7 @@ SET @has_file_asset_owner_idx := (
     AND index_name = 'idx_file_asset_file_owner'
 );
 SET @sql := IF(@has_file_asset_owner_idx = 0,
-  'ALTER TABLE file_asset ADD INDEX idx_file_asset_file_owner (file_id, uploaded_by)',
+  'ALTER TABLE file_asset ADD UNIQUE INDEX idx_file_asset_file_owner (file_id, uploaded_by)',
   'SELECT 1');
 PREPARE stmt FROM @sql;
 EXECUTE stmt;

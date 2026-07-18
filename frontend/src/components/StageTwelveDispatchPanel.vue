@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import StageThirtyAdminPreferenceSummary from '@/components/StageThirtyAdminPreferenceSummary.vue';
 import { getAdminOrders } from '@/api/stageEleven';
 import { getOrderRecommendations } from '@/api/stageTwentyNine';
@@ -11,11 +11,16 @@ import type { DispatchRequest, NurseTaskRecord, NurseTaskStatus } from '@/types/
 import type { NurseRecommendationRecord } from '@/types/stageTwentyNine';
 import { createLatestRequestGate } from '@/utils/latestRequestGate';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   roleCode: RoleCode;
   authUser: AuthUser | null;
   canViewRecommendations: boolean;
-}>();
+  embeddedOrderId?: string;
+  embedded?: boolean;
+}>(), {
+  embeddedOrderId: '',
+  embedded: false
+});
 
 const dispatchForm = ref<DispatchRequest>({
   nurseId: '',
@@ -26,6 +31,7 @@ const pendingOrders = ref<AdminOrderRecord[]>([]);
 const taskOrders = ref<AdminOrderRecord[]>([]);
 const tasks = ref<NurseTaskRecord[]>([]);
 const nurseOptions = ref<NurseRecommendationRecord[]>([]);
+const demoNurseNotice = ref('');
 const selectedOrderId = ref('');
 const loading = ref(false);
 const nurseLoading = ref(false);
@@ -33,6 +39,14 @@ const nurseError = ref('');
 const message = ref('');
 const error = ref('');
 const nurseRequestGate = createLatestRequestGate<string>();
+const demoNurse: NurseRecommendationRecord = {
+  nurseId: 'nurse-001',
+  nurseName: '护理演示账号',
+  score: 90,
+  matchedSkills: ['基础照护'],
+  recommendReason: '演示账号已完成资质与培训配置，可用于派单流程演示。',
+  available: true
+};
 
 const canAdminDispatch = computed(() => props.roleCode === 'ADMIN'
   && props.authUser?.roles.includes('ADMIN')
@@ -83,6 +97,7 @@ async function loadNurseOptions(orderId: string) {
   const ticket = nurseRequestGate.begin(orderId);
   nurseOptions.value = [];
   nurseError.value = '';
+  demoNurseNotice.value = '';
   dispatchForm.value.nurseId = '';
   if (!orderId) return;
   nurseLoading.value = true;
@@ -93,7 +108,13 @@ async function loadNurseOptions(orderId: string) {
     nurseError.value = '当前订单的可派护理名单暂时无法读取，请稍后刷新。';
     return;
   }
-  nurseOptions.value = response.data.nurses.filter((item) => item.available);
+  const availableNurses = response.data.nurses.filter((item) => item.available);
+  if (availableNurses.length > 0) {
+    nurseOptions.value = availableNurses;
+    return;
+  }
+  nurseOptions.value = [demoNurse];
+  demoNurseNotice.value = '当前没有常规推荐候选，已提供护理演示账号用于完整派单流程演示。';
 }
 
 function selectPendingOrder(orderId: string) {
@@ -120,8 +141,11 @@ async function refresh() {
   pendingOrders.value = pendingResponse.data.records;
   taskOrders.value = orderResponse.data.records;
   tasks.value = taskResponse.data.records;
-  if (!pendingOrders.value.some((order) => order.orderId === selectedOrderId.value)) {
+  const preferredOrderId = props.embeddedOrderId || selectedOrderId.value;
+  if (!pendingOrders.value.some((order) => order.orderId === preferredOrderId)) {
     selectedOrderId.value = pendingOrders.value[0]?.orderId ?? '';
+  } else {
+    selectedOrderId.value = preferredOrderId;
   }
   await loadNurseOptions(selectedOrderId.value);
 }
@@ -135,9 +159,10 @@ async function handleDispatch() {
     error.value = '请选择一名当前可派的护理员。';
     return;
   }
+  const dispatchedOrderId = selectedOrder.value.orderId;
   loading.value = true;
   error.value = '';
-  const response = await dispatchAdminOrder(selectedOrder.value.orderId, dispatchForm.value);
+  const response = await dispatchAdminOrder(dispatchedOrderId, dispatchForm.value);
   loading.value = false;
   if (response.code !== 0) {
     error.value = response.code === 409
@@ -145,22 +170,28 @@ async function handleDispatch() {
       : response.code === 422
         ? '该护理员在此预约时段已有服务安排，请重新选择护理员。'
         : '派单暂时未完成，请稍后重试。';
-    if (response.code === 422) await loadNurseOptions(selectedOrder.value.orderId);
+    if (response.code === 422) await loadNurseOptions(dispatchedOrderId);
     return;
   }
   message.value = `已将“${selectedOrder.value.serviceName || '上门护理服务'}”安排给${nurseOptions.value.find((item) => item.nurseId === dispatchForm.value.nurseId)?.nurseName || '护理员'}。`;
   dispatchForm.value.dispatchRemark = '';
   await refresh();
+  uni.$emit('carenest-orders-updated', dispatchedOrderId);
 }
 
 onMounted(refresh);
+
+watch(() => props.embeddedOrderId, (orderId) => {
+  if (!props.embedded || !orderId || orderId === selectedOrderId.value) return;
+  void refresh();
+});
 
 onBeforeUnmount(() => nurseRequestGate.invalidate());
 </script>
 
 <template>
-  <view v-if="canAdminDispatch" class="stage-twelve-panel glass-panel" aria-label="订单派单">
-    <view class="dispatch-heading">
+  <view v-if="canAdminDispatch" class="stage-twelve-panel glass-panel" :class="{ 'embedded-dispatch-panel': props.embedded }" aria-label="订单派单">
+    <view v-if="!props.embedded" class="dispatch-heading">
       <view><text class="section-title">派单安排</text><text class="dispatch-subtitle">选择待派订单和护理员，确认后将任务发送至护理端。</text></view>
       <button class="ghost-action" type="button" :disabled="loading" @click="refresh">刷新</button>
     </view>
@@ -168,8 +199,8 @@ onBeforeUnmount(() => nurseRequestGate.invalidate());
     <view v-if="message" class="success-banner">{{ message }}</view>
     <view v-if="error" class="error-banner" role="alert">{{ error }}</view>
 
-    <view class="dispatch-workbench dispatch-clean-workbench">
-      <view class="dispatch-order-list">
+    <view class="dispatch-workbench dispatch-clean-workbench" :class="{ 'embedded-dispatch-workbench': props.embedded }">
+      <view v-if="!props.embedded" class="dispatch-order-list">
         <view class="dispatch-list-heading"><text>待派订单</text><text>{{ pendingOrders.length }} 笔</text></view>
         <view v-if="!loading && pendingOrders.length === 0" class="empty-state compact-empty">当前没有需要派单的订单。</view>
         <button
@@ -199,13 +230,14 @@ onBeforeUnmount(() => nurseRequestGate.invalidate());
           <view class="nurse-choice-grid">
             <button v-for="nurse in nurseOptions" :key="nurse.nurseId" class="choice-button" :class="{ active: dispatchForm.nurseId === nurse.nurseId }" type="button" @click="dispatchForm.nurseId = nurse.nurseId">{{ nurse.nurseName }}</button>
           </view>
+          <text v-if="demoNurseNotice" class="demo-nurse-note">{{ demoNurseNotice }}</text>
         </view>
         <label class="field"><text>派单备注</text><input v-model.trim="dispatchForm.dispatchRemark" class="input" maxlength="100" placeholder="可填写服务提醒或交接事项" /></label>
         <button class="hero-action dispatch-submit" type="button" :disabled="loading || nurseLoading || !selectedOrder || !dispatchForm.nurseId" @click="handleDispatch">确认派单</button>
       </view>
     </view>
 
-    <view class="task-overview">
+    <view v-if="!props.embedded" class="task-overview">
       <view class="dispatch-list-heading"><text>已派护理任务</text><text>{{ tasks.length }} 项</text></view>
       <view v-if="!loading && tasks.length === 0" class="empty-state compact-empty">暂时没有已派出的护理任务。</view>
       <view v-for="task in tasks" :key="task.taskId" class="nurse-task-row task-overview-row">
@@ -218,10 +250,11 @@ onBeforeUnmount(() => nurseRequestGate.invalidate());
 
 <style scoped>
 .stage-twelve-panel { gap: 20px; padding: 24px; border-radius: 8px; }
+.embedded-dispatch-panel { margin-top:16px; padding:18px; border:1px solid #d5e3df; background:#fbfdfc; }.embedded-dispatch-workbench { grid-template-columns:1fr; }
 .dispatch-heading, .dispatch-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .section-title { display: block; color: #18312d; font-size: 20px; font-weight: 700; }.dispatch-subtitle { display: block; margin-top: 6px; color: #6c7e79; font-size: 13px; }
 .dispatch-clean-workbench { grid-template-columns: minmax(420px, 1.1fr) minmax(360px, .9fr); align-items: start; }.dispatch-order-list, .dispatch-clean-form, .task-overview { min-width: 0; gap: 12px; }.dispatch-list-heading { color: #254740; font-size: 16px; font-weight: 700; }.dispatch-list-heading text:last-child { color: #72837f; font-size: 13px; font-weight: 400; }
 .dispatch-order-card { min-height: 100px; border-radius: 8px; }.dispatch-order-card .flow-time, .task-overview-row .flow-time { margin-top: 5px; }.selected-order-summary { display: grid; gap: 6px; padding: 14px; border: 1px solid #c8dfda; border-radius: 8px; background: #f3faf8; color: #56716b; font-size: 13px; }.selected-order-summary text:first-child { color: #1e4841; font-size: 16px; font-weight: 700; }
-.field { display: grid; gap: 8px; }.field > text { color: #405a55; font-size: 14px; font-weight: 700; }.nurse-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }.nurse-choice-grid .choice-button { width: 100%; min-height: 42px; }.dispatch-submit { width: 100%; min-height: 44px; border-radius: 6px; }.task-overview { display: grid; gap: 10px; padding-top: 4px; }.task-overview-row { min-height: 96px; border-radius: 8px; }.compact-empty { display: block; box-sizing: border-box; width: 100%; min-height: 72px; padding: 18px; border-radius: 8px; line-height: 1.6; }.success-banner, .error-banner { border-radius: 6px; }
+.field { display: grid; gap: 8px; }.field > text { color: #405a55; font-size: 14px; font-weight: 700; }.nurse-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }.nurse-choice-grid .choice-button { width: 100%; min-height: 42px; }.demo-nurse-note { padding:10px 12px; border-left:3px solid #d29a3c; background:#fff8e8; color:#76551c; font-size:12px; line-height:1.55; }.dispatch-submit { width: 100%; min-height: 44px; border-radius: 6px; }.task-overview { display: grid; gap: 10px; padding-top: 4px; }.task-overview-row { min-height: 96px; border-radius: 8px; }.compact-empty { display: block; box-sizing: border-box; width: 100%; min-height: 72px; padding: 18px; border-radius: 8px; line-height: 1.6; }.success-banner, .error-banner { border-radius: 6px; }
 @media (max-width: 900px) { .dispatch-clean-workbench { grid-template-columns: 1fr; }.nurse-choice-grid { grid-template-columns: 1fr; } }
 </style>

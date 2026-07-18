@@ -426,4 +426,6 @@ onBeforeUnmount(() => {
 .material-warning { margin-top:10px; padding:10px 12px; border-left:3px solid #d59b32; background:#fff8e9; color:#795718; font-size:12px; line-height:1.5; }
 @media (max-width:1100px) { .workbench-grid { grid-template-columns:280px minmax(0,1fr); }.decision-pane { grid-column:1 / -1; border-top:1px solid #e0e9e7; }.detail-pane { border-right:0; } }
 @media (max-width:760px) { .workbench-header { align-items:flex-start; }.workbench-grid { grid-template-columns:1fr; }.application-pane,.detail-pane { border-right:0; border-bottom:1px solid #e0e9e7; }.decision-pane { grid-column:auto; }.identity-summary { grid-template-columns:1fr; }.decision-options { grid-template-columns:1fr; }.proof-item { align-items:flex-start; flex-direction:column; }.proof-item button { width:100%; }.pane-empty.spacious { min-height:150px; } }
+@media (min-width:761px) { .application-list { max-height:calc(100vh - 340px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; } }
+@media (max-width:760px) { .application-list { max-height:min(48vh,460px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; } }
 </style>

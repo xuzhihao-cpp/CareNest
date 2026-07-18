@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import StageTwentyNineRecommendationPanel from '@/components/StageTwentyNineRecommendationPanel.vue';
 import StageThirtyAdminPreferenceSummary from '@/components/StageThirtyAdminPreferenceSummary.vue';
 import StageThirtyOneAttentionPanel from '@/components/StageThirtyOneAttentionPanel.vue';
+import StageTwelveDispatchPanel from '@/components/StageTwelveDispatchPanel.vue';
+import StageSeventeenOrderChangePanel from '@/components/StageSeventeenOrderChangePanel.vue';
 import { createLatestRequestGate } from '@/utils/latestRequestGate';
 import {
   getAdminOrderDetail,
@@ -187,13 +189,19 @@ function clearFilters() {
   loadOrders();
 }
 
+function handleOrdersUpdated() {
+  void loadOrders();
+}
+
 onMounted(() => {
   loadOrders();
+  uni.$on('carenest-orders-updated', handleOrdersUpdated);
 });
 
 onBeforeUnmount(() => {
   listRequestGate.invalidate();
   detailRequestGate.invalidate();
+  uni.$off('carenest-orders-updated', handleOrdersUpdated);
 });
 </script>
 
@@ -310,6 +318,24 @@ onBeforeUnmount(() => {
           v-else-if="selectedDetail && attentionReviewAvailable(selectedDetail.orderStatus)"
           class="recommendation-access-note"
         >当前账号无权审阅服务前注意事项。</view>
+        <view v-if="selectedDetail && props.roleCode === 'ADMIN'" class="order-management-actions">
+          <view class="order-management-heading"><text>订单处理</text><text>在当前订单内完成派单和取消操作。</text></view>
+          <StageTwelveDispatchPanel
+            v-if="selectedDetail.orderStatus === 'WAIT_DISPATCH'"
+            embedded
+            :embedded-order-id="selectedDetail.orderId"
+            role-code="ADMIN"
+            :auth-user="props.authUser"
+            :can-view-recommendations="props.canViewRecommendations"
+          />
+          <StageSeventeenOrderChangePanel
+            v-if="['WAIT_DISPATCH', 'DISPATCHED', 'ACCEPTED', 'ON_THE_WAY'].includes(selectedDetail.orderStatus)"
+            embedded
+            :embedded-order-id="selectedDetail.orderId"
+            role-code="ADMIN"
+            :auth-user="props.authUser"
+          />
+        </view>
       </view>
     </view>
 
@@ -319,4 +345,5 @@ onBeforeUnmount(() => {
 <style scoped>
 .recommendation-access-note { padding:14px 16px; border-left:4px solid #c98e34; background:#fff8e8; color:#755417; font-size:13px; line-height:1.6; }
 .stage-eleven-panel :deep(.attention-panel) { margin-top:18px; padding:20px; border:1px solid #d5e3df; background:#fbfdfc; }
+.order-management-actions { display:grid; gap:12px; margin-top:18px; padding-top:18px; border-top:1px solid #d8e6e2; }.order-management-heading { display:grid; gap:4px; }.order-management-heading text:first-child { color:#173c37; font-size:17px; font-weight:800; }.order-management-heading text:last-child { color:#667b75; font-size:13px; }
 </style>
